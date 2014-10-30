@@ -1,7 +1,6 @@
 module eos
 export EOS, SimpleEOS, PiecewiseEOS, mgsio3, fe, h2o, call
 using ogre.common, Grid
-import Base.call
 
 abstract EOS <: Equation
 
@@ -25,8 +24,8 @@ function get_layer_eos(eos::PiecewiseEOS, m::Float64)
             println("m became smaller than 0")
             return eos.equations[1]::SimpleEOS
         elseif m <= layer_end
-            return eos.equations[layer_num]
-        elseif m > layer_edges[end]::SimpleEOS
+            return eos.equations[layer_num]::SimpleEOS
+        elseif m > layer_edges[end]
             # outer layer boundary
             return eos.equations[end]::SimpleEOS
         end
@@ -73,7 +72,7 @@ h2o_func(P) = yi[log10(P)]
 h2o = SimpleEOS(h2o_func)
 
 # density retrieval functions for EOS in particular
-# the basic case call(SimpleEOS, P) is already covered since it's a Callable
+import ogre.common.call
 
 function call(eos::SimpleEOS, vs::ValueSet)
     call(eos, vs.P)

@@ -15,7 +15,10 @@ include("structure.jl")
 
 # bring names into the namespace and then reexport them
 using Reexport
-@reexport using ogre.common, ogre.constants, ogre.eos, ogre.integrator
+@reexport using ogre.common
+@reexport using ogre.constants
+@reexport using ogre.eos
+@reexport using ogre.integrator
 @reexport using ogre.structure
 
 end

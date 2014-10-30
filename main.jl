@@ -2,9 +2,9 @@ using ogre
 
 # fixed parameters
 const P_surface = 1e5
-const layer_densities = [fe, mgsio3, h2o]
-const mass_fractions = [1/3, 1/2, 1/6]
-const total_points = 50
+const layer_densities = [fe, mgsio3]
+const mass_fractions = [1/3, 2/3]
+const total_points = 200
 const R_bracket = [0., 5.] .* R_earth
 
 function r(M)
@@ -28,7 +28,8 @@ end
 
 @vectorize_1arg Real r
 
-ms = linspace(0.01, 10, 20) .* M_earth
+@time r(M_earth) # compile it
+ms = linspace(0.01, 10, 50) .* M_earth
 @time rs = r(ms)
 
 # python packages

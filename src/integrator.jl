@@ -1,7 +1,6 @@
 module integrator
 export BoundaryValues, ODESystem, solve, zero, copy, get_radius
 using ogre.common, ogre.constants
-import Base.copy
 
 # Mass coordinates and other values
 
@@ -17,6 +16,7 @@ type ODESystem
     boundary_values::BoundaryValues
 end
 
+import Base.copy
 copy(sys::ODESystem) = ODESystem(sys.equations, sys.boundary_values)
 
 type ODESolution

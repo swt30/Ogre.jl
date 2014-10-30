@@ -1,6 +1,5 @@
 module common
 export Callable, Equation, EquationSet, ValueSet, call, datadir
-import Base.call
 
 abstract Callable
 abstract Equation <: Callable
