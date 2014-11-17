@@ -1,5 +1,8 @@
-using ogre
-using Base.Test
+using FactCheck
+using Lint
 
-# write your own tests here
-@test 1 == 1
+facts("OGRE package tests") do
+    include("test_eos.jl")
+    include("test_structure.jl")
+    include("test_integrator.jl")
+end

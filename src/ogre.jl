@@ -1,6 +1,6 @@
 module ogre
 
-# add the package directory to the path so that we can find the
+# add the package directory to the path so that we can find submodules
 SRC_PATH = Base.source_path() |> dirname
 if !(SRC_PATH in LOAD_PATH)
     push!(LOAD_PATH, Base.source_path() |> dirname)

@@ -1,5 +1,6 @@
 module common
-export Callable, Equation, EquationSet, ValueSet, call, datadir
+export Callable, Equation, EquationSet, ValueSet, call, datadir, zero
+import Base.zero
 
 abstract Callable
 abstract Equation <: Callable
@@ -15,6 +16,8 @@ type ValueSet
     r::Float64
     P::Float64
 end
+
+zero(::Type{ValueSet}) = ValueSet(0, 0, 0)
 
 function call(eq::Equation, x::Float64)
     eq.equation(x)

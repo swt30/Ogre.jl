@@ -15,7 +15,7 @@ type PiecewiseEOS <: EOS
     transition_masses::Vector{Float64}
 end
 
-function get_layer_eos(eos::PiecewiseEOS, m::Float64)
+function get_layer_eos(eos::PiecewiseEOS, m::Real)
     # get layer number
     layer_edges = eos.transition_masses
     for (layer_num, layer_end) in enumerate(layer_edges[2:end])
@@ -37,7 +37,7 @@ n_eqs(eos::SimpleEOS) = 1
 
 # polytropic EOS
 
-function mgsio3_func(P::Float64)
+function mgsio3_func(P::Real)
     if P > 0
         return 4260. + 0.00127*(P^0.549)
     else
@@ -45,7 +45,7 @@ function mgsio3_func(P::Float64)
     end
 end
 
-function fe_func(P::Float64)
+function fe_func(P::Real)
     if P > 0
         return 8300. + 0.00349*(P^0.528)
     else
