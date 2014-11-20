@@ -1,6 +1,5 @@
 # Packages required for ogre.jl
 julia 0.3-
-FactCheck
-Grid
-Reexport
-Lint
+FactCheck         # nicer for testing
+Grid              # interpolation
+Reexport          # make it easier to do submodules
