@@ -8,7 +8,7 @@ end
 
 function mass_continuity(vs::ValueSet, eos::EOS)
     m, r, P = vs.m, vs.r, vs.P
-    rho = call(eos, vs)
+    rho = callfunc(eos, vs)
 
     dr_dm::Float64 = 0.
 

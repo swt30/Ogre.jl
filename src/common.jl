@@ -1,5 +1,5 @@
 module common
-export Callable, Equation, EquationSet, ValueSet, call, datadir, zero
+export Callable, Equation, EquationSet, ValueSet, callfunc, datadir, zero
 import Base.zero
 
 abstract Callable
@@ -19,20 +19,20 @@ end
 
 zero(::Type{ValueSet}) = ValueSet(0, 0, 0)
 
-function call(eq::Equation, x::Float64)
+function callfunc(eq::Equation, x::Float64)
     eq.equation(x)
 end
 
-function call(eq::Equation, vs::ValueSet)
+function callfunc(eq::Equation, vs::ValueSet)
     eq.equation(vs)
 end
 
-function call(es::EquationSet, vs::ValueSet)
-    [call(equation, vs) for equation in es.equations]
+function callfunc(es::EquationSet, vs::ValueSet)
+    [callfunc(equation, vs) for equation in es.equations]
 end
 
-function call(cl::Callable, t::Float64, y::Vector{Float64})
-    call(cl, ValueSet(t, y...))
+function callfunc(cl::Callable, t::Float64, y::Vector{Float64})
+    callfunc(cl, ValueSet(t, y...))
 end
 
 datadir() = Pkg.dir("ogre", "data")

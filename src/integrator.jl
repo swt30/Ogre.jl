@@ -28,7 +28,8 @@ zero(::Type{ODESolution}) = ODESolution([0.], [0. 0.])
 
 # Stepper function for doing a single step of the integration
 function solve_step(ode::ODESystem, t_grid::Vector{Float64})
-    ode_func(t::Float64, y::Vector{Float64}) = call(ode.equations, t, y)
+    # should be able to overload the call method here eventually
+    ode_func(t::Float64, y::Vector{Float64}) = callfunc(ode.equations, t, y)
 
     boundary = ode.boundary_values
     y_start::Vector{Float64} = initial_values(boundary)

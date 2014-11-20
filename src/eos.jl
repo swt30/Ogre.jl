@@ -1,5 +1,5 @@
 module eos
-export EOS, SimpleEOS, PiecewiseEOS, mgsio3, fe, h2o, call
+export EOS, SimpleEOS, PiecewiseEOS, mgsio3, fe, h2o, callfunc
 using ogre.common, Grid
 
 abstract EOS <: Equation
@@ -8,6 +8,7 @@ abstract EOS <: Equation
 
 type SimpleEOS <: EOS
     equation::Function
+    name::String
 end
 
 type PiecewiseEOS <: EOS
@@ -37,26 +38,19 @@ n_eqs(eos::SimpleEOS) = 1
 
 # polytropic EOS
 
-function mgsio3_func(P::Real)
-    if P > 0
-        return 4260. + 0.00127*(P^0.549)
-    else
-        return 4260.
-    end
-end
+mgsio3_func(P::Real) = 4100. + 0.00161*(P^0.541)
+fe_func(P::Real) = 8300. + 0.00349*(P^0.528)
+h2o_func(P::Real) = 1460. + 0.00311*(P^0.513)
+graphite_func(P::Real) = 2250. + 0.00350*(P^0.514)
+sic_func(P::Real) = 3220. + 0.00172*(P^0.537)
 
-function fe_func(P::Real)
-    if P > 0
-        return 8300. + 0.00349*(P^0.528)
-    else
-        return 8300.
-    end
-end
+mgsio3 = SimpleEOS(mgsio3_func, "MgSiO3")
+fe = SimpleEOS(fe_func, "Fe")
+h2o = SimpleEOS(h2o_func, "H2O")
+graphite = SimpleEOS(graphite_func, "Graphite")
+sic = SimpleEOS(sic_func, "SiC")
 
-mgsio3 = SimpleEOS(mgsio3_func)
-fe = SimpleEOS(fe_func)
-
-# tabular H2O EOS
+# my tabular H2O EOS
 
 f = readdlm("$(datadir())/h2o.dat")
 
@@ -67,20 +61,20 @@ y = vec(f[:, 2])
 
 logrange = linrange(log10(a), log10(b), length(x))
 yi = CoordInterpGrid(logrange, y, BCnan, InterpQuadratic)
-h2o_func(P) = yi[log10(P)]
+my_h2o_func(P) = yi[log10(P)]
 
-h2o = SimpleEOS(h2o_func)
+my_h2o = SimpleEOS(my_h2o_func)
 
 # density retrieval functions for EOS in particular
-import ogre.common.call
+import ogre.common.callfunc
 
-function call(eos::SimpleEOS, vs::ValueSet)
-    call(eos, vs.P)
+function callfunc(eos::SimpleEOS, vs::ValueSet)
+    callfunc(eos, vs.P)
 end
 
-function call(eos::PiecewiseEOS, vs::ValueSet)
+function callfunc(eos::PiecewiseEOS, vs::ValueSet)
     single_eos = get_layer_eos(eos, vs.m)
-    call(single_eos, vs.P)
+    callfunc(single_eos, vs.P)
 end
 
 end
