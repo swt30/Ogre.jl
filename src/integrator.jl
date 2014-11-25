@@ -19,21 +19,21 @@ end
 
 copy(sys::ODESystem) = ODESystem(sys.equations, sys.boundary_values)
 
-type ODESolution
-    t::Vector{Float64}
-    y::Array{Float64, 2}
+type ODESolution{T<:Real}
+    t::Vector{T}
+    y::Array{T, 2}
 end
 
 zero(::Type{ODESolution}) = ODESolution([0.], [0. 0.])
 
 # Stepper function for doing a single step of the integration
-function solve_step(ode::ODESystem, t_grid::Vector{Float64})
+function solve_step{T<:Real}(ode::ODESystem, t_grid::Vector{T})
     # should be able to overload the call method here eventually
-    ode_func(t::Float64, y::Vector{Float64}) = callfunc(ode.equations, t, y)
+    ode_func(t::T, y::Vector{T}) = callfunc(ode.equations, t, y)
 
     boundary = ode.boundary_values
-    y_start::Vector{Float64} = initial_values(boundary)
-    t_start::Float64 = mass_coordinate(boundary)
+    y_start::Vector{T} = initial_values(boundary)
+    t_start::T = mass_coordinate(boundary)
 
     yn = y_start
     tn = t_start
@@ -87,7 +87,7 @@ function solve!(ode::ODESystem, soln::ODESolution, t_grid::Vector{Float64},
     return soln
 end
 
-function solve(ode::ODESystem, t_grid::Vector{Float64})
+function solve{T<:Real}(ode::ODESystem, t_grid::Vector{T})
     t, y, soln = solve_prep(ode, t_grid)
     soln = solve!(ode, soln, t_grid, t, y)
 end
@@ -96,9 +96,9 @@ end
 notnan(arr) = ~isnan(arr)
 dropna(arr::Array) = filter(notnan, arr)
 
-function solve_for_radius!(system::ODESystem,
-                           solution_grid::Vector{Float64},
-                           R_bracket::Vector{Float64})
+function solve_for_radius!{T<:Real}(system::ODESystem,
+                                    solution_grid::Vector{T},
+                                    R_bracket::Vector{T})
     R_low, R_high = R_bracket
     done = false
     result = zero(ODESolution)
@@ -126,35 +126,34 @@ function solve_for_radius!(system::ODESystem,
     end
 end
 
-function setup_system(M::Float64, R::Float64,
-                      P_surface::Float64, structure_equations::EquationSet)
+function setup_system{T<:Real}(M::T, R::T, P_surface::T,
+                               structure::EquationSet)
     # boundary conditions and ODE setup
     bv = BoundaryValues(M, R, P_surface)
-    system = ODESystem(structure_equations, bv)
+    system = ODESystem(structure, bv)
 end
 
-function get_radius(system::ODESystem,
-                    solution_grid::Vector{Float64},
-                    R_bracket::Vector{Float64})
+function get_radius{T<:Real}(system::ODESystem,
+                             solution_grid::Vector{T},
+                             R_bracket::Vector{T})
     R, _ = solve_for_radius!(system, solution_grid, R_bracket)
-    return R::Float64
+    return R::T
 end
 
-function get_radius(M::Float64,
-                    structure_equations::EquationSet,
-                    P_surface::Float64,
-                    solution_grid::Vector{Float64},
-                    R_bracket::Vector{Float64})
+function get_radius{T<:Real}(M::T,
+                             structure::EquationSet,
+                             P_surface::T,
+                             solution_grid::Vector{T},
+                             R_bracket::Vector{T})
     R_guess = mean(R_bracket)
-    system = setup_system(M, R_guess, P_surface,
-                          structure_equations)
-    R::Float64 = get_radius(system, solution_grid, R_bracket)
+    system = setup_system(M, R_guess, P_surface, structure)
+    R::T = get_radius(system, solution_grid, R_bracket)
 end
 
 # numerical methods
 
 # a simple RK4 step
-function ode4(F::Function, x0::Vector{Float64}, tstart, tend)
+function ode4{T<:Real}(F::Function, x0::Vector{T}, tstart, tend)
     h = tend - tstart
     n_steps = 2
     xnew = copy(x0)

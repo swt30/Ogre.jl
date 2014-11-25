@@ -1,5 +1,5 @@
 module structure
-export StructureEquation, EquationSet, mass_continuity, pressure_balance
+export StructureEquation, mass_continuity, pressure_balance
 using ogre.common, ogre.eos, ogre.constants
 
 type StructureEquation <: Equation

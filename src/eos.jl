@@ -22,7 +22,6 @@ function get_layer_eos(eos::PiecewiseEOS, m::Real)
     for (layer_num, layer_end) in enumerate(layer_edges[2:end])
         if m < 0
             # inner layer boundary
-            println("m became smaller than 0")
             return eos.equations[1]::SimpleEOS
         elseif m <= layer_end
             return eos.equations[layer_num]::SimpleEOS
@@ -63,7 +62,7 @@ logrange = linrange(log10(a), log10(b), length(x))
 yi = CoordInterpGrid(logrange, y, BCnan, InterpQuadratic)
 my_h2o_func(P) = yi[log10(P)]
 
-my_h2o = SimpleEOS(my_h2o_func)
+my_h2o = SimpleEOS(my_h2o_func, "H2O-complete")
 
 # density retrieval functions for EOS in particular
 import ogre.common.callfunc

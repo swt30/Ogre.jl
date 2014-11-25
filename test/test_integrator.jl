@@ -2,6 +2,10 @@ using ogre.common
 using ogre.integrator
 using FactCheck
 
-context("Integrator methods") do
-    nothing
+facts("Integrator tests") do
+
+    context("Integrator methods") do
+        nothing
+    end
+
 end

@@ -2,6 +2,8 @@ using ogre.common
 using ogre.structure
 using FactCheck
 
-context("Structure equation methods") do
-    nothing
+facts("Structure equations") do
+    context("Structure equation methods") do
+        nothing
+    end
 end
