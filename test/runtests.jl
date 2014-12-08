@@ -11,3 +11,4 @@ using Lint
 println("Linting...")
 lintpkg("ogre")
 
+FactCheck.exitstatus()

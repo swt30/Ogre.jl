@@ -1,5 +1,6 @@
 module common
 export Callable, Equation, EquationSet, ValueSet, callfunc, datadir, zero
+export wait_until_enter
 import Base.zero
 
 abstract Callable
@@ -11,15 +12,15 @@ end
 
 n_eqs(es::EquationSet) = length(es.equations)
 
-type ValueSet
-    m::Float64
-    r::Float64
-    P::Float64
+type ValueSet{T<:Real}
+    m::T
+    r::T
+    P::T
 end
 
 zero(::Type{ValueSet}) = ValueSet(0, 0, 0)
 
-function callfunc(eq::Equation, x::Float64)
+function callfunc(eq::Equation, x::Real)
     eq.equation(x)
 end
 
@@ -31,10 +32,15 @@ function callfunc(es::EquationSet, vs::ValueSet)
     [callfunc(equation, vs) for equation in es.equations]
 end
 
-function callfunc(cl::Callable, t::Float64, y::Vector{Float64})
+function callfunc{T<:Real}(cl::Callable, t::T, y::Vector{T})
     callfunc(cl, ValueSet(t, y...))
 end
 
 datadir() = Pkg.dir("ogre", "data")
+
+function wait_until_enter()
+    print("Press ENTER to continue...")
+    readline()
+end
 
 end

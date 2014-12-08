@@ -1,46 +1,51 @@
 module integrator
-export BoundaryValues, ODESystem, solve, zero, copy, get_radius
+export BoundaryValues, PlanetSystem, PlanetStructure
+export zero, copy, find_radius, find_radius!, solve
 using ogre.common, ogre.constants
 import Base.copy, Base.zero
 
-# Mass coordinates and other values
+#= Mass coordinates and other values =#
 
-initial_values(vs::ValueSet) = [vs.r, vs.P]
-mass_coordinate(vs::ValueSet) = vs.m
+initial_values{T<:Real}(vs::ValueSet{T}) = [vs.r, vs.P]::Vector{T}
+mass_coordinate(vs::ValueSet) = vs.m::Real
 
-# Boundary values and ODE
+#= Types that ddefine the planetary structure and the problem =#
 
 typealias BoundaryValues ValueSet
 
-type ODESystem
-    equations::EquationSet
+type PlanetSystem{T<:Real}
+    M::T
+    structure_equations::EquationSet
     boundary_values::BoundaryValues
+    solution_grid::Vector{T}
+    radius_search_bracket::Vector{T}
 end
 
-copy(sys::ODESystem) = ODESystem(sys.equations, sys.boundary_values)
-
-type ODESolution{T<:Real}
-    t::Vector{T}
-    y::Array{T, 2}
+type PlanetStructure{T<:Real}
+    m::Vector{T}
+    y::Matrix{T}
 end
 
-zero(::Type{ODESolution}) = ODESolution([0.], [0. 0.])
+zero(::Type{PlanetStructure}) = PlanetStructure([0.], [0. 0.])
 
-# Stepper function for doing a single step of the integration
-function solve_step{T<:Real}(ode::ODESystem, t_grid::Vector{T})
+#= Functions to actually solve the structure, given boundary conditions =#
+
+# stepper task for doing the integration
+function stepper(sys::PlanetSystem)
     # should be able to overload the call method here eventually
-    ode_func(t::T, y::Vector{T}) = callfunc(ode.equations, t, y)
+    ode_func{T<:Real}(t::T, y::Vector{T}) = callfunc(sys.structure_equations,
+                                                     t, y)
 
-    boundary = ode.boundary_values
-    y_start::Vector{T} = initial_values(boundary)
-    t_start::T = mass_coordinate(boundary)
+    boundary = sys.boundary_values
+    ystart = initial_values(boundary)
+    tstart = mass_coordinate(boundary)
+    tn = sys.solution_grid[1]
 
-    yn = y_start
-    tn = t_start
+    F, yn, k = ode4_setup(ode_func, ystart)
 
-    produce((t_start, y_start))
-    for tnext in t_grid[2:end]
-        yn = ode4(ode_func, yn, tn, tnext)
+    produce((tstart, yn))
+    for tnext in sys.solution_grid[2:end]
+        ode4!(F, yn, k, tn, tnext)
         tn = tnext
         if should_halt(tn, yn)
             # give us one more value and then stop
@@ -52,124 +57,127 @@ function solve_step{T<:Real}(ode::ODESystem, t_grid::Vector{T})
     end
 end
 
-function should_halt(t, y)
-    # if the radius drops below zero, we halt there
-    if y[1] < 0
+# callback function to tell if the integration should stop
+function should_halt{T<:Real}(t::T, y::Vector{T})
+    # if the radius or mass drops below zero, we halt there
+    if y[1] < 0 || t < 0
         return true
     else
         return false
     end
 end
 
-# Functions to actually solve an ODESystem
-
-function solve_prep(ode::ODESystem, t_grid::Vector{Float64})
+# generating blank solutions
+function blank_structure(sys::PlanetSystem)
     # array setup
-    n_points = length(t_grid)
+    n_points = length(sys.solution_grid)
     t = fill(NaN, n_points)
     y = fill(NaN, (n_points, 2))
-    solution = zero(ODESolution)
-    return t, y, solution
+    solution = PlanetStructure(t, y)
+
+    solution
 end
 
-function solve!(ode::ODESystem, soln::ODESolution, t_grid::Vector{Float64},
-                t::Vector{Float64}, y::Array{Float64, 2})
+# solve and write to a given solution object
+function solve!(sys::PlanetSystem, soln::PlanetStructure)
     # make an integrator stepper and run it
-    stepper = @task solve_step(ode, t_grid)
-    for (i, x) in enumerate(stepper)
-        t[i] = x[1]
-        y[i, :] = x[2]
+    steppertask = @task stepper(sys)
+    for (i, x) in enumerate(steppertask)
+        soln.m[i] = x[1]
+        soln.y[i, :] = x[2]
     end
-
-    soln.t = t
-    soln.y = y
-
-    return soln
 end
 
-function solve{T<:Real}(ode::ODESystem, t_grid::Vector{T})
-    t, y, soln = solve_prep(ode, t_grid)
-    soln = solve!(ode, soln, t_grid, t, y)
+# generate a new solution object and solve
+function solve(sys::PlanetSystem)
+    soln = blank_structure(sys)
+    solve!(sys, soln)
+
+    soln
 end
 
-# a couple of tools for use in the radius solution
+#= functions to get a radius for a structure =#
+
+# helper functions
 notnan(arr) = ~isnan(arr)
-dropna(arr::Array) = filter(notnan, arr)
+dropnans(arr::Array) = filter(notnan, arr)
 
-function solve_for_radius!{T<:Real}(system::ODESystem,
-                                    solution_grid::Vector{T},
-                                    R_bracket::Vector{T})
-    R_low, R_high = R_bracket
+# iterate to get a radius that is suitable
+function find_radius!(system::PlanetSystem)
+    R_low, R_high = system.radius_search_bracket
     done = false
-    result = zero(ODESolution)
+    result = zero(PlanetStructure)
 
     while !done
         # choose a radius
         R_guess = (R_low + R_high) / 2
-
-        # set up a new planet system with different radius
         system.boundary_values.r = R_guess
 
-        # solve the system
-        result = solve(system, solution_grid)
-        radii = result.y[:, 1] |> dropna
+        # solve the system for that radius
+        result = solve(system)
+        radii = result.y[:, 1] |> dropnans
         final_radius = radii[end]
 
+        # rinse and repeat
         if final_radius < 0
             R_low = R_guess
         elseif final_radius > 100
             R_high = R_guess
         else
             done = true
-            return R_guess, result
+            return R_guess
         end
     end
 end
 
-function setup_system{T<:Real}(M::T, R::T, P_surface::T,
-                               structure::EquationSet)
+# set up a planetary system
+function setup_find_radius{T<:Real}(M::T,
+                                    R::T,
+                                    P_surface::T,
+                                    struct::EquationSet,
+                                    solution_grid::Vector{T},
+                                    R_bracket::Vector{T})
     # boundary conditions and ODE setup
     bv = BoundaryValues(M, R, P_surface)
-    system = ODESystem(structure, bv)
+    system = PlanetSystem(M, struct, bv, solution_grid, R_bracket)
 end
 
-function get_radius{T<:Real}(system::ODESystem,
-                             solution_grid::Vector{T},
-                             R_bracket::Vector{T})
-    R, _ = solve_for_radius!(system, solution_grid, R_bracket)
-    return R::T
-end
-
-function get_radius{T<:Real}(M::T,
-                             structure::EquationSet,
-                             P_surface::T,
-                             solution_grid::Vector{T},
-                             R_bracket::Vector{T})
+# create a system and find an appropriate radius
+function find_radius{T<:Real}(M::T,
+                              structure::EquationSet,
+                              P_surface::T,
+                              solution_grid::Vector{T},
+                              R_bracket::Vector{T})
     R_guess = mean(R_bracket)
-    system = setup_system(M, R_guess, P_surface, structure)
-    R::T = get_radius(system, solution_grid, R_bracket)
+    system = setup_system(M, R_guess, P_surface, structure,
+                          solution_grid, R_bracket)
+    R::T = find_radius!(system)
 end
 
-# numerical methods
+#= NUMERICAL METHODS =#
 
-# a simple RK4 step
-function ode4{T<:Real}(F::Function, x0::Vector{T}, tstart, tend)
-    h = tend - tstart
-    n_steps = 2
-    xnew = copy(x0)
+# set up arrays for fast ODE solving
+function ode4_setup{T<:Real}(F::Function, x::Vector{T})
+    xnew::Vector{T} = copy(x)
+    k::Matrix{T} = zeros(length(xnew), 4)
+    F, xnew, k
+end
 
-    k = Array(typeof(x0), 4)
+# a single RK4 step
+function ode4!{T<:Real}(F::Function, x::Vector{T}, k::Matrix{T},
+                        tstart::T, tend::T)
+    h::T = tend - tstart
+
     # Beginning derivative
-    k[1] = h*F(tstart,        x0)
+    k[:,1] = h*F(tstart,        x)
     # Midstep derivatives
-    k[2] = h*F(tstart + h./2, x0 + k[1]./2)
-    k[3] = h*F(tstart + h./2, x0 + k[2]./2)
+    k[:,2] = h*F(tstart + h./2, x + k[:,1]./2)
+    k[:,3] = h*F(tstart + h./2, x + k[:,2]./2)
     # Ending derivative
-    k[4] = h*F(tstart + h,    x0 + k[3])
+    k[:,4] = h*F(tstart + h,    x + k[:,3])
 
-    # Integrate
-    xnew = x0 + k[1]./6 + k[2]./3 + k[3]./3 + k[4]./4
+    # Integrate and change the x array
+    x[:] += k[:,1]./6 + k[:,2]./3 + k[:,3]./3 + k[:,4]./4
 end
-
 
 end

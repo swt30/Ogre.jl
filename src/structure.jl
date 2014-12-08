@@ -10,25 +10,25 @@ function mass_continuity(vs::ValueSet, eos::EOS)
     m, r, P = vs.m, vs.r, vs.P
     rho = callfunc(eos, vs)
 
-    dr_dm::Float64 = 0.
+    dr_dm = 0.
 
     if r > 0
         dr_dm = 1 / (4 * pi * r^2 * rho)
     end
 
-    dr_dm
+    dr_dm::Float64
 end
 
 function pressure_balance(vs::ValueSet)
     m, r, P = vs.m, vs.r, vs.P
 
-    dP_dm::Float64 = 0.
+    dP_dm = 0.
 
     if r > 0
         dP_dm = -(G * m) / (4 * pi * r^4)
     end
 
-    dP_dm
+    dP_dm::Float64
 end
 
 end

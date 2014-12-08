@@ -1,8 +1,10 @@
-using ogre, PyCall, PyPlot
+using ogre, PyCall, LaTeXStrings
+pygui()
 
 # plot setup for Python
 style = pyimport("matplotlib.style") # no @pyimport for now (Lint complains)
-style[:use]("fivethirtyeight") # clean up this once dot-overloading is allowed
+plt = pyimport("matplotlib.pyplot")
+style[:use]("ggplot") # clean up this once dot-overloading is allowed
 
 # constants
 const P_surface = 1.0e5
@@ -13,14 +15,7 @@ const R_bracket = [0., 15.] .* R_earth
 # this equation does not change with composition
 const pressure_balance_eq = StructureEquation(pressure_balance)
 
-# fix some variables into the radius finding function
-import ogre.integrator.get_radius
-function get_radius(M::Real, structure_equations::EquationSet)
-    get_radius(M, structure_equations, P_surface, solution_grid, R_bracket)
-end
-
-# radius finder for a solid sphere
-function R(M::Real, eos::EOS)
+function setup_system(M::Real, eos::EOS)
     # planet layer options
     layer_densities = [eos]
     layer_edges = [0, cumsum(M.*mass_fractions)]
@@ -30,13 +25,20 @@ function R(M::Real, eos::EOS)
     solution_grid = linspace(m_outer, m_inner, total_points)
 
     # density-dependent equations change if layers or the EOS change
-    density_profile = PiecewiseEOS(layer_densities, layer_edges)
+    density_profile = MassPiecewiseEOS(layer_densities, layer_edges)
     mass_continuity_with_eos(vs) = mass_continuity(vs, density_profile)
     mass_continuity_eq = StructureEquation(mass_continuity_with_eos)
     structure_equations = EquationSet([mass_continuity_eq,
                                        pressure_balance_eq])
 
-    get_radius(M, structure_equations, P_surface, solution_grid, R_bracket)
+    integrator.setup_find_radius(m_outer, mean(R_bracket), P_surface,
+                                 structure_equations, solution_grid, R_bracket)
+end
+
+# radius finder for a solid sphere
+function R(M::Real, eos::EOS)
+    planet_system = setup_system(M, eos)
+    find_radius!(planet_system)
 end
 
 # vectorized form of the above
@@ -47,32 +49,42 @@ function R{T<:Real}(ms::Vector{T}, eos::EOS)
 end
 
 function main()
-    ms = logspace(-1, 4, 50) .* M_earth
+    ms = linspace(0.1, 10) .* M_earth
 
-    for el in [h2o, mgsio3, fe]
+    for el in [eos.fe, eos.fe_seager,
+               eos.h2o, eos.h2o_seager,
+               eos.mgsio3, eos.mgsio3_seager]
         @time rs = R(ms, el)
-        plot(ms ./ M_earth, rs ./ R_earth, label=el.name)
+        plt[:plot](ms ./ M_earth, rs ./ R_earth, label=el.fullname)
     end
 
-    ax = gca()
+    mh1 = readdlm("data/MR_fe.out"; skipstart=1)
+    mh2 = readdlm("data/MR_perovskite.out"; skipstart=1)
+    mh3 = readdlm("data/MR_h2o.out"; skipstart=1)
+
+    plt[:plot](mh1[:, 1], mh1[:, 2], label="Fe (Madhu)")
+    plt[:plot](mh2[:, 1], mh2[:, 2], label="MgSiO3 pv (Madhu)")
+    plt[:plot](mh3[:, 1], mh3[:, 2], label="H2O (Madhu)")
+
+    ax = plt[:gca]()
     ax[:set_xlabel](L"Mass / M$_\oplus$")
     ax[:set_ylabel](L"Radius / R$_\oplus$")
-    ax[:set_xlim]((0.1, 4000))
-    ax[:set_ylim]((0.3, 11))
-    ax[:set_xscale]("log")
-    ax[:set_yscale]("log")
+    ax[:set_xlim]((0.1, 10))
+    ax[:set_ylim]((0.3, 3))
+    ax[:set_xscale]("linear")
+    ax[:set_yscale]("linear")
     xax = ax[:get_xaxis]()
     yax = ax[:get_yaxis]()
 
-    legend(loc=0)
+    plt[:legend](loc=0)
 
     ticker = pyimport("matplotlib.ticker")
     ScalarFormatter = ticker[:ScalarFormatter]
     xax[:set_major_formatter](ScalarFormatter())
     yax[:set_major_formatter](ScalarFormatter())
-    tight_layout()
+    plt[:tight_layout]()
 
-    show()
+    plt[:show]()
 end
 
 main()
