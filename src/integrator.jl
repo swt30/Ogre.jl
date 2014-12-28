@@ -9,7 +9,7 @@ import Base.copy, Base.zero
 initial_values{T<:Real}(vs::ValueSet{T}) = [vs.r, vs.P]::Vector{T}
 mass_coordinate(vs::ValueSet) = vs.m::Real
 
-#= Types that ddefine the planetary structure and the problem =#
+#= Types that define the planetary structure and the problem =#
 
 typealias BoundaryValues ValueSet
 
@@ -106,7 +106,7 @@ dropnans(arr::Array) = filter(notnan, arr)
 function find_radius!(system::PlanetSystem)
     R_low, R_high = system.radius_search_bracket
     done = false
-    result = zero(PlanetStructure)
+    result = blank_structure(system)
 
     while !done
         # choose a radius
@@ -151,6 +151,7 @@ function find_radius{T<:Real}(M::T,
     R_guess = mean(R_bracket)
     system = setup_system(M, R_guess, P_surface, structure,
                           solution_grid, R_bracket)
+    radius = zero(PlanetStructure)
     R::T = find_radius!(system)
 end
 

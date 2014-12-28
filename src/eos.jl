@@ -121,59 +121,59 @@ using PyCall
 eosfuncs = pyimport("eos.funcs")
 pyTFD = eosfuncs[:TFD]
 
-function TFD{T<:Real, N<:Integer}(P::T, Z::Vector{N}, A::Vector{T},
-                                  n::Vector{T})
-    P *= 10
-    rho::Float64 = pyTFD(P, Z, A, n)[1]
-    rho * 1000
-end
-
 # function TFD{T<:Real, N<:Integer}(P::T, Z::Vector{N}, A::Vector{T},
-#                                   n::Vector{T})
-#     # inputs should be the same size
-#     @assert length(Z) == length(A)
-#     @assert length(n) == length(A)
-
-#     # P is in Pa but we want it in dyn/cm**2: 1 Pa = 10 dyn/cm**2
+#                                   n::Vector{T}; python=true)
 #     P *= 10
-
-#     # constants
-#     g = [0         0         0        0        0;
-#          0         0         0        0        0;
-#          1.512E-2  8.955E-2  1.090E-1 5.089    -5.980;
-#          2.181E-3  -4.015E-1 1.698    -9.566   9.873;
-#          -3.328E-4 5.167E-1  -2.369   1.349E1  -1.427E1;
-#          -1.384E-2 -6.520E-1 3.529    -2.095E1 2.264E1]
-
-#     # pre-calculations
-#     zeta::Vector{T}   = (P / 9.524E13)^(1/5) .* Z.^(-2/3)
-#     eps::Vector{T}    = (3 ./(32*pi^2 .* Z.^2)).^(1/3)
-#     phi::Vector{T}    = (3^(1/3))/20 + eps./(4 .*(3 .^(1/3)))
-#     alpha::Vector{T}  = (1.941E-2 - (eps.^(1/2)).*6.277E-2 + eps.*1.076).^(-1)
-#     x0_0::Vector{T}   = (8.884E-3 + (eps.^(1/2)).*4.998E-1
-#                          + eps.*5.2604E-1).^(-1)
-#     beta_0::Vector{T} = x0_0 .* phi - 1
-#     beta_1::Vector{T} = beta_0 .* alpha + ((1 + beta_0)./phi)
-
-#     function beta_(n::Integer)
-#         """sub-function for beta remainder of components"""
-#         n += 1 # adjust n from 2-5 to 3-6
-#         bn::Vector{T} = (g[n, 1] + g[n, 2].*(eps.^(1/2)) + g[n, 3].*eps
-#                          + g[n, 4].*(eps.^(3/2)) + g[n, 5].*(eps.^2)).^(-n)
-#     end
-
-#     beta = [beta_0 beta_1 beta_(2) beta_(3) beta_(4) beta_(5)]
-#     betazeta = hcat([beta[:, n] .* zeta.^(n-1) for n=1:6]...)
-
-#     x0 = 1 ./ (zeta + phi) .* (1 + exp(-alpha.*zeta).*betazeta)
-
-#     num = sum(n.*A)
-#     denom = sum(n.*x0.^3 ./ Z)
-#     rho::T = num/denom * 3.866
-
-#     # rho is in g/cm3 but we want it in kg/m3: 1 g/cm3 = 1000 kg/m3
+#     rho::Float64 = pyTFD(P, Z, A, n)[1]
 #     rho * 1000
 # end
+
+function TFD{T<:Real, N<:Integer}(P::T, Z::Vector{N}, A::Vector{T},
+                                  n::Vector{T})
+    # inputs should be the same size
+    @assert length(Z) == length(A)
+    @assert length(n) == length(A)
+
+    # P is in Pa but we want it in dyn/cm**2: 1 Pa = 10 dyn/cm**2
+    P *= 10
+
+    # constants
+    g = [0          0          0         0         0;
+         0          0          0         0         0;
+         1.512E-2   8.955E-2   1.090E-1  5.089     -5.980;
+         2.181E-3   -4.015E-1  1.698     -9.566    9.873;
+         -3.328E-4  5.167E-1   -2.369    1.349E1   -1.427E1;
+         -1.384E-2  -6.520E-1  3.529     -2.095E1  2.264E1]
+
+    # pre-calculations
+    zeta::Vector{T}   = (P / 9.524E13)^(1/5) .* Z.^(-2/3)
+    eps::Vector{T}    = (3 ./(32*pi^2 .* Z.^2)).^(1/3)
+    phi::Vector{T}    = (3^(1/3))/20 + eps./(4 .*(3 .^(1/3)))
+    alpha::Vector{T}  = (1.941E-2 - (eps.^(1/2)).*6.277E-2 + eps.*1.076).^(-1)
+    x0_0::Vector{T}   = (8.884E-3 + (eps.^(1/2)).*4.998E-1
+                         + eps.*5.2604E-1).^(-1)
+    beta_0::Vector{T} = x0_0 .* phi - 1
+    beta_1::Vector{T} = beta_0 .* alpha + ((1 + beta_0)./phi)
+
+    function beta_(n::Integer)
+        """sub-function for beta remainder of components"""
+        n += 1 # adjust n from 2-5 to 3-6
+        bn::Vector{T} = (g[n, 1] + g[n, 2].*(eps.^(1/2)) + g[n, 3].*eps
+                         + g[n, 4].*(eps.^(3/2)) + g[n, 5].*(eps.^2)).^(-(n-1))
+    end
+
+    beta = [beta_0 beta_1 beta_(2) beta_(3) beta_(4) beta_(5)]
+    betazeta = hcat([beta[:, n] .* zeta.^(n-1) for n=1:6]...)
+
+    x0 = 1 ./ (zeta + phi) .* (1 + exp(-alpha.*zeta).*sum(betazeta))
+
+    num = sum(n.*A)
+    denom = sum(n.*x0.^3 ./ Z)
+    rho::T = num/denom * 3.866
+
+    # rho is in g/cm3 but we want it in kg/m3: 1 g/cm3 = 1000 kg/m3
+    rho * 1000
+end
 
 function TFD{T<:Real, N<:Integer}(P::T, Z::Vector{N}, A::Vector{T})
     n = ones(A)
@@ -186,7 +186,8 @@ end
 
 # EOS interpolation, storage and retrieval
 
-function write_eos_to_file(eos::EOS, pressures::Vector{Float64})
+import Base.write
+function write(eos::EOS, pressures::Vector{Float64})
     densities = map(pressures) do P
         callfunc(eos, P)
     end
@@ -205,13 +206,14 @@ function write_eoses_to_files()
     mgsio3_pv_seager_func3(rho::Real) = BME(rho, 4100., 247., 3.97) * 1e9
     mgsio3_pv_seager_func4(rho::Real) = BME(rho, 4100., 247., 3.97, -0.016) * 1e9
     fe_seager_low = InvertedEOS(fe_eps_seager_func, 1e3, 1e14,
-                                     "Fe (Vinet) (Seager 2007)")
+                                "Fe (Vinet) (Seager 2007)")
     h2o_seager_low = InvertedEOS(h2o_VII_seager_func, 1e3, 1e8,
-                                      "H2O (BME3) (Seager 2007)")
+                                 "H2O (BME3) (Seager 2007)")
+    h2o_seager_dft = load_interpolated_eos("data/tabulated/H2O (DFT).eos")
     # mgsio3_seager3_low = InvertedEOS(mgsio3_pv_seager_func3, 1e3, 1e8,
-    #                                       "MgSiO3 (BME3) (Seager 2007)")
+    #                                  "MgSiO3 (BME3) (Seager 2007)")
     mgsio3_seager4_low = InvertedEOS(mgsio3_pv_seager_func4, 1e3, 5e4,
-                                          "MgSiO3 (BME4) (Seager 2007)")
+                                     "MgSiO3 (BME4) (Seager 2007)")
 
     fe_tfd_func(P::Real) = TFD(P, 26, 55.845)
     h2o_tfd_func(P::Real) = TFD(P, [1, 8], [1.00794, 15.9994], [2., 1.])
@@ -223,14 +225,16 @@ function write_eoses_to_files()
     mgsio3_tfd = SimpleEOS(mgsio3_tfd_func, "MgSiO3 TFD")
 
     fe_seager = PressurePiecewiseEOS([fe_seager_low, fe_tfd],
-                                     [1e4, 2.09e13, 1e18])
-    h2o_seager = PressurePiecewiseEOS([h2o_seager_low, h2o_tfd],
-                                      [1e4, 7686e9, 1e18])
+                                     [1e4, 2.09e13, 1e20])
+    h2o_seager = PressurePiecewiseEOS([h2o_seager_low,
+                                       h2o_seager_dft,
+                                       h2o_tfd],
+                                      [1e4, 44.3e9, 7686e9, 1e20])
     mgsio3_seager = PressurePiecewiseEOS([mgsio3_seager4_low, mgsio3_tfd],
-                                         [1e4, 1.35e13, 1e18])
+                                         [1e4, 1.35e13, 1e20])
 
     for eos in [fe_seager, h2o_seager, mgsio3_seager]
-        write_eos_to_file(eos, logspace(4,18,100))
+        write(eos, logspace(4,20,500))
     end
 end
 
@@ -251,13 +255,6 @@ function load_interpolated_eos(file::String)
 
     SimpleEOS(interp_func, name)
 end
-
-# Generate and export interpolated functions
-
-my_h2o = load_interpolated_eos("data/h2o.dat")
-fe_seager = load_interpolated_eos("data/Fe (Vinet) (Seager 2007) & Fe TFD.eos")
-h2o_seager = load_interpolated_eos("data/H2O (BME3) (Seager 2007) & H2O TFD.eos")
-mgsio3_seager = load_interpolated_eos("data/MgSiO3 (BME4) (Seager 2007) & MgSiO3 TFD.eos")
 
 # density retrieval functions for EOS in particular
 import ogre.common.callfunc
@@ -283,5 +280,12 @@ end
 function callfunc(eos::PressurePiecewiseEOS, P::Real)
     callfunc(eos, ValueSet(0., 0., P))
 end
+
+# Generate and export interpolated functions
+
+my_h2o = load_interpolated_eos("data/tabulated/h2o.dat")
+fe_seager = load_interpolated_eos("data/Fe (Vinet) (Seager 2007) & Fe TFD.eos")
+h2o_seager = load_interpolated_eos("data/H2O (BME3) (Seager 2007) & H2O (DFT) & H2O TFD.eos")
+mgsio3_seager = load_interpolated_eos("data/MgSiO3 (BME4) (Seager 2007) & MgSiO3 TFD.eos")
 
 end

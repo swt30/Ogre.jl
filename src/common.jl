@@ -1,6 +1,5 @@
 module common
 export Callable, Equation, EquationSet, ValueSet, callfunc, datadir, zero
-export wait_until_enter
 import Base.zero
 
 abstract Callable
@@ -37,10 +36,5 @@ function callfunc{T<:Real}(cl::Callable, t::T, y::Vector{T})
 end
 
 datadir() = Pkg.dir("ogre", "data")
-
-function wait_until_enter()
-    print("Press ENTER to continue...")
-    readline()
-end
 
 end

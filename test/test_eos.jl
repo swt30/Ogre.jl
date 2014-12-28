@@ -1,5 +1,5 @@
 using ogre.common, ogre.eos
-using FactCheck, PyCall
+using FactCheck
 
 facts("Equation of state handling") do
 

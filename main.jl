@@ -1,10 +1,13 @@
 using ogre, PyCall, LaTeXStrings
+import Iterators: cycle
 pygui()
 
 # plot setup for Python
 style = pyimport("matplotlib.style") # no @pyimport for now (Lint complains)
 plt = pyimport("matplotlib.pyplot")
-style[:use]("ggplot") # clean up this once dot-overloading is allowed
+style[:use]("fivethirtyeight") # clean up this once dot-overloading is allowed
+
+plot = plt[:plot]
 
 # constants
 const P_surface = 1.0e5
@@ -15,6 +18,7 @@ const R_bracket = [0., 15.] .* R_earth
 # this equation does not change with composition
 const pressure_balance_eq = StructureEquation(pressure_balance)
 
+# ...whereas the equation of mass continuity does
 function setup_system(M::Real, eos::EOS)
     # planet layer options
     layer_densities = [eos]
@@ -44,33 +48,49 @@ end
 # vectorized form of the above
 function R{T<:Real}(ms::Vector{T}, eos::EOS)
     R_withEOS(M::T) = R(M::T, eos)
-    @vectorize_1arg T R_withEOS
-    R_withEOS(ms)
+    map(R_withEOS, ms)
 end
 
 function main()
-    ms = linspace(0.1, 10) .* M_earth
+    ms = linspace(0.5, 10, 30) .* M_earth
 
-    for el in [eos.fe, eos.fe_seager,
-               eos.h2o, eos.h2o_seager,
-               eos.mgsio3, eos.mgsio3_seager]
+    eoses = [eos.fe_seager,
+             eos.h2o_seager,
+             eos.mgsio3_seager]
+    linestyles = cycle(["-"])
+    colours = ["Crimson",
+               "CornflowerBlue",
+               "Sienna"]
+
+    for (el, linestyle, colour) in zip(eoses, linestyles, colours)
         @time rs = R(ms, el)
-        plt[:plot](ms ./ M_earth, rs ./ R_earth, label=el.fullname)
+        plt[:plot](ms ./ M_earth, rs ./ R_earth, label=el.fullname,
+                   linestyle=linestyle, color=colour)
     end
 
-    mh1 = readdlm("data/MR_fe.out"; skipstart=1)
-    mh2 = readdlm("data/MR_perovskite.out"; skipstart=1)
-    mh3 = readdlm("data/MR_h2o.out"; skipstart=1)
+    mh1 = readdlm("data/M-R/madhu/fe.out"; skipstart=1)
+    mh2 = readdlm("data/M-R/madhu/perovskite.out"; skipstart=1)
+    mh3 = readdlm("data/M-R/madhu/h2o.out"; skipstart=1)
 
-    plt[:plot](mh1[:, 1], mh1[:, 2], label="Fe (Madhu)")
-    plt[:plot](mh2[:, 1], mh2[:, 2], label="MgSiO3 pv (Madhu)")
-    plt[:plot](mh3[:, 1], mh3[:, 2], label="H2O (Madhu)")
+    se1 = readcsv("data/M-R/seager/fe.csv")
+    se2 = readcsv("data/M-R/seager/perovskite.csv")
+    se3 = readcsv("data/M-R/seager/h2o.csv")
+
+    plot(mh1[:, 1], mh1[:, 2], color="Black", linestyle=":")
+    plot(mh2[:, 1], mh2[:, 2], color="Black", linestyle=":")
+    plot(mh3[:, 1], mh3[:, 2], color="Black", linestyle=":",
+         label="Madhu's curves")
+
+    plot(se1[:, 1], se1[:, 2], color="Black", linestyle="--")
+    plot(se2[:, 1], se2[:, 2], color="Black", linestyle="--")
+    plot(se3[:, 1], se3[:, 2], color="Black", linestyle="--",
+         label="Seager's curves")
 
     ax = plt[:gca]()
     ax[:set_xlabel](L"Mass / M$_\oplus$")
     ax[:set_ylabel](L"Radius / R$_\oplus$")
-    ax[:set_xlim]((0.1, 10))
-    ax[:set_ylim]((0.3, 3))
+    ax[:set_xlim]((0, 10))
+    ax[:set_ylim]((0, 3))
     ax[:set_xscale]("linear")
     ax[:set_yscale]("linear")
     xax = ax[:get_xaxis]()
