@@ -51,8 +51,8 @@ function R(M::Real, eos::EOS; in_earth_units=false)
 end
 
 # vectorized form of the above
-function R{T<:Real}(ms::Vector{T}, eos::EOS; in_earth_units=false)
-    R_withEOS(M::T) = R(M::T, eos; in_earth_units)
+function R{T<:Real}(ms::Vector{T}, eos::EOS; kwargs...)
+    R_withEOS(M::T) = R(M::T, eos; kwargs...)
     map(R_withEOS, ms)
 end
 
