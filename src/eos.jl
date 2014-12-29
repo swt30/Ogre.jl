@@ -138,7 +138,7 @@ function TFD{T<:Real, N<:Integer}(P::T, Z::Vector{N}, A::Vector{T},
     P *= 10
 
     # constants
-    g = [0          0          0         0         0;
+    γ = [0          0          0         0         0;
          0          0          0         0         0;
          1.512E-2   8.955E-2   1.090E-1  5.089     -5.980;
          2.181E-3   -4.015E-1  1.698     -9.566    9.873;
@@ -146,33 +146,33 @@ function TFD{T<:Real, N<:Integer}(P::T, Z::Vector{N}, A::Vector{T},
          -1.384E-2  -6.520E-1  3.529     -2.095E1  2.264E1]
 
     # pre-calculations
-    zeta::Vector{T}   = (P / 9.524E13)^(1/5) .* Z.^(-2/3)
-    eps::Vector{T}    = (3 ./(32*pi^2 .* Z.^2)).^(1/3)
-    phi::Vector{T}    = (3^(1/3))/20 + eps./(4 .*(3 .^(1/3)))
-    alpha::Vector{T}  = (1.941E-2 - (eps.^(1/2)).*6.277E-2 + eps.*1.076).^(-1)
-    x0_0::Vector{T}   = (8.884E-3 + (eps.^(1/2)).*4.998E-1
-                         + eps.*5.2604E-1).^(-1)
-    beta_0::Vector{T} = x0_0 .* phi - 1
-    beta_1::Vector{T} = beta_0 .* alpha + ((1 + beta_0)./phi)
+    ζ::Vector{T}   = (P / 9.524E13)^(1/5) .* Z.^(-2/3)
+    ε::Vector{T}    = (3 ./(32π^2 .* Z.^2)).^(1/3)
+    ϕ::Vector{T}    = (3^(1/3))/20 + ε./(4 .*(3 .^(1/3)))
+    α::Vector{T}  = (1.941E-2 - (ε.^(1/2)).*6.277E-2 + ε.*1.076).^(-1)
+    x₀₀::Vector{T}   = (8.884E-3 + (ε.^(1/2)).*4.998E-1
+                        + ε.*5.2604E-1).^(-1)
+    β₀::Vector{T} = x₀₀.*ϕ - 1
+    β₁::Vector{T} = β₀.*α + ((1 + β₀)./ϕ)
 
-    function beta_(n::Integer)
-        """sub-function for beta remainder of components"""
+    function β_(n::Integer)
+        """sub-function for β remainder of components"""
         n += 1 # adjust n from 2-5 to 3-6
-        bn::Vector{T} = (g[n, 1] + g[n, 2].*(eps.^(1/2)) + g[n, 3].*eps
-                         + g[n, 4].*(eps.^(3/2)) + g[n, 5].*(eps.^2)).^(-(n-1))
+        bn::Vector{T} = (γ[n, 1] + γ[n, 2].*(ε.^(1/2)) + γ[n, 3].*ε
+                         + γ[n, 4].*(ε.^(3/2)) + γ[n, 5].*(ε.^2)).^(-(n-1))
     end
 
-    beta = [beta_0 beta_1 beta_(2) beta_(3) beta_(4) beta_(5)]
-    betazeta = hcat([beta[:, n] .* zeta.^(n-1) for n=1:6]...)
+    β = [β₀ β₁ β_(2) β_(3) β_(4) β_(5)]
+    βζ = hcat([β[:, n] .* ζ.^(n-1) for n=1:6]...)
 
-    x0 = 1 ./ (zeta + phi) .* (1 + exp(-alpha.*zeta).*sum(betazeta))
+    x₀ = 1 ./ (ζ + ϕ) .* (1 + exp(-α.*ζ).*sum(βζ))
 
     num = sum(n.*A)
-    denom = sum(n.*x0.^3 ./ Z)
-    rho::T = num/denom * 3.866
+    denom = sum(n.*x₀.^3 ./ Z)
+    ρ::T = num/denom * 3.866
 
     # rho is in g/cm3 but we want it in kg/m3: 1 g/cm3 = 1000 kg/m3
-    rho * 1000
+    1000ρ
 end
 
 function TFD{T<:Real, N<:Integer}(P::T, Z::Vector{N}, A::Vector{T})
