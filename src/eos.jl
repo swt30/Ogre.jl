@@ -246,6 +246,14 @@ function loginterp{T<:Real}(x::Array{T}, y::Array{T})
     interp_func(P) = yi[log10(P)]
 end
 
+function lininterp{T<:Real}(x::Array{T}, y::Array{T})
+    min_x, max_x = extrema(x)
+    range = linrange(min_x, max_x, length(x))
+    yi = CoordInterpGrid(range, y, BCnan, InterpQuadratic)
+
+    interp_func(P) = yi[P]
+end
+
 function load_interpolated_eos(file::String)
     data = readdlm(file, Float64; skipstart=1)
     P, rho = data[:, 1], data[:, 2]
