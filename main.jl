@@ -40,14 +40,19 @@ function setup_system(M::Real, eos::EOS)
 end
 
 # radius finder for a solid sphere
-function R(M::Real, eos::EOS)
-    planet_system = setup_system(M, eos)
-    find_radius!(planet_system)
+function R(M::Real, eos::EOS; in_earth_units=false)
+    Mscale = in_earth_units ? M_earth : 1
+    Rscale = in_earth_units ? 1/R_earth : 1
+
+    planet_system = setup_system(M * Mscale, eos)
+    r = find_radius!(planet_system) * Rscale
+
+    r::Float64
 end
 
 # vectorized form of the above
-function R{T<:Real}(ms::Vector{T}, eos::EOS)
-    R_withEOS(M::T) = R(M::T, eos)
+function R{T<:Real}(ms::Vector{T}, eos::EOS; in_earth_units=false)
+    R_withEOS(M::T) = R(M::T, eos; in_earth_units)
     map(R_withEOS, ms)
 end
 
@@ -106,5 +111,3 @@ function main()
 
     plt[:show]()
 end
-
-main()
