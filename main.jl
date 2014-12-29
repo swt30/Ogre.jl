@@ -1,5 +1,5 @@
 using ogre, PyCall, LaTeXStrings
-import Iterators: cycle
+import Lazy: cycle
 pygui()
 
 # plot setup for Python
