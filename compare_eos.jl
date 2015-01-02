@@ -1,4 +1,5 @@
-using ogre.eos, PyCall, LaTeXStrings
+using Ogre: Eos
+using PyCall, LaTeXStrings
 
 style = pyimport("matplotlib.style")
 plt = pyimport("matplotlib.pyplot")
@@ -15,9 +16,9 @@ function main()
 
     pressures = logspace(7, 19)
 
-    @show h2o          = map(P -> callfunc(eos.h2o_seager, P), pressures)
-    @show mgsio3       = map(P -> callfunc(eos.mgsio3_seager, P), pressures)
-    @show fe           = map(P -> callfunc(eos.fe_seager, P), pressures)
+    @show h2o          = map(P -> callfunc(Eos.h2o_seager, P), pressures)
+    @show mgsio3       = map(P -> callfunc(Eos.mgsio3_seager, P), pressures)
+    @show fe           = map(P -> callfunc(Eos.fe_seager, P), pressures)
 
 
     plot(pressures, h2o, label="H2O")

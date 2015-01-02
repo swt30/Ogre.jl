@@ -1,6 +1,10 @@
-module common
-export Callable, Equation, EquationSet, ValueSet, callfunc, datadir, zero
-import Base.zero
+module Common
+# Exported variables
+export DATADIR
+# Exported types
+export Callable, Equation, EquationSet, ValueSet
+# Exported functions
+export callfunc, zero
 
 abstract Callable
 abstract Equation <: Callable
@@ -17,6 +21,7 @@ type ValueSet{T<:Real}
     P::T
 end
 
+import Base.zero
 zero(::Type{ValueSet}) = ValueSet(0, 0, 0)
 
 function callfunc(eq::Equation, x::Real)
@@ -35,6 +40,6 @@ function callfunc{T<:Real}(cl::Callable, t::T, y::Vector{T})
     callfunc(cl, ValueSet(t, y...))
 end
 
-datadir() = Pkg.dir("ogre", "data")
+const DATADIR = Pkg.dir("Ogre", "data")
 
 end

@@ -1,8 +1,9 @@
-module integrator
+module Integrator
+using ..Common, ..Constants, ..Structure, ..Eos
+# Exported types
 export BoundaryValues, PlanetSystem, PlanetStructure
-export zero, copy, find_radius, find_radius!, solve
-using ogre.common, ogre.constants
-import Base.copy, Base.zero
+# Exported functions
+export zero, setup_system, find_radius, find_radius!, solve, R
 
 #= Mass coordinates and other values =#
 
@@ -26,7 +27,42 @@ type PlanetStructure{T<:Real}
     y::Matrix{T}
 end
 
+import Base.zero
 zero(::Type{PlanetStructure}) = PlanetStructure([0.], [0. 0.])
+
+# this equation does not change with composition
+const pressure_balance_eq = StructureEquation(pressure_balance)
+
+# default values
+const surface_pressure = 1.0e5
+const mass_fractions = [1.]
+const total_points = 100
+const R_bracket = [0., 15.] .* R_earth
+
+# set up a system with given EOS
+function setup_system(M::Real, eos::EOS,
+                      P_surface::Real=surface_pressure,
+                      mass_fractions::Vector{Float64}=mass_fractions,
+                      total_points::Integer=total_points,
+                      R_bracket::Vector{Float64}=R_bracket)
+    # planet layer options
+    layer_densities = [eos]
+    layer_edges = [0, cumsum(M.*mass_fractions)]
+
+    # ODE system options
+    m_inner, m_outer = layer_edges[1], layer_edges[end]
+    solution_grid = linspace(m_outer, m_inner, total_points)
+
+    # density-dependent equations change if layers or the EOS change
+    density_profile = MassPiecewiseEOS(layer_densities, layer_edges)
+    mass_continuity_with_eos(vs) = mass_continuity(vs, density_profile)
+    mass_continuity_eq = StructureEquation(mass_continuity_with_eos)
+    structure_equations = EquationSet([mass_continuity_eq,
+                                       pressure_balance_eq])
+
+    setup_find_radius(m_outer, mean(R_bracket), P_surface,
+                      structure_equations, solution_grid, R_bracket)
+end
 
 #= Functions to actually solve the structure, given boundary conditions =#
 
@@ -96,7 +132,7 @@ function solve(sys::PlanetSystem)
     soln
 end
 
-#= functions to get a radius for a structure =#
+#= lower level functions to get a radius for a structure =#
 
 # helper functions
 notnan(arr) = ~isnan(arr)
@@ -153,6 +189,25 @@ function find_radius{T<:Real}(M::T,
                           solution_grid, R_bracket)
     radius = zero(PlanetStructure)
     R::T = find_radius!(system)
+end
+
+#= higher level functions for doing MR diagrams =#
+
+# radius finder for a solid sphere
+function R(M::Real, eos::EOS; in_earth_units=false)
+    Mscale = in_earth_units ? M_earth : 1
+    Rscale = in_earth_units ? 1/R_earth : 1
+
+    planet_system = setup_system(M * Mscale, eos)
+    r = find_radius!(planet_system) * Rscale
+
+    r::Float64
+end
+
+# vectorized form of the above
+function R{T<:Real}(ms::Vector{T}, eos::EOS; in_earth_units=false)
+    R_withEOS(M::T) = R(M::T, eos; in_earth_units=in_earth_units)
+    map(R_withEOS, ms)
 end
 
 #= NUMERICAL METHODS =#

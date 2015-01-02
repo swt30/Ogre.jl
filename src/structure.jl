@@ -1,8 +1,11 @@
-module structure
-export StructureEquation, mass_continuity, pressure_balance
-using ogre.common, ogre.eos, ogre.constants
+module Structure
+using ..Common, ..Eos, ..Constants
+# Exported types
+export StructureEquation
+# Exported functions
+export mass_continuity, pressure_balance
 
-type StructureEquation <: Equation
+immutable StructureEquation <: Equation
     equation::Function
 end
 

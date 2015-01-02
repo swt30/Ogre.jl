@@ -1,12 +1,16 @@
-module eos
-export EOS, SimpleEOS, MassPiecewiseEOS, InvertedEOS, callfunc
-using ogre.common, Grid, Roots
+module Eos
+using ..Common
+using Grid, Roots
+# Exported types
+export EOS, SimpleEOS, MassPiecewiseEOS, InvertedEOS
+# Exported functions
+export callfunc
+
+# Equations of state
 
 abstract EOS <: Equation
 abstract SingleEOS <: EOS
 abstract PiecewiseEOS <: EOS
-
-# Equations of state
 
 immutable SimpleEOS <: SingleEOS
     equation::Function
@@ -114,12 +118,11 @@ function Vinet{T<:Real}(rho::T, rho0::T, K0::T, dK0::T)
     P
 end
 
-# Here is the TFD. It's not quite working yet. So we'll use the Python one for
-# a little while...
+# Here is the Python TFD
 
-using PyCall
-eosfuncs = pyimport("eos.funcs")
-pyTFD = eosfuncs[:TFD]
+# using PyCall
+# eosfuncs = pyimport("eos.funcs")
+# pyTFD = eosfuncs[:TFD]
 
 # function TFD{T<:Real, N<:Integer}(P::T, Z::Vector{N}, A::Vector{T},
 #                                   n::Vector{T}; python=true)
@@ -127,6 +130,8 @@ pyTFD = eosfuncs[:TFD]
 #     rho::Float64 = pyTFD(P, Z, A, n)[1]
 #     rho * 1000
 # end
+
+# Here's the real, working TFD
 
 function TFD{T<:Real, N<:Integer}(P::T, Z::Vector{N}, A::Vector{T},
                                   n::Vector{T})
@@ -265,7 +270,7 @@ function load_interpolated_eos(file::String)
 end
 
 # density retrieval functions for EOS in particular
-import ogre.common.callfunc
+import ..Common.callfunc
 
 function callfunc(eos::InvertedEOS, P::Real)
     fzero(x -> eos.equation(x) - P, eos.a, eos.b)
@@ -291,9 +296,9 @@ end
 
 # Generate and export interpolated functions
 
-my_h2o = load_interpolated_eos("data/tabulated/h2o.dat")
-fe_seager = load_interpolated_eos("data/Fe (Vinet) (Seager 2007) & Fe TFD.eos")
-h2o_seager = load_interpolated_eos("data/H2O (BME3) (Seager 2007) & H2O (DFT) & H2O TFD.eos")
-mgsio3_seager = load_interpolated_eos("data/MgSiO3 (BME4) (Seager 2007) & MgSiO3 TFD.eos")
+my_h2o = load_interpolated_eos("$DATADIR/tabulated/h2o.dat")
+fe_seager = load_interpolated_eos("$DATADIR/Fe (Vinet) (Seager 2007) & Fe TFD.eos")
+h2o_seager = load_interpolated_eos("$DATADIR/H2O (BME3) (Seager 2007) & H2O (DFT) & H2O TFD.eos")
+mgsio3_seager = load_interpolated_eos("$DATADIR/MgSiO3 (BME4) (Seager 2007) & MgSiO3 TFD.eos")
 
 end

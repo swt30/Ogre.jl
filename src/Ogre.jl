@@ -1,4 +1,4 @@
-module ogre
+module Ogre
 
 # add the package directory to the path so that we can find submodules
 SRC_PATH = Base.source_path() |> dirname
@@ -10,15 +10,10 @@ end
 include("common.jl")
 include("constants.jl")
 include("eos.jl")
-include("integrator.jl")
 include("structure.jl")
+include("integrator.jl")
 
-# bring names into the namespace and then reexport them
 using Reexport
-@reexport using ogre.common
-@reexport using ogre.constants
-@reexport using ogre.eos
-@reexport using ogre.integrator
-@reexport using ogre.structure
+@reexport using .Common, .Constants, .Eos, .Structure, .Integrator
 
 end

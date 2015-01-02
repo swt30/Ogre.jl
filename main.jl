@@ -1,76 +1,26 @@
-using ogre, PyCall, LaTeXStrings
-import Lazy: cycle
-pygui()
+using Ogre, PyCall, LaTeXStrings
+import Lazy: constantly
 
 # plot setup for Python
+pygui()
 style = pyimport("matplotlib.style") # no @pyimport for now (Lint complains)
 plt = pyimport("matplotlib.pyplot")
 style[:use]("fivethirtyeight") # clean up this once dot-overloading is allowed
-
-plot = plt[:plot]
-
-# constants
-const P_surface = 1.0e5
-const mass_fractions = [1.]
-const total_points = 100
-const R_bracket = [0., 15.] .* R_earth
-
-# this equation does not change with composition
-const pressure_balance_eq = StructureEquation(pressure_balance)
-
-# ...whereas the equation of mass continuity does
-function setup_system(M::Real, eos::EOS)
-    # planet layer options
-    layer_densities = [eos]
-    layer_edges = [0, cumsum(M.*mass_fractions)]
-
-    # ODE system options
-    m_inner, m_outer = layer_edges[1], layer_edges[end]
-    solution_grid = linspace(m_outer, m_inner, total_points)
-
-    # density-dependent equations change if layers or the EOS change
-    density_profile = MassPiecewiseEOS(layer_densities, layer_edges)
-    mass_continuity_with_eos(vs) = mass_continuity(vs, density_profile)
-    mass_continuity_eq = StructureEquation(mass_continuity_with_eos)
-    structure_equations = EquationSet([mass_continuity_eq,
-                                       pressure_balance_eq])
-
-    integrator.setup_find_radius(m_outer, mean(R_bracket), P_surface,
-                                 structure_equations, solution_grid, R_bracket)
-end
-
-# radius finder for a solid sphere
-function R(M::Real, eos::EOS; in_earth_units=false)
-    Mscale = in_earth_units ? M_earth : 1
-    Rscale = in_earth_units ? 1/R_earth : 1
-
-    planet_system = setup_system(M * Mscale, eos)
-    r = find_radius!(planet_system) * Rscale
-
-    r::Float64
-end
-
-# vectorized form of the above
-function R{T<:Real}(ms::Vector{T}, eos::EOS; kwargs...)
-    R_withEOS(M::T) = R(M::T, eos; kwargs...)
-    map(R_withEOS, ms)
-end
+plot = plt[:plot]              # ditto
 
 function main()
     ms = linspace(0.5, 10, 30) .* M_earth
 
-    eoses = [eos.fe_seager,
-             eos.h2o_seager,
-             eos.mgsio3_seager]
-    linestyles = cycle(["-"])
-    colours = ["Crimson",
-               "CornflowerBlue",
-               "Sienna"]
+    eoses = [Eos.fe_seager,
+             Eos.h2o_seager,
+             Eos.mgsio3_seager]
+    linestyles = constantly("-")
+    colours = ["Crimson", "CornflowerBlue", "Sienna"]
 
-    for (el, linestyle, colour) in zip(eoses, linestyles, colours)
+    for (el, ls, c) in zip(eoses, linestyles, colours)
         @time rs = R(ms, el)
-        plt[:plot](ms ./ M_earth, rs ./ R_earth, label=el.fullname,
-                   linestyle=linestyle, color=colour)
+        plot(ms ./ M_earth, rs ./ R_earth, label=el.fullname,
+             linestyle=ls, color=c)
     end
 
     mh1 = readdlm("data/M-R/madhu/fe.out"; skipstart=1)
