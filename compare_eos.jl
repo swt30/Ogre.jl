@@ -5,9 +5,10 @@ style = pyimport("matplotlib.style")
 plt = pyimport("matplotlib.pyplot")
 style[:use]("fivethirtyeight")
 
-plot(a::Matrix, args...; kwargs...) = plt[:plot](a[:, 1], a[:, 2],
-                                                 args...; kwargs...)
-plot(args...; kwargs...) = plt[:plot](args...; kwargs...)
+plot = plt[:plot]
+plot(a::Matrix, args...; kwargs...) = plot(a[:, 1], a[:, 2],
+                                           args...; kwargs...)
+
 
 function main()
     graph_h2o    = 10.^readcsv("data/seager-graphs/h2o.csv")
