@@ -15,12 +15,12 @@ facts("Equation of state handling") do
 
         piecewise = MassPiecewiseEOS([eos1, eos2, eos3], transition_masses)
 
-        context("--get number of equations in each EOS") do
+        context("get number of equations in each EOS") do
             @fact Ogre.Eos.n_eqs(eos1) => 1
             @fact Ogre.Eos.n_eqs(piecewise) => 3
         end
 
-        context("--the PiecewiseEOS returns correct individual EOS") do
+        context("the PiecewiseEOS returns correct individual EOS") do
             @fact Ogre.Eos.get_layer_eos(piecewise, -1) => eos1
             @fact Ogre.Eos.get_layer_eos(piecewise, 0.5) => eos1
             @fact Ogre.Eos.get_layer_eos(piecewise, 1.5) => eos2
@@ -34,8 +34,8 @@ facts("Equation of state handling") do
         pressures = [0.1e6, 1e6, 10e6] # in bar
         pressures = pressures .* 1e5   # 1 bar = 1e5 Pa
 
-        context("--with a single element") do
-            A = 56.
+        context("with a single element (Fe)") do
+            A = 55.845
             Z = 26
 
             anticipated_densities = [5900, 8130, 15400]
@@ -43,20 +43,33 @@ facts("Equation of state handling") do
             @vectorize_1arg Real TFD_test
 
             @fact TFD_test(pressures) => roughly(anticipated_densities,
-                                                 rtol=0.02)
+                                                 rtol=0.01)
         end
 
-        context("--with multiple elements") do
-            A = [56., 28.]
-            Z = [26, 14]
-            n = [2.1, 1]
+        context("with multiple elements") do
+            context("TiO2") do
+                A = [47.867, 15.9994]
+                Z = [22, 8]
+                n = [1., 2.]
 
-            anticipated_densities = [5060, 7170, 13900]      # in kg/m3
-            TFD_test(P) = Ogre.Eos.TFD(P, Z, A, n)
-            @vectorize_1arg Real TFD_test
+                anticipated_densities = [3190, 4920, 10400]      # in kg/m3
+                TFD_test(P) = Ogre.Eos.TFD(P, Z, A, n)
+                @vectorize_1arg Real TFD_test
 
-            @fact TFD_test(pressures) => roughly(anticipated_densities,
-                                                 rtol=0.02)
+                @fact TFD_test(pressures) => roughly(anticipated_densities,
+                                                     rtol=0.01)
+            end
+            context("PbS") do
+                A = [207.2, 32.065]
+                Z = [82, 16]
+
+                anticipated_densities = [12800, 17000, 29600]      # in kg/m3
+                TFD_test(P) = Ogre.Eos.TFD(P, Z, A)
+                @vectorize_1arg Real TFD_test
+
+                @fact TFD_test(pressures) => roughly(anticipated_densities,
+                                                     rtol=0.01)
+            end
         end
     end
 
