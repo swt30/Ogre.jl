@@ -5,9 +5,9 @@ style = pyimport("matplotlib.style")
 plt = pyimport("matplotlib.pyplot")
 style[:use]("fivethirtyeight")
 
-plot = plt[:plot]
 plot(a::Matrix, args...; kwargs...) = plot(a[:, 1], a[:, 2],
                                            args...; kwargs...)
+plot(args...; kwargs...) = plt[:plot](args...; kwargs...)
 
 
 function main()

@@ -1,5 +1,5 @@
 module Integrator
-using ..Common, ..Constants, ..Structure, ..Eos
+using Ogre: Common, Constants, Structure, Eos
 # Exported types
 export BoundaryValues, PlanetSystem, PlanetStructure
 # Exported functions

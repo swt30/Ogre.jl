@@ -1,5 +1,5 @@
 module Structure
-using ..Common, ..Eos, ..Constants
+using Ogre: Common, Constants, Eos
 # Exported types
 export StructureEquation
 # Exported functions

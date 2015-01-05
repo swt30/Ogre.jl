@@ -1,5 +1,5 @@
 module Eos
-using ..Common
+using Ogre: Common
 using Grid, Roots
 # Exported types
 export EOS, SimpleEOS, MassPiecewiseEOS, InvertedEOS
@@ -143,7 +143,7 @@ function TFD{T<:Real, N<:Integer}(P::T, Z::Vector{N}, A::Vector{T},
     P *= 10
 
     # constants
-    γ = [0          0          0         0         0;
+    g = [0          0          0         0         0;
          0          0          0         0         0;
          1.512E-2   8.955E-2   1.090E-1  5.089     -5.980;
          2.181E-3   -4.015E-1  1.698     -9.566    9.873;
@@ -151,20 +151,20 @@ function TFD{T<:Real, N<:Integer}(P::T, Z::Vector{N}, A::Vector{T},
          -1.384E-2  -6.520E-1  3.529     -2.095E1  2.264E1]
 
     # pre-calculations
-    ζ::Vector{T}   = (P / 9.524E13)^(1/5) .* Z.^(-2/3)
-    ε::Vector{T}   = (3 ./(32π^2 .* Z.^2)).^(1/3)
-    ϕ::Vector{T}   = (3^(1/3))/20 + ε./(4 .*(3 .^(1/3)))
-    α::Vector{T}   = 1./(1.941E-2 - ε.^(1/2).*6.277E-2 + ε.*1.076)
-    x₀0::Vector{T} = (8.884E-3 + (ε.^(1/2)).*4.998E-1
+    ζ   = (P / 9.524E13)^(1/5) .* Z.^(-2/3)
+    ε   = (3 ./(32π^2 .* Z.^2)).^(1/3)
+    ϕ   = (3^(1/3))/20 + ε./(4 .*(3 .^(1/3)))
+    α   = 1./(1.941E-2 - ε.^(1/2).*6.277E-2 + ε.*1.076)
+    x₀0 = (8.884E-3 + (ε.^(1/2)).*4.998E-1
                         + ε.*5.2604E-1).^(-1)
-    β₀::Vector{T} = x₀0.*ϕ - 1
-    β₁::Vector{T} = β₀.*α + ((1 + β₀)./ϕ)
+    β₀  = x₀0.*ϕ - 1
+    β₁  = β₀.*α + ((1 + β₀)./ϕ)
 
     function β_(n::Integer)
         """sub-function for β remainder of components"""
         n += 1 # adjust n from 2-5 to 3-6
-        bn::Vector{T} = 1./((γ[n, 1] + γ[n, 2].*(ε.^(1/2)) + γ[n, 3].*ε
-                            + γ[n, 4].*(ε.^(3/2)) + γ[n, 5].*(ε.^2)).^(n-1))
+        bn = 1./((g[n, 1] + g[n, 2].*(ε.^(1/2)) + g[n, 3].*ε
+                            + g[n, 4].*(ε.^(3/2)) + g[n, 5].*(ε.^2)).^(n-1))
     end
 
     β₂ = β_(2)
@@ -178,10 +178,10 @@ function TFD{T<:Real, N<:Integer}(P::T, Z::Vector{N}, A::Vector{T},
 
     num = sum(n.*A)
     denom = sum(n.*x₀.^3 ./ Z)
-    ρ::T = num/denom * 3.866
+    ρ = num/denom * 3.866
 
     # rho is in g/cm3 but we want it in kg/m3: 1 g/cm3 = 1000 kg/m3
-    1000ρ
+    1000ρ::T
 end
 
 function TFD{T<:Real, N<:Integer}(P::T, Z::Vector{N}, A::Vector{T})
@@ -274,7 +274,7 @@ function load_interpolated_eos(file::String)
 end
 
 # density retrieval functions for EOS in particular
-import ..Common.callfunc
+import Ogre.Common.callfunc
 
 function callfunc(eos::InvertedEOS, P::Real)
     fzero(x -> eos.equation(x) - P, eos.a, eos.b)
@@ -300,9 +300,9 @@ end
 
 # Generate and export interpolated functions
 
-my_h2o = load_interpolated_eos("$DATADIR/tabulated/h2o.dat")
-fe_seager = load_interpolated_eos("$DATADIR/Fe (Vinet) (Seager 2007) & Fe TFD.eos")
-h2o_seager = load_interpolated_eos("$DATADIR/H2O (BME3) (Seager 2007) & H2O (DFT) & H2O TFD.eos")
-mgsio3_seager = load_interpolated_eos("$DATADIR/MgSiO3 (BME4) (Seager 2007) & MgSiO3 TFD.eos")
+my_h2o = load_interpolated_eos("$(Common.DATADIR)/tabulated/h2o.dat")
+fe_seager = load_interpolated_eos("$(Common.DATADIR)/Fe (Vinet) (Seager 2007) & Fe TFD.eos")
+h2o_seager = load_interpolated_eos("$(Common.DATADIR)/H2O (BME3) (Seager 2007) & H2O (DFT) & H2O TFD.eos")
+mgsio3_seager = load_interpolated_eos("$(Common.DATADIR)/MgSiO3 (BME4) (Seager 2007) & MgSiO3 TFD.eos")
 
 end
