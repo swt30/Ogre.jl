@@ -1,5 +1,4 @@
-using ogre.common
-using ogre.integrator
+using Ogre: Common, Integrator
 using FactCheck
 
 facts("Integrator tests") do

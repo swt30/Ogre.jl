@@ -9,6 +9,6 @@ include("test_integrator.jl")
 using Lint
 
 println("Linting...")
-lintpkg("ogre")
+lintpkg("Ogre")
 
 FactCheck.exitstatus()

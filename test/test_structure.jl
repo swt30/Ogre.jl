@@ -1,5 +1,4 @@
-using ogre.common
-using ogre.structure
+using Ogre: Common, Structure
 using FactCheck
 
 facts("Structure equations") do
