@@ -164,7 +164,7 @@ function TFD{T<:Real, N<:Integer}(P::T, Z::Vector{N}, A::Vector{T},
         """sub-function for β remainder of components"""
         n += 1 # adjust n from 2-5 to 3-6
         bn = 1./((g[n, 1] + g[n, 2].*(ε.^(1/2)) + g[n, 3].*ε
-                            + g[n, 4].*(ε.^(3/2)) + g[n, 5].*(ε.^2)).^(n-1))
+                  + g[n, 4].*(ε.^(3/2)) + g[n, 5].*(ε.^2)).^(n-1))
     end
 
     β₂ = β_(2)
@@ -300,9 +300,9 @@ end
 
 # Generate and export interpolated functions
 
-my_h2o = load_interpolated_eos("$(Common.DATADIR)/tabulated/h2o.dat")
-fe_seager = load_interpolated_eos("$(Common.DATADIR)/Fe (Vinet) (Seager 2007) & Fe TFD.eos")
-h2o_seager = load_interpolated_eos("$(Common.DATADIR)/H2O (BME3) (Seager 2007) & H2O (DFT) & H2O TFD.eos")
-mgsio3_seager = load_interpolated_eos("$(Common.DATADIR)/MgSiO3 (BME4) (Seager 2007) & MgSiO3 TFD.eos")
+my_h2o = load_interpolated_eos("$DATADIR/tabulated/h2o.dat")
+fe_seager = load_interpolated_eos("$DATADIR/Fe (Vinet) (Seager 2007) & Fe TFD.eos")
+h2o_seager = load_interpolated_eos("$DATADIR/H2O (BME3) (Seager 2007) & H2O (DFT) & H2O TFD.eos")
+mgsio3_seager = load_interpolated_eos("$DATADIR/MgSiO3 (BME4) (Seager 2007) & MgSiO3 TFD.eos")
 
 end

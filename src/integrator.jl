@@ -233,7 +233,7 @@ function ode4!{T<:Real}(F::Function, x::Vector{T}, k::Matrix{T},
     k[:,4] = h*F(tstart + h,    x + k[:,3])
 
     # Integrate and change the x array
-    x[:] += k[:,1]./6 + k[:,2]./3 + k[:,3]./3 + k[:,4]./4
+    x[:] = x + k[:,1]./6 + k[:,2]./3 + k[:,3]./3 + k[:,4]./6
 end
 
 end
