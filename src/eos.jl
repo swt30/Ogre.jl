@@ -136,8 +136,7 @@ end
 function TFD{T<:Real, N<:Integer}(P::T, Z::Vector{N}, A::Vector{T},
                                   n::Vector{T})
     # inputs should be the same size
-    @assert length(Z) == length(A)
-    @assert length(n) == length(A)
+    @assert length(Z) == length(A) == length(n)
 
     # P is in Pa but we want it in dyn/cm**2: 1 Pa = 10 dyn/cm**2
     P *= 10

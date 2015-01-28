@@ -1,14 +1,13 @@
 using FactCheck
+FactCheck.setstyle(:default) # :compact or :default
 
-FactCheck.setstyle(:compact)
+function main()
+    include("test_eos.jl")
+    include("test_structure.jl")
+    include("test_integrator.jl")
 
-include("test_eos.jl")
-include("test_structure.jl")
-include("test_integrator.jl")
+    FactCheck.exitstatus()
+end
 
-using Lint
+main()
 
-println("Linting...")
-lintpkg("Ogre")
-
-FactCheck.exitstatus()

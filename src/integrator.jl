@@ -236,4 +236,25 @@ function ode4!{T<:Real}(F::Function, x::Vector{T}, k::Matrix{T},
     x[:] = x + k[:,1]./6 + k[:,2]./3 + k[:,3]./3 + k[:,4]./6
 end
 
+# generic ode4 - under construction
+function ode4{T<:Real}(F::Function, x::Vector{T}, tgrid::Vector{T})
+    tstart = tgrid[1]
+    F, xnew, k = ode4_setup(F, x)
+
+    produce((tstart, xnew))
+    for tnext in tgrid[2:end]
+        ode4!(F, xnew, k, tn, tnext)
+        tn = tnext
+        if should_halt(tn, xnew)
+            break
+        else
+            produce((tn, xnew))
+        end
+    end
+end
+
+function ode4{T<:Real}(F::Function, x::T, tgrid::Vector{T})
+    ode4(F, [x], tgrid)[1]
+end
+
 end
