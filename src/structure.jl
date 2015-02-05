@@ -9,12 +9,12 @@ immutable StructureEquation <: Equation
     equation::Function
 end
 
+isnegative(val::Real) = val < 0 ? true : false
+
 function mass_continuity(vs::ValueSet, eos::EOS)
     m, r, P = vs.m, vs.r, vs.P
 
-    if m < 0 || r < 0 || P < 0
-        throw("Attempting to integrate an un-physical value")
-    elseif m == 0 || r == 0
+    if m <= 0 || r <= 0 || P <= 0
         return 0.0
     end
 
@@ -26,9 +26,7 @@ end
 function pressure_balance(vs::ValueSet)
     m, r, P = vs.m, vs.r, vs.P
 
-    if m < 0 || r < 0 || P < 0
-        throw("Attempting to integrate an un-physical value")
-    elseif m == 0 || r == 0
+    if m <= 0 || r <= 0 || P <= 0
         return 0.0
     end
 

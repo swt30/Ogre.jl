@@ -27,8 +27,7 @@ type PlanetStructure{T<:Real}
     y::Matrix{T}
 end
 
-import Base.zero
-zero(::Type{PlanetStructure}) = PlanetStructure([0.], [0. 0.])
+Base.zero(::Type{PlanetStructure}) = PlanetStructure([0.], [0. 0.])
 
 # this equation does not change with composition
 const pressure_balance_eq = StructureEquation(pressure_balance)
@@ -40,68 +39,36 @@ const total_points = 100
 const R_bracket = [0., 15.] .* R_earth
 
 # set up a system with given EOS
-function setup_system(M::Real, eos::EOS,
-                      P_surface::Real=surface_pressure,
-                      mass_fractions::Vector{Float64}=mass_fractions,
-                      total_points::Integer=total_points,
-                      R_bracket::Vector{Float64}=R_bracket)
-    # planet layer options
-    layer_densities = [eos]
+# TODO: maybe shift this to be a constructor in the EOS module
+function make_piecewise_EOS{T<:Real}(M::Real,
+                                     eoses::Vector{SingleEOS},
+                                     mass_fractions::Vector{T})
     layer_edges = [0, cumsum(M.*mass_fractions)]
+    MassPiecewiseEOS(eoses, layer_edges)
+end
 
+function setup_system{T<:SingleEOS, E<:Real}(M::Real, eoses::Vector{T},
+                                             mass_fractions::Vector{E})
+    eos = make_piecewise_EOS(M, eoses, mass_fractions)
+    setup_system(M, eos)
+end
+
+function setup_system{T<:Real}(M::Real, eos::EOS, R_bracket::Vector{T}=R_bracket)
     # ODE system options
-    m_inner, m_outer = layer_edges[1], layer_edges[end]
+    m_inner, m_outer = 0, M
     solution_grid = linspace(m_outer, m_inner, total_points)
 
     # density-dependent equations change if layers or the EOS change
-    density_profile = MassPiecewiseEOS(layer_densities, layer_edges)
-    mass_continuity_with_eos(vs) = mass_continuity(vs, density_profile)
+    mass_continuity_with_eos(vs) = mass_continuity(vs, eos)
     mass_continuity_eq = StructureEquation(mass_continuity_with_eos)
     structure_equations = EquationSet([mass_continuity_eq,
                                        pressure_balance_eq])
 
-    setup_find_radius(m_outer, mean(R_bracket), P_surface,
+    setup_find_radius(m_outer, mean(R_bracket), surface_pressure,
                       structure_equations, solution_grid, R_bracket)
 end
 
 #= Functions to actually solve the structure, given boundary conditions =#
-
-# stepper task for doing the integration
-function stepper(sys::PlanetSystem)
-    # should be able to overload the call method here eventually
-    ode_func{T<:Real}(t::T, y::Vector{T}) = callfunc(sys.structure_equations,
-                                                     t, y)
-
-    boundary = sys.boundary_values
-    ystart = initial_values(boundary)
-    tstart = mass_coordinate(boundary)
-    tn = sys.solution_grid[1]
-
-    F, yn, k = ode4_setup(ode_func, ystart)
-
-    produce((tstart, yn))
-    for tnext in sys.solution_grid[2:end]
-        ode4!(F, yn, k, tn, tnext)
-        tn = tnext
-        if should_halt(tn, yn)
-            # give us one more value and then stop
-            produce((tn, yn))
-            break
-        else
-            produce((tn, yn))
-        end
-    end
-end
-
-# callback function to tell if the integration should stop
-function should_halt{T<:Real}(t::T, y::Vector{T})
-    # if the radius or mass drops below zero, we halt there
-    if y[1] < 0 || t < 0
-        return true
-    else
-        return false
-    end
-end
 
 # generating blank solutions
 function blank_structure(sys::PlanetSystem)
@@ -116,11 +83,17 @@ end
 
 # solve and write to a given solution object
 function solve!(sys::PlanetSystem, soln::PlanetStructure)
-    # make an integrator stepper and run it
-    steppertask = @task stepper(sys)
-    for (i, x) in enumerate(steppertask)
-        soln.m[i] = x[1]
-        soln.y[i, :] = x[2]
+    # make an integrator and run it
+    ode_func{T<:Real}(t::T, y::Vector{T}) = callfunc(sys.structure_equations,
+                                                     t, y)
+    x0 = initial_values(sys.boundary_values)
+    t0 = mass_coordinate(sys.boundary_values)
+    tgrid = sys.solution_grid
+
+    solver = PlanetRK4(ode_func, x0, tgrid)
+    for (i, x) in enumerate(solver)
+        soln.m[i] = tgrid[i]
+        soln.y[i, :] = x
     end
 end
 
@@ -212,17 +185,15 @@ end
 
 #= NUMERICAL METHODS =#
 
-# set up arrays for fast ODE solving
-function ode4_setup{T<:Real}(F::Function, x::Vector{T})
-    xnew::Vector{T} = copy(x)
-    k::Matrix{T} = zeros(length(xnew), 4)
-    F, xnew, k
-end
+# accept either single or multi-valued starting conditions
+typealias NumOrVec{T<:Real} Union(T, Vector{T})
 
-# a single RK4 step
-function ode4!{T<:Real}(F::Function, x::Vector{T}, k::Matrix{T},
-                        tstart::T, tend::T)
+# a single RK4 step: this function does the bulk of the work
+function ode4_step{T<:Real}(F::Function, x::NumOrVec{T},
+    tstart::T, tend::T)
+
     h::T = tend - tstart
+    k = zeros(T, (length(x), 4))
 
     # Beginning derivative
     k[:,1] = h*F(tstart,        x)
@@ -232,29 +203,84 @@ function ode4!{T<:Real}(F::Function, x::Vector{T}, k::Matrix{T},
     # Ending derivative
     k[:,4] = h*F(tstart + h,    x + k[:,3])
 
-    # Integrate and change the x array
-    x[:] = x + k[:,1]./6 + k[:,2]./3 + k[:,3]./3 + k[:,4]./6
+    # Integrate
+    x + k[:,1]./6 + k[:,2]./3 + k[:,3]./3 + k[:,4]./6
 end
 
-# generic ode4 - under construction
-function ode4{T<:Real}(F::Function, x::Vector{T}, tgrid::Vector{T})
-    tstart = tgrid[1]
-    F, xnew, k = ode4_setup(F, x)
+# types to handle solving
+abstract IntegratorMethod
+abstract FixedStepIntegrator <: IntegratorMethod
+abstract RK4Integrator <: FixedStepIntegrator
 
-    produce((tstart, xnew))
-    for tnext in tgrid[2:end]
-        ode4!(F, xnew, k, tn, tnext)
-        tn = tnext
-        if should_halt(tn, xnew)
-            break
-        else
-            produce((tn, xnew))
-        end
+typealias IntegratorState{I<:Integer, T<:Real} (I, NumOrVec{T})
+
+# for general RK4 solving
+immutable GenericRK4{T<:Real} <: RK4Integrator
+    F::Function
+    x0::NumOrVec{T}
+    tgrid::Vector{T}
+end
+
+# for more specifically solving planetary structures
+immutable PlanetRK4{T<:Real} <: RK4Integrator
+    F::Function
+    x0::NumOrVec{T}
+    tgrid::Vector{T}
+end
+
+# integrator setup and steps
+function Base.start(solver::FixedStepIntegrator)
+    tindex = 1
+
+    (tindex, solver.x0)
+end
+
+function Base.next(solver::RK4Integrator, state::IntegratorState)
+    tindex, x = state
+
+    # can't integrate past the end so just increment the t index instead
+    if tindex == length(solver.tgrid)
+        return x, (tindex + 1, x)
     end
+
+    tstart = solver.tgrid[tindex]
+    tend = solver.tgrid[tindex + 1]
+    xn = ode4_step(solver.F, x, tstart, tend)
+
+    newstate = (tindex + 1, xn)
+
+    x, newstate
 end
 
-function ode4{T<:Real}(F::Function, x::T, tgrid::Vector{T})
-    ode4(F, [x], tgrid)[1]
+# termination conditions
+function Base.done(solver::FixedStepIntegrator, state::IntegratorState)
+    tindex, x = state
+    tindex > length(solver.tgrid) ? true : false
+end
+
+# in general, terminate when t<0 (m<0 for the case of planets). for planets, we
+# let the integration continue *over* the centre and thus produce a zero value
+# if r<0: this then signals the radius search function that we should increase
+# our radius
+
+# the length should be that of the solution grid
+# (this allows us to use it in array comprehensions)
+Base.length(solver::FixedStepIntegrator) = length(solver.tgrid)
+
+# Wrappers to the above, providing dense output
+function ode4_dense{T<:Real}(F::Function, x::T, tgrid::Vector{T})
+    solver = GenericRK4(F, x, tgrid)
+
+    # return a 1D array
+    # the x[1] is to flatten any 1x1 arrays into single values
+    [x[1] for x in solver]
+end
+
+function ode4_dense{T<:Real}(F::Function, x::Vector{T}, tgrid::Vector{T})
+    solver = GenericRK4(F, x, tgrid)
+
+    # return a 2D array
+    reduce(hcat, solver)'
 end
 
 end

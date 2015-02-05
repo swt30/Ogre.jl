@@ -1,12 +1,12 @@
-using Ogre, PyCall, LaTeXStrings
+using Ogre, LaTeXStrings
 import Lazy: constantly
 
 # plot setup for Python
-pygui()
+using PyCall
 style = pyimport("matplotlib.style") # no @pyimport for now (Lint complains)
 plt = pyimport("matplotlib.pyplot")
 style[:use]("fivethirtyeight") # clean up this once dot-overloading is allowed
-plot = plt[:plot]              # ditto
+plot = plt[:plot]
 
 function main()
     ms = linspace(0.5, 10, 30) .* M_earth

@@ -1,8 +1,8 @@
 module Eos
 using Ogre: Common
-using Grid, Roots
+using Dierckx, Roots
 # Exported types
-export EOS, SimpleEOS, MassPiecewiseEOS, InvertedEOS
+export EOS, SingleEOS, SimpleEOS, MassPiecewiseEOS, InvertedEOS
 # Exported functions
 export callfunc
 
@@ -134,7 +134,8 @@ end
 # Here's the real, working TFD
 
 function TFD{T<:Real, N<:Integer}(P::T, Z::Vector{N}, A::Vector{T},
-                                  n::Vector{T})
+    n::Vector{T})
+
     # inputs should be the same size
     @assert length(Z) == length(A) == length(n)
 
@@ -194,8 +195,7 @@ end
 
 # EOS interpolation, storage and retrieval
 
-import Base.write
-function write(eos::EOS, pressures::Vector{Float64})
+function Base.write(eos::EOS, pressures::Vector{Float64})
     densities = map(pressures) do P
         callfunc(eos, P)
     end
@@ -211,16 +211,13 @@ function write_eoses_to_files()
     # Seager's versions of the BME
     fe_eps_seager_func(rho::Real) = Vinet(rho, 8300., 156.2, 6.08) * 1e9
     h2o_VII_seager_func(rho::Real) = BME(rho, 1460., 23.7, 4.15) * 1e9
-    mgsio3_pv_seager_func3(rho::Real) = BME(rho, 4100., 247., 3.97) * 1e9
-    mgsio3_pv_seager_func4(rho::Real) = BME(rho, 4100., 247., 3.97, -0.016) * 1e9
+    mgsio3_pv_seager_func(rho::Real) = BME(rho, 4100., 247., 3.97, -0.016) * 1e9
     fe_seager_low = InvertedEOS(fe_eps_seager_func, 1e3, 1e14,
                                 "Fe (Vinet) (Seager 2007)")
     h2o_seager_low = InvertedEOS(h2o_VII_seager_func, 1e3, 1e8,
                                  "H2O (BME3) (Seager 2007)")
-    h2o_seager_dft = load_interpolated_eos("data/tabulated/H2O (DFT).eos")
-    # mgsio3_seager3_low = InvertedEOS(mgsio3_pv_seager_func3, 1e3, 1e8,
-    #                                  "MgSiO3 (BME3) (Seager 2007)")
-    mgsio3_seager4_low = InvertedEOS(mgsio3_pv_seager_func4, 1e3, 5e4,
+    h2o_seager_dft = load_interpolated_eos("data/tabulated/H2O (DFT).eos", linear=true)
+    mgsio3_seager_low = InvertedEOS(mgsio3_pv_seager_func, 1e3, 5e4,
                                      "MgSiO3 (BME4) (Seager 2007)")
 
     fe_tfd_func(P::Real) = TFD(P, 26, 55.845)
@@ -237,8 +234,10 @@ function write_eoses_to_files()
     h2o_seager = PressurePiecewiseEOS([h2o_seager_low,
                                        h2o_seager_dft,
                                        h2o_tfd],
-                                      [1e4, 44.3e9, 7686e9, 1e20])
-    mgsio3_seager = PressurePiecewiseEOS([mgsio3_seager4_low, mgsio3_tfd],
+                                      [1e4,
+                                      44.3e9,
+                                      7686e9, 1e20])
+    mgsio3_seager = PressurePiecewiseEOS([mgsio3_seager_low, mgsio3_tfd],
                                          [1e4, 1.35e13, 1e20])
 
     for eos in [fe_seager, h2o_seager, mgsio3_seager]
@@ -247,25 +246,30 @@ function write_eoses_to_files()
 end
 
 function loginterp{T<:Real}(x::Array{T}, y::Array{T})
-    min_x, max_x = extrema(x)
-    logrange = linrange(log10(min_x), log10(max_x), length(x))
-    yi = CoordInterpGrid(logrange, y, BCnan, InterpQuadratic)
+    # interpolate using a log-spaced coordinate grid
+    # first transform the grid to be linear
+    logx = log10(x)
+    # then do the interpolation as if it were linear
+    lin_interp_func = lininterp(logx, y)
 
-    interp_func(P) = yi[log10(P)]
+    interp_func(x) = lin_interp_func(log10(x))
 end
 
 function lininterp{T<:Real}(x::Array{T}, y::Array{T})
-    min_x, max_x = extrema(x)
-    range = linrange(min_x, max_x, length(x))
-    yi = CoordInterpGrid(range, y, BCnan, InterpQuadratic)
+    # interpolate in linear space using a quadratic spline
+    spline = Spline1D(x, y, k=2)
 
-    interp_func(P) = yi[P]
+    interp_func(x) = evaluate(spline, convert(Float64, x))
 end
 
-function load_interpolated_eos(file::String)
+function load_interpolated_eos(file::String; linear=false)
     data = readdlm(file, Float64; skipstart=1)
     P, rho = data[:, 1], data[:, 2]
-    interp_func = loginterp(P, rho)
+    if linear
+        interp_func = lininterp(P, rho)
+    else
+        interp_func = loginterp(P, rho)
+    end
     directory, filename = splitdir(file)
     name, ext = splitext(filename)
 
@@ -297,11 +301,12 @@ function callfunc(eos::PressurePiecewiseEOS, P::Real)
     callfunc(eos, ValueSet(0., 0., P))
 end
 
-# Generate and export interpolated functions
+# Generate speedier interpolated functions
 
 my_h2o = load_interpolated_eos("$DATADIR/tabulated/h2o.dat")
 fe_seager = load_interpolated_eos("$DATADIR/Fe (Vinet) (Seager 2007) & Fe TFD.eos")
 h2o_seager = load_interpolated_eos("$DATADIR/H2O (BME3) (Seager 2007) & H2O (DFT) & H2O TFD.eos")
+h2o_seager_simple = load_interpolated_eos("$DATADIR/H2O (BME3) (Seager 2007) & H2O TFD.eos")
 mgsio3_seager = load_interpolated_eos("$DATADIR/MgSiO3 (BME4) (Seager 2007) & MgSiO3 TFD.eos")
 
 end

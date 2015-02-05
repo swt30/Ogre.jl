@@ -1,5 +1,5 @@
 using FactCheck
-FactCheck.setstyle(:default) # :compact or :default
+FactCheck.setstyle(:compact) # :compact or :default
 
 function main()
     include("test_eos.jl")

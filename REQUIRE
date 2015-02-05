@@ -1,8 +1,8 @@
 # Packages required for ogre.jl
 julia 0.3-
-Grid              # interpolation
+Dierckx           # interpolation
 Reexport          # make it easier to do submodules
 PyCall            # for that sweet sweet python magic
 PyPlot            # for that sweet sweet matplotlib
-Roots             # root finding
 Lazy              # functional fun
+Roots             # root-finding for numerical inversion

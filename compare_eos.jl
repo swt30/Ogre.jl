@@ -11,16 +11,15 @@ plot(args...; kwargs...) = plt[:plot](args...; kwargs...)
 
 
 function main()
-    graph_h2o    = 10.^readcsv("data/seager-graphs/h2o.csv")
-    graph_mgsio3 = 10.^readcsv("data/seager-graphs/mgsio3.csv")
-    graph_fe     = 10.^readcsv("data/seager-graphs/fe.csv")
+    graph_h2o    = readcsv("data/seager-graphs/H2O.csv")
+    graph_mgsio3 = readcsv("data/seager-graphs/MgSiO3.csv")
+    graph_fe     = readcsv("data/seager-graphs/Fe.csv")
 
     pressures = logspace(7, 19)
 
-    @show h2o          = map(P -> callfunc(Eos.h2o_seager, P), pressures)
-    @show mgsio3       = map(P -> callfunc(Eos.mgsio3_seager, P), pressures)
-    @show fe           = map(P -> callfunc(Eos.fe_seager, P), pressures)
-
+    h2o          = map(P -> callfunc(Eos.h2o_seager, P), pressures)
+    mgsio3       = map(P -> callfunc(Eos.mgsio3_seager, P), pressures)
+    fe           = map(P -> callfunc(Eos.fe_seager, P), pressures)
 
     plot(pressures, h2o, label="H2O")
     plot(pressures, mgsio3, label="MgSiO3")
