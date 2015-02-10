@@ -2,7 +2,9 @@
 julia 0.3-
 Dierckx           # interpolation
 Reexport          # make it easier to do submodules
-PyCall            # for that sweet sweet python magic
-PyPlot            # for that sweet sweet matplotlib
-Lazy              # functional fun
 Roots             # root-finding for numerical inversion
+
+# Additional packages used in scripts
+PyCall
+PyPlot
+Lazy
