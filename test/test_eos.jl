@@ -1,7 +1,8 @@
 import Ogre: Common, Eos
 using FactCheck
 
-callfunc = Common.callfunc
+const DATADIR = Common.DATADIR
+const callfunc = Common.callfunc
 
 facts("Equation of state (EOS) handling") do
     eqn1(x) = x
@@ -54,7 +55,7 @@ facts("Equation of state (EOS) handling") do
                 h2o_VII_seager_func(rho::Real) = Eos.BME(rho, 1460., 23.7, 4.15) * 1e9
                 h2o_seager_low = Eos.InvertedEOS(h2o_VII_seager_func, 1e3, 1e8,
                                                  "H2O (BME3) (Seager 2007)")
-                h2o_seager_dft = Eos.load_interpolated_eos("data/tabulated/H2O (DFT).eos")
+                h2o_seager_dft = Eos.load_interpolated_eos("$DATADIR/tabulated/H2O (DFT).eos")
                 h2o_tfd_func(P::Real) = Eos.TFD(P, [1, 8], [1.00794, 15.9994], [2., 1.])
                 h2o_tfd = Eos.SimpleEOS(h2o_tfd_func, "H2O TFD")
 
