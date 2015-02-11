@@ -267,7 +267,7 @@ end
 # termination conditions
 function Base.done(solver::FixedStepIntegrator, state::IntegratorState)
     tindex, x = state
-    tindex > length(solver.tgrid) ? true : false
+    tindex > length(solver.tgrid)
 end
 
 # in general, terminate when t<0 (m<0 for the case of planets). for planets, we

@@ -9,7 +9,7 @@ immutable StructureEquation <: Equation
     equation::Function
 end
 
-isnegative(val::Real) = val < 0 ? true : false
+isnegative(val::Real) = val < 0
 
 function mass_continuity(vs::ValueSet, eos::EOS)
     m, r, P = vs.m, vs.r, vs.P
