@@ -40,20 +40,22 @@ const R_bracket = [0., 15.] .* R_earth
 
 # set up a system with given EOS
 # TODO: maybe shift this to be a constructor in the EOS module
-function make_piecewise_EOS{T<:Real}(M::Real,
-                                     eoses::Vector{SingleEOS},
-                                     mass_fractions::Vector{T})
+function make_piecewise_EOS{T<:Real}(M::Real, eoses::Vector{SingleEOS},
+    mass_fractions::Vector{T})
+
     layer_edges = [0, cumsum(M.*mass_fractions)]
-    MassPiecewiseEOS(eoses, layer_edges)
-end
+    MassPiecewiseEOS(eoses, layer_edges) end
 
 function setup_system{T<:SingleEOS, E<:Real}(M::Real, eoses::Vector{T},
-                                             mass_fractions::Vector{E})
+    mass_fractions::Vector{E})
+
     eos = make_piecewise_EOS(M, eoses, mass_fractions)
     setup_system(M, eos)
 end
 
-function setup_system{T<:Real}(M::Real, eos::EOS, R_bracket::Vector{T}=R_bracket)
+function setup_system{T<:Real}(M::Real, eos::EOS,
+    R_bracket::Vector{T}=R_bracket)
+
     # ODE system options
     m_inner, m_outer = 0, M
     solution_grid = linspace(m_outer, m_inner, total_points)
@@ -140,23 +142,18 @@ function find_radius!(system::PlanetSystem)
 end
 
 # set up a planetary system
-function setup_find_radius{T<:Real}(M::T,
-                                    R::T,
-                                    P_surface::T,
-                                    struct::EquationSet,
-                                    solution_grid::Vector{T},
-                                    R_bracket::Vector{T})
+function setup_find_radius{T<:Real}(M::T, R::T, P_surface::T,
+    struct::EquationSet, solution_grid::Vector{T}, R_bracket::Vector{T})
+
     # boundary conditions and ODE setup
     bv = BoundaryValues(M, R, P_surface)
     system = PlanetSystem(M, struct, bv, solution_grid, R_bracket)
 end
 
 # create a system and find an appropriate radius
-function find_radius{T<:Real}(M::T,
-                              structure::EquationSet,
-                              P_surface::T,
-                              solution_grid::Vector{T},
-                              R_bracket::Vector{T})
+function find_radius{T<:Real}(M::T, structure::EquationSet, P_surface::T,
+    solution_grid::Vector{T}, R_bracket::Vector{T})
+
     R_guess = mean(R_bracket)
     system = setup_system(M, R_guess, P_surface, structure,
                           solution_grid, R_bracket)

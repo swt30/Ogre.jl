@@ -1,10 +1,12 @@
 import Ogre: Common, Eos
 using FactCheck
 
+# simplify a couple of common variables
 const DATADIR = Common.DATADIR
 const callfunc = Common.callfunc
 
 facts("Equation of state (EOS) handling") do
+    # general setup of some simple EOSes
     eqn1(x) = x
     eqn2(x) = x^2
     eqn3(x) = log10(x)
@@ -14,20 +16,21 @@ facts("Equation of state (EOS) handling") do
 
     context("Calling a simple EOS") do
         @fact callfunc(simple_eos1, 42) => 42
+        @pending "Update this once call overrides are a thing" => ""
     end
-    @pending "Update this once call overrides are a thing" => ""
 
     context("Piecewise EOS") do
+        # stitch together those simple EOSes
         piecewise_eos = Eos.MassPiecewiseEOS([simple_eos1,
                                               simple_eos2,
                                               simple_eos3], [0, 1, 2, 3])
 
-        context("get number of equations in each EOS") do
+        context("Get number of equations in each EOS") do
             @fact Eos.n_eqs(simple_eos1) => 1
             @fact Eos.n_eqs(piecewise_eos) => 3
         end
 
-        context("the PiecewiseEOS returns correct individual EOS") do
+        context("The PiecewiseEOS returns correct individual EOS") do
             @fact Eos.get_layer_eos(piecewise_eos, -1)  => simple_eos1
             @fact Eos.get_layer_eos(piecewise_eos, 0.5) => simple_eos1
             @fact Eos.get_layer_eos(piecewise_eos, 1.5) => simple_eos2
@@ -35,7 +38,7 @@ facts("Equation of state (EOS) handling") do
             @fact Eos.get_layer_eos(piecewise_eos, 5)   => simple_eos3
         end
 
-        context("pressure-piecewise EOS calls match the individual EOS") do
+        context("Pressure-piecewise EOS calls match the individual EOS") do
             context("A really simple piecewise EOS") do
                 P_piecewise_eos = Eos.PressurePiecewiseEOS([simple_eos1,
                                                             simple_eos2,
@@ -50,6 +53,7 @@ facts("Equation of state (EOS) handling") do
                 # We construct a pressure-piecewise EOS based on Sara Seager's
                 # water EOS in her 2007 paper, then attempt to draw from it to see
                 # if it matches our expectations
+
                 transition_pressures = [0, 44.3e9, 7686e9, 1e20]
 
                 h2o_VII_seager_func(rho::Real) = Eos.BME(rho, 1460., 23.7, 4.15) * 1e9
@@ -74,8 +78,9 @@ facts("Equation of state (EOS) handling") do
     end
 
     context("TFD tests") do
+        # our sample pressures
         pressures = [0.1e6, 1e6, 10e6] # in bar
-        pressures = pressures .* 1e5   # 1 bar = 1e5 Pa
+        pressures .*= 1e5              # 1 bar = 1e5 Pa
 
         function test_TFD(A, Z, n, anticipated_densities)
             TFD(P) = Eos.TFD(P, Z, A, n)
@@ -125,7 +130,6 @@ facts("Equation of state (EOS) handling") do
                 @fact callfunc(eos, P) => roughly(sample_density)
             end
             @pending "Update this once call overrides are a thing" => ""
-
         end
 
         context("Fail inverting outside the range specified") do
@@ -149,19 +153,21 @@ facts("Equation of state (EOS) handling") do
                 log_interpolation = Eos.loginterp(Plog, rholog)
                 lin_interpolation = Eos.lininterp(Plin, rholin)
 
-                @fact log_interpolation(1) => roughly(1^2)
-                @fact log_interpolation(2) => roughly(2^2)
-                @fact log_interpolation(4.7) => roughly(4.7^2)
-                @fact log_interpolation(7.5) => roughly(7.5^2)
-                @fact log_interpolation(8) => roughly(8^2)
+                values_to_check = [1, 2, 4.7, 7.5, 8]
+                expected_results = values_to_check.^2
 
-                @fact lin_interpolation(1) => roughly(1^2)
-                @fact lin_interpolation(2) => roughly(2^2)
-                @fact lin_interpolation(4.7) => roughly(4.7^2)
-                @fact lin_interpolation(7.5) => roughly(7.5^2)
-                @fact lin_interpolation(10) => roughly(10^2)
+                function check_eos{T<:Real}(eos::Function,
+                                            inputs::Vector{T},
+                                            outputs::Vector{T})
+                    @assert length(inputs) == length(outputs)
+                    map(inputs, outputs) do input, output
+                        @fact eos(input) => roughly(output)
+                    end
+                end
+
+                check_eos(log_interpolation, values_to_check, expected_results)
+                check_eos(lin_interpolation, values_to_check, expected_results)
             end
         end
     end
-
 end

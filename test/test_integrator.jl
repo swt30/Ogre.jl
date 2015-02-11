@@ -1,42 +1,12 @@
 import Ogre: Common, Integrator, Structure
 using FactCheck
 
-# plot setup for Python
-using PyCall
-pygui()
-style = pyimport("matplotlib.style")
-plt = pyimport("matplotlib.pyplot")
-style[:use]("ggplot") # clean up this once dot-overloading is allowed
-
-function plot(soln::Integrator.PlanetStructure)
-    x = soln.m
-    r = soln.y[:, 1]
-    P = soln.y[:, 2]
-
-    fig = plt[:figure]()
-    ax = fig[:add_subplot](211)
-    ax[:set_ylabel]("Pressure, P / Pa")
-
-    ax2 = fig[:add_subplot](212, sharex=ax)
-    ax2[:set_xlabel]("Mass enclosed, m / kg")
-    ax2[:set_ylabel]("Radius, r / m")
-
-    for axes in fig[:get_axes]()
-        axes[:yaxis][:get_major_formatter]()[:set_powerlimits]((0, 1))
-    end
-
-    fig[:tight_layout]()
-
-    ax[:plot](x, r, linewidth=2)
-    ax2[:plot](x, P, linewidth=2)
-
-    plt[:show]()
-end
-
 facts("Integrator tests") do
 
     context("Standard RK4 integrator test cases") do
         t = [0:0.1:1]
+
+        # Four different integrator tests
 
         # dy/dt = 6  -->  y = 6t (y0=0)
         f1(t, y) = 6
@@ -100,10 +70,12 @@ facts("Integrator tests") do
             end
 
             context("Dual- and tri-layer solutions work") do
-                # accept a pretty large error since we're really just looking to
-                # make sure that it produces the right type of solution
-                @fact Integrator.R(M_earth, dual_layer_eos) => roughly(R_earth, rtol=0.1)
-                @fact Integrator.R(M_earth, tri_layer_eos) => roughly(R_earth, rtol=0.1)
+                # accept a pretty large error since we're really just looking
+                # to make sure that it produces the right type of solution
+                @fact (Integrator.R(M_earth, dual_layer_eos)
+                       => roughly(R_earth, rtol=0.1))
+                @fact (Integrator.R(M_earth, tri_layer_eos)
+                       => roughly(R_earth, rtol=0.1))
             end
         end
 
@@ -118,6 +90,7 @@ facts("Integrator tests") do
                 @fact ndims(soln.m) => 1
                 @fact ndims(soln.y) => 2
             end
+
             context("Solution boundaries match the boundary conditions") do
                 surface_pressure = 1e5
                 r, P = soln.y[:, 1] , soln.y[:, 2]

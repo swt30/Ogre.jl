@@ -12,6 +12,7 @@ include("constants.jl")
 include("eos.jl")
 include("structure.jl")
 include("integrator.jl")
+include("plot.jl")
 
 using Reexport
 @reexport using .Common, .Constants, .Eos, .Structure, .Integrator
