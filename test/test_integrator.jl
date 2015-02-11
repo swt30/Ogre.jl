@@ -54,7 +54,7 @@ facts("Integrator tests") do
         tri_layer_eos = Eos.MassPiecewiseEOS(tri_layer_eoses,
                                               tri_layer_transitions)
 
-        context("Solving for a radius") do
+        context("Solving for a radius (high-level funcs)") do
             context("We can match Madhu and Sara's results to within 1%") do
                 test_masses = [0.5, 1.0, 5.0]
                 fe = Eos.fe_seager
@@ -100,6 +100,21 @@ facts("Integrator tests") do
                 @fact r[1] => actual_radius
                 @fact r[end] => less_than(100)
                 @fact r[end] => greater_than(0)
+
+                Ogre.Plot.plot(soln)
+            end
+        end
+
+        context("Helper function tests") do
+            R_bracket = [0, 15] * R_earth
+            system = Integrator.setup_system(M_earth, dual_layer_eos, R_bracket)
+
+            context("Determining when we're close to the centre of the planet") do
+                @fact Integrator.hit_the_centre(-50) => true
+                @fact Integrator.hit_the_centre(50) => false
+                @fact Integrator.hit_the_centre(1e6) => false
+                @fact Integrator.not_far_enough(1e6) => true
+                @fact Integrator.not_far_enough(50) => false
             end
         end
     end

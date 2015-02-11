@@ -3,7 +3,7 @@ using Ogre: Common, Constants, Structure, Eos
 # Exported types
 export BoundaryValues, PlanetSystem, PlanetStructure
 # Exported functions
-export zero, setup_system, find_radius, find_radius!, solve, R
+export zero, setup_system, find_radius, solve, R
 
 #= Mass coordinates and other values =#
 
@@ -14,7 +14,7 @@ mass_coordinate(vs::ValueSet) = vs.m::Real
 
 typealias BoundaryValues ValueSet
 
-type PlanetSystem{T<:Real}
+immutable PlanetSystem{T<:Real}
     M::T
     structure_equations::EquationSet
     boundary_values::BoundaryValues
@@ -28,6 +28,7 @@ type PlanetStructure{T<:Real}
 end
 
 Base.zero(::Type{PlanetStructure}) = PlanetStructure([0.], [0. 0.])
+R_guess(system::PlanetSystem) = mean(system.radius_search_bracket)
 
 # this equation does not change with composition
 const pressure_balance_eq = StructureEquation(pressure_balance)
@@ -72,7 +73,7 @@ end
 
 #= Functions to actually solve the structure, given boundary conditions =#
 
-# generating blank solutions
+# generating blank solutions (filled with NaN)
 function blank_structure(sys::PlanetSystem)
     # array setup
     n_points = length(sys.solution_grid)
@@ -110,34 +111,48 @@ end
 #= lower level functions to get a radius for a structure =#
 
 # helper functions
-notnan(arr) = ~isnan(arr)
+notnan(value) = ~isnan(value)
 dropnans(arr::Array) = filter(notnan, arr)
+r_centre(result::PlanetStructure) = dropnans(result.y[:, 1])[end]
+hit_the_centre(R::Real) = R < 0
+not_far_enough(R::Real) = R > 100
+hit_the_centre(result::PlanetStructure) = hit_the_centre(r_centre(result))
+not_far_enough(result::PlanetStructure) = not_far_enough(r_centre(result))
+unacceptable(result::PlanetStructure) = hit_the_centre(result) || not_far_enough(result)
 
-# iterate to get a radius that is suitable
-function find_radius!(system::PlanetSystem)
-    R_low, R_high = system.radius_search_bracket
-    done = false
-    result = blank_structure(system)
+function update_boundary_r(system::PlanetSystem)
+    R_guess = mean(system.radius_search_bracket)
+    updated_boundary_values = cpmod(system.boundary_values, r=R_guess)
+    updated_system = cpmod(system, boundary_values=updated_boundary_values)
+end
 
-    while !done
-        # choose a radius
-        R_guess = (R_low + R_high) / 2
-        system.boundary_values.r = R_guess
+function update_R_search_bracket(system::PlanetSystem,
+    r_low::Real, r_high::Real)
 
-        # solve the system for that radius
-        result = solve(system)
-        radii = result.y[:, 1] |> dropnans
-        final_radius = radii[end]
+    cpmod(system, radius_search_bracket=[r_low, r_high])
+end
 
-        # rinse and repeat
-        if final_radius < 0
-            R_low = R_guess
-        elseif final_radius > 100
-            R_high = R_guess
-        else
-            done = true
-            return R_guess
-        end
+function adapt_search_radius(system::PlanetSystem, result::PlanetStructure)
+    if hit_the_centre(result)
+        new_min_R = R_guess(system)
+        new_max_R = system.radius_search_bracket[2]
+        return update_R_search_bracket(system, new_min_R, new_max_R)
+    elseif not_far_enough(result)
+        new_min_R = system.radius_search_bracket[1]
+        new_max_R = R_guess(system)
+        return update_R_search_bracket(system, new_min_R, new_max_R)
+    end
+end
+
+function find_radius(system::PlanetSystem)
+    result = solve(system)
+    system.radius_search_bracket
+    if unacceptable(result)
+        updated_search_radii = adapt_search_radius(system, result)
+        prepped_for_re_solving = update_boundary_r(updated_search_radii)
+        find_radius(prepped_for_re_solving)
+    else
+        system.boundary_values.r
     end
 end
 
@@ -158,7 +173,7 @@ function find_radius{T<:Real}(M::T, structure::EquationSet, P_surface::T,
     system = setup_system(M, R_guess, P_surface, structure,
                           solution_grid, R_bracket)
     radius = zero(PlanetStructure)
-    R::T = find_radius!(system)
+    R::T = find_radius(system)
 end
 
 #= higher level functions for doing MR diagrams =#
@@ -169,7 +184,7 @@ function R(M::Real, eos::EOS; in_earth_units=false)
     Rscale = in_earth_units ? 1/R_earth : 1
 
     planet_system = setup_system(M * Mscale, eos)
-    r = find_radius!(planet_system) * Rscale
+    r = find_radius(planet_system) * Rscale
 
     r::Float64
 end
