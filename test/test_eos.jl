@@ -1,52 +1,50 @@
-import Ogre: Common, Eos
+import Ogre
 using FactCheck
 
 # simplify a couple of common variables
-const DATADIR = Common.DATADIR
-const callfunc = Common.callfunc
+const DATADIR = Ogre.DATADIR
 
 facts("Equation of state (EOS) handling") do
     # general setup of some simple EOSes
     eqn1(x) = x
     eqn2(x) = x^2
     eqn3(x) = log10(x)
-    simple_eos1 = Eos.SimpleEOS(eqn1, "a test EOS")
-    simple_eos2 = Eos.SimpleEOS(eqn2, "a test EOS")
-    simple_eos3 = Eos.SimpleEOS(eqn3, "a test EOS")
+    simple_eos1 = Ogre.SimpleEOS(eqn1, "a test EOS")
+    simple_eos2 = Ogre.SimpleEOS(eqn2, "a test EOS")
+    simple_eos3 = Ogre.SimpleEOS(eqn3, "a test EOS")
 
     context("Calling a simple EOS") do
-        @fact callfunc(simple_eos1, 42) => 42
-        @pending "Update this once call overrides are a thing" => ""
+        @fact simple_eos1(42) => 42
     end
 
     context("Piecewise EOS") do
         # stitch together those simple EOSes
-        piecewise_eos = Eos.MassPiecewiseEOS([simple_eos1,
+        piecewise_eos = Ogre.MassPiecewiseEOS([simple_eos1,
                                               simple_eos2,
                                               simple_eos3], [0, 1, 2, 3])
 
         context("Get number of equations in each EOS") do
-            @fact Eos.n_eqs(simple_eos1) => 1
-            @fact Eos.n_eqs(piecewise_eos) => 3
+            @fact Ogre.n_eqs(simple_eos1) => 1
+            @fact Ogre.n_eqs(piecewise_eos) => 3
         end
 
         context("The PiecewiseEOS returns correct individual EOS") do
-            @fact Eos.get_layer_eos(piecewise_eos, -1)  => simple_eos1
-            @fact Eos.get_layer_eos(piecewise_eos, 0.5) => simple_eos1
-            @fact Eos.get_layer_eos(piecewise_eos, 1.5) => simple_eos2
-            @fact Eos.get_layer_eos(piecewise_eos, 2.5) => simple_eos3
-            @fact Eos.get_layer_eos(piecewise_eos, 5)   => simple_eos3
+            @fact Ogre.get_layer_eos(piecewise_eos, -1)  => simple_eos1
+            @fact Ogre.get_layer_eos(piecewise_eos, 0.5) => simple_eos1
+            @fact Ogre.get_layer_eos(piecewise_eos, 1.5) => simple_eos2
+            @fact Ogre.get_layer_eos(piecewise_eos, 2.5) => simple_eos3
+            @fact Ogre.get_layer_eos(piecewise_eos, 5)   => simple_eos3
         end
 
         context("Pressure-piecewise EOS calls match the individual EOS") do
             context("A really simple piecewise EOS") do
-                P_piecewise_eos = Eos.PressurePiecewiseEOS([simple_eos1,
+                P_piecewise_eos = Ogre.PressurePiecewiseEOS([simple_eos1,
                                                             simple_eos2,
                                                             simple_eos3],
                                                             [0, 1, 2, 3])
-                @fact callfunc(P_piecewise_eos, 0.5) => callfunc(simple_eos1, 0.5)
-                @fact callfunc(P_piecewise_eos, 1.5) => callfunc(simple_eos2, 1.5)
-                @fact callfunc(P_piecewise_eos, 2.5) => callfunc(simple_eos3, 2.5)
+                @fact P_piecewise_eos(0.5) => simple_eos1(0.5)
+                @fact P_piecewise_eos(1.5) => simple_eos2(1.5)
+                @fact P_piecewise_eos(2.5) => simple_eos3(2.5)
             end
 
             context("A more complicated pressure-piecewise EOS") do
@@ -56,24 +54,23 @@ facts("Equation of state (EOS) handling") do
 
                 transition_pressures = [0, 44.3e9, 7686e9, 1e20]
 
-                h2o_VII_seager_func(rho::Real) = Eos.BME(rho, 1460., 23.7, 4.15) * 1e9
-                h2o_seager_low = Eos.InvertedEOS(h2o_VII_seager_func, 1e3, 1e8,
+                h2o_VII_seager_func(rho::Real) = Ogre.BME(rho, 1460., 23.7, 4.15) * 1e9
+                h2o_seager_low = Ogre.InvertedEOS(h2o_VII_seager_func, 1e3, 1e8,
                                                  "H2O (BME3) (Seager 2007)")
-                h2o_seager_dft = Eos.load_interpolated_eos("$DATADIR/tabulated/H2O (DFT).eos")
-                h2o_tfd_func(P::Real) = Eos.TFD(P, [1, 8], [1.00794, 15.9994], [2., 1.])
-                h2o_tfd = Eos.SimpleEOS(h2o_tfd_func, "H2O TFD")
+                h2o_seager_dft = Ogre.load_interpolated_eos("$DATADIR/tabulated/H2O (DFT).eos")
+                h2o_tfd_func(P::Real) = Ogre.TFD(P, [1, 8], [1.00794, 15.9994], [2., 1.])
+                h2o_tfd = Ogre.SimpleEOS(h2o_tfd_func, "H2O TFD")
 
                 eoses = [h2o_seager_low, h2o_seager_dft, h2o_tfd]
-                P_piecewise_eos = Eos.PressurePiecewiseEOS(eoses,
+                P_piecewise_eos = Ogre.PressurePiecewiseEOS(eoses,
                                                            transition_pressures)
 
                 test_pressures = [1e8, 1e11, 1e14]
 
                 for (eos, P) in zip(eoses, test_pressures)
-                    @fact callfunc(P_piecewise_eos, P) => callfunc(eos, P)
+                    @fact P_piecewise_eos(P) => eos(P)
                 end
             end
-            @pending "Update this once call overrides are a thing" => ""
         end
     end
 
@@ -83,14 +80,14 @@ facts("Equation of state (EOS) handling") do
         pressures .*= 1e5              # 1 bar = 1e5 Pa
 
         function test_TFD(A, Z, n, anticipated_densities)
-            TFD(P) = Eos.TFD(P, Z, A, n)
+            TFD(P) = Ogre.TFD(P, Z, A, n)
             @vectorize_1arg Real TFD
             @fact TFD(pressures) => roughly(anticipated_densities,
                                                  rtol=0.01)
         end
 
         function test_TFD(A, Z, anticipated_densities)
-            TFD(P) = Eos.TFD(P, Z, A)
+            TFD(P) = Ogre.TFD(P, Z, A)
             @vectorize_1arg Real TFD
             @fact TFD(pressures) => roughly(anticipated_densities,
                                                  rtol=0.01)
@@ -117,7 +114,7 @@ facts("Equation of state (EOS) handling") do
     end
 
     context("EOS inversion") do
-        make_inverted_eos(f::Function) = Eos.InvertedEOS(f, 1e5, 1e10,
+        make_inverted_eos(f::Function) = Ogre.InvertedEOS(f, 1e5, 1e10,
                                                          "a test EOS")
 
         context("Known functions invert properly") do
@@ -127,9 +124,8 @@ facts("Equation of state (EOS) handling") do
             pressures = map(f -> f(sample_density), testfuncs)
 
             map(eoses, pressures) do eos, P
-                @fact callfunc(eos, P) => roughly(sample_density)
+                @fact eos(P) => roughly(sample_density)
             end
-            @pending "Update this once call overrides are a thing" => ""
         end
 
         context("Fail inverting outside the range specified") do
@@ -138,8 +134,7 @@ facts("Equation of state (EOS) handling") do
             sample_density = 1e12
             P = f(sample_density)
 
-            @fact_throws callfunc(f, P)
-            @pending "Update this once call overrides are a thing" => ""
+            @fact_throws eos(P)
         end
     end
 
@@ -150,8 +145,8 @@ facts("Equation of state (EOS) handling") do
                 Plog = logspace(0, 1)
                 rholin = Plin.^2
                 rholog = Plog.^2
-                log_interpolation = Eos.loginterp(Plog, rholog)
-                lin_interpolation = Eos.lininterp(Plin, rholin)
+                log_interpolation = Ogre.loginterp(Plog, rholog)
+                lin_interpolation = Ogre.lininterp(Plin, rholin)
 
                 values_to_check = [1, 2, 4.7, 7.5, 8]
                 expected_results = values_to_check.^2

@@ -1,19 +1,25 @@
-module Integrator
-using Ogre: Common, Constants, Structure, Eos
-# Exported types
-export BoundaryValues, PlanetSystem, PlanetStructure
 # Exported functions
-export zero, setup_system, find_radius, solve, R
 
-#= Mass coordinates and other values =#
+# TODO: re-organise and finish documenting this module
 
-initial_values{T<:Real}(vs::ValueSet{T}) = [vs.r, vs.P]::Vector{T}
+@doc "Get the dependent physical values (radius, pressure)" ->
+physical_values{T<:Real}(vs::ValueSet{T}) = [vs.r, vs.P]::Vector{T}
+@doc "Get the independent physical coordinate (mass)" ->
 mass_coordinate(vs::ValueSet) = vs.m::Real
 
 #= Types that define the planetary structure and the problem =#
-
 typealias BoundaryValues ValueSet
 
+@doc """
+    Describes planetary parameters to be solved for an interior structure.
+
+    * `M`: total mass
+    * `structure_equations`: set of structural equations which incorporate the
+      equation of state
+    * `boundary_values`: a set of values specifying the external boundary
+    * `solution_grid`: a grid of mass coordinates for the output
+    * `radius_search_bracket`: the radius range to search when solving for R
+    """ ->
 immutable PlanetSystem{T<:Real}
     M::T
     structure_equations::EquationSet
@@ -22,12 +28,18 @@ immutable PlanetSystem{T<:Real}
     radius_search_bracket::Vector{T}
 end
 
+@doc """
+    A planetary structure, containing mass grid `m` and internal physical
+    values `y`
+    """ ->
 type PlanetStructure{T<:Real}
     m::Vector{T}
     y::Matrix{T}
 end
 
-Base.zero(::Type{PlanetStructure}) = PlanetStructure([0.], [0. 0.])
+import Base.zero
+zero(::Type{PlanetStructure}) = PlanetStructure([0.], [0. 0.])
+@doc "Current guess for planet radius, based on the search bracket" ->
 R_guess(system::PlanetSystem) = mean(system.radius_search_bracket)
 
 # this equation does not change with composition
@@ -87,9 +99,8 @@ end
 # solve and write to a given solution object
 function solve!(sys::PlanetSystem, soln::PlanetStructure)
     # make an integrator and run it
-    ode_func{T<:Real}(t::T, y::Vector{T}) = callfunc(sys.structure_equations,
-                                                     t, y)
-    x0 = initial_values(sys.boundary_values)
+    ode_func{T<:Real}(t::T, y::Vector{T}) = (sys.structure_equations(t, y))
+    x0 = physical_values(sys.boundary_values)
     t0 = mass_coordinate(sys.boundary_values)
     tgrid = sys.solution_grid
 
@@ -293,6 +304,4 @@ function ode4_dense{T<:Real}(F::Function, x::Vector{T}, tgrid::Vector{T})
 
     # return a 2D array
     reduce(hcat, solver)'
-end
-
 end

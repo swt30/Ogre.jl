@@ -1,14 +1,13 @@
-module Plot
-using Ogre: Common, Integrator
+export plot, plt, ticker
 
 # plot setup for Python
 using PyCall
-pygui()
 style = pyimport("matplotlib.style")
 plt = pyimport("matplotlib.pyplot")
-style[:use]("ggplot") # clean up this once dot-overloading is allowed
+ticker = pyimport("matplotlib.ticker")
+style[:use]("fivethirtyeight") # clean up this once dot-overloading is allowed
 
-function plot(soln::Integrator.PlanetStructure)
+function plot(soln::PlanetStructure)
     x = soln.m
     r = soln.y[:, 1]
     P = soln.y[:, 2]
@@ -33,5 +32,7 @@ function plot(soln::Integrator.PlanetStructure)
     plt[:show]()
 end
 
-
+# export the generic plot function for use in interactive work
+function plot(args...; kwargs...)
+    plt[:plot](args...; kwargs...)
 end

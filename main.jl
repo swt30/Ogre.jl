@@ -1,23 +1,16 @@
 using Ogre, LaTeXStrings
-import Lazy: constantly
-
-# plot setup for Python
-using PyCall
-style = pyimport("matplotlib.style") # no @pyimport for now (Lint complains)
-plt = pyimport("matplotlib.pyplot")
-style[:use]("fivethirtyeight") # clean up this once dot-overloading is allowed
-plot = plt[:plot]
+import Iterators: repeated
 
 function main()
     ms = linspace(0.5, 10, 30) .* M_earth
 
-    eoses = [Eos.fe_seager,
-             Eos.h2o_seager,
-             Eos.mgsio3_seager]
-    linestyles = constantly("-")
+    eoses = [Ogre.fe_seager,
+             Ogre.h2o_seager,
+             Ogre.mgsio3_seager]
+    linestyles = repeated("-")
     colours = ["Crimson", "CornflowerBlue", "Sienna"]
 
-    for (el, ls, c) in zip(eoses, linestyles, colours)
+    map(eoses, linestyles, colours) do el, ls, c
         @time rs = R(ms, el)
         plot(ms ./ M_earth, rs ./ R_earth, label=el.fullname,
              linestyle=ls, color=c)
@@ -53,7 +46,6 @@ function main()
 
     plt[:legend](loc=0)
 
-    ticker = pyimport("matplotlib.ticker")
     ScalarFormatter = ticker[:ScalarFormatter]
     xax[:set_major_formatter](ScalarFormatter())
     yax[:set_major_formatter](ScalarFormatter())

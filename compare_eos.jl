@@ -1,14 +1,8 @@
-using Ogre: Eos
-using PyCall, LaTeXStrings
+using Ogre, PyCall, LaTeXStrings
 
-style = pyimport("matplotlib.style")
-plt = pyimport("matplotlib.pyplot")
-style[:use]("fivethirtyeight")
-
+import Ogre.plot
 plot(a::Matrix, args...; kwargs...) = plot(a[:, 1], a[:, 2],
                                            args...; kwargs...)
-plot(args...; kwargs...) = plt[:plot](args...; kwargs...)
-
 
 function main()
     graph_h2o    = readcsv("data/seager-graphs/H2O.csv")
@@ -17,9 +11,9 @@ function main()
 
     pressures = logspace(7, 19)
 
-    h2o          = map(P -> callfunc(Eos.h2o_seager, P), pressures)
-    mgsio3       = map(P -> callfunc(Eos.mgsio3_seager, P), pressures)
-    fe           = map(P -> callfunc(Eos.fe_seager, P), pressures)
+    h2o          = map(Ogre.h2o_seager, pressures)
+    mgsio3       = map(Ogre.mgsio3_seager, pressures)
+    fe           = map(Ogre.fe_seager, pressures)
 
     plot(pressures, h2o, label="H2O")
     plot(pressures, mgsio3, label="MgSiO3")

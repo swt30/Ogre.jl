@@ -1,37 +1,23 @@
-module Structure
-using Ogre: Common, Constants, Eos
-# Exported types
-export StructureEquation
-# Exported functions
-export mass_continuity, pressure_balance
-
+@doc "Type for a planetary structure equation that is not an EOS" ->
 immutable StructureEquation <: Equation
     equation::Function
 end
 
-isnegative(val::Real) = val < 0
-
-function mass_continuity(vs::ValueSet, eos::EOS)
-    m, r, P = vs.m, vs.r, vs.P
-
-    if m <= 0 || r <= 0 || P <= 0
+@doc "The mass continuity equation: dr/dm = 1/4πr²ρ" ->
+function mass_continuity{T<:Real}(vs::ValueSet{T}, eos::EOS)
+    if vs.m <= 0 || vs.r <= 0 || vs.P <= 0
         return 0.0
     end
 
-    rho = callfunc(eos, vs)
-    dr_dm = 1 / (4 * pi * r^2 * rho)
-    dr_dm::Float64
+    rho = eos(vs)
+    dr_dm::Float64 = 1 / (4 * pi * vs.r^2 * rho)
 end
 
-function pressure_balance(vs::ValueSet)
-    m, r, P = vs.m, vs.r, vs.P
-
-    if m <= 0 || r <= 0 || P <= 0
+@doc "The pressure balance equation: dP/dm = -Gm/4πr⁴" ->
+function pressure_balance{T<:Real}(vs::ValueSet{T})
+    if vs.m <= 0 || vs.r <= 0 || vs.P <= 0
         return 0.0
     end
 
-    dP_dm = -(G * m) / (4 * pi * r^4)
-    dP_dm::Float64
-end
-
+    dP_dm::Float64 = -(G * vs.m) / (4 * pi * vs.r^4)
 end
