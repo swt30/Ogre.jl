@@ -4,7 +4,7 @@ using FactCheck
 facts("Integrator tests") do
 
     context("Standard RK4 integrator test cases") do
-        t = Array(0:0.1:10)
+        t = collect(0:0.1:10)
 
         # Four different integrator tests
 
@@ -83,7 +83,7 @@ facts("Integrator tests") do
             actual_radius = Ogre.R(M_earth, tri_layer_eos)
             R_bracket = [actual_radius, actual_radius]
 
-            system = Ogre.setup_system(M_earth, tri_layer_eos, R_bracket)
+            system = Ogre.setup_planet(M_earth, tri_layer_eos, R_bracket)
             soln = Ogre.solve(system)
 
             context("Solution outputs are the correct shape") do
@@ -105,7 +105,7 @@ facts("Integrator tests") do
 
         context("Helper function tests") do
             R_bracket = [0, 15] * R_earth
-            system = Ogre.setup_system(M_earth, dual_layer_eos, R_bracket)
+            system = Ogre.setup_planet(M_earth, dual_layer_eos, R_bracket)
 
             context("Determining when we're close to the centre of the planet") do
                 @fact Ogre.hit_the_centre(-50) => true

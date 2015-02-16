@@ -46,8 +46,15 @@ immutable MassPiecewiseEOS{T<:Real, E<:SingleEOS} <: PiecewiseEOS
 end
 function MassPiecewiseEOS{T<:Real, E<:SingleEOS}(equations::Vector{E},
     transition_values::Vector{T})
+
     fullname = join([n.fullname for n in equations], " & ")
     MassPiecewiseEOS(equations, transition_values, fullname)
+end
+function MassPiecewiseEOS{T<:Real, E<:SingleEOS}(equations::Vector{E},
+    M::Real, mass_fractions::Vector{T})
+
+    layer_edges = [0, cumsum(mass_fractions)] .* M
+    MassPiecewiseEOS(equations, layer_edges)
 end
 
 @doc """

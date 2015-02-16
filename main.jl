@@ -11,7 +11,7 @@ function main()
     colours = ["Crimson", "CornflowerBlue", "Sienna"]
 
     map(eoses, linestyles, colours) do el, ls, c
-        @time rs = R(ms, el)
+        @time rs = Ogre.R(ms, el)
         plot(ms ./ M_earth, rs ./ R_earth, label=el.fullname,
              linestyle=ls, color=c)
     end

@@ -1,3 +1,5 @@
+import Base.zero, Base.call
+
 #= Callable and equation types =#
 abstract Callable
 abstract Equation <: Callable
@@ -20,7 +22,11 @@ immutable ValueSet{T<:Real}
     P::T
 end
 
-import Base.zero, Base.call
+@doc "Get the dependent physical values (radius, pressure)" ->
+physical_values{T<:Real}(vs::ValueSet{T}) = [vs.r, vs.P]::Vector{T}
+@doc "Get the independent physical coordinate (mass)" ->
+mass_coordinate(vs::ValueSet) = vs.m::Real
+
 zero(::Type{ValueSet}) = ValueSet(0, 0, 0)
 call(eq::Equation, x::Real) = eq.equation(x)
 call(eq::Equation, vs::ValueSet) = eq.equation(vs)
