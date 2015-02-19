@@ -1,3 +1,6 @@
+# CONSTANTS.JL
+# Useful physical constants
+
 # Exported variables
 export G, M_earth, R_earth
 

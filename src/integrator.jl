@@ -1,96 +1,8 @@
-# Exported functions
+# INTEGRATOR.JL
+# Numerical routines and solutions of planetary structral models
 
-# TODO: re-organise and finish documenting this module
-
-@doc "Get the dependent physical values (radius, pressure)" ->
-physical_values{T<:Real}(vs::ValueSet{T}) = [vs.r, vs.P]::Vector{T}
-@doc "Get the independent physical coordinate (mass)" ->
-mass_coordinate(vs::ValueSet) = vs.m::Real
-
-#= Types that define the planetary structure and the problem =#
-typealias BoundaryValues ValueSet
-
-@doc """
-    Describes planetary parameters to be solved for an interior structure.
-
-    * `M`: total mass
-    * `structure_equations`: set of structural equations which incorporate the
-      equation of state
-    * `boundary_values`: a set of values specifying the external boundary
-    * `solution_grid`: a grid of mass coordinates for the output
-    * `radius_search_bracket`: the radius range to search when solving for R
-    """ ->
-immutable PlanetSystem{T<:Real}
-    M::T
-    structure_equations::EquationSet
-    boundary_values::BoundaryValues
-    solution_grid::Vector{T}
-    radius_search_bracket::Vector{T}
-end
-
-@doc """
-    A planetary structure, containing mass grid `m` and internal physical
-    values `y`
-    """ ->
-type PlanetStructure{T<:Real}
-    m::Vector{T}
-    y::Matrix{T}
-end
-
-import Base.zero
-zero(::Type{PlanetStructure}) = PlanetStructure([0.], [0. 0.])
-
-@doc "Current guess for planet radius, based on the search bracket" ->
-R_guess(system::PlanetSystem) = mean(system.radius_search_bracket)
-
-# this equation does not change with composition
-const pressure_balance_eq = StructureEquation(pressure_balance)
-
-# default values for integrator
-# TODO: remove the hard coding on these
-const surface_pressure = 1.0e5
-const mass_fractions = [1.]
-const total_points = 100
-const R_bracket = [0., 15.] .* R_earth
-
-# set up a system with given EOS
-@doc """
-    Set up a `PlanetSystem` for radius finding.
-
-    * `M`: total mass of the planet
-    * `eos`: an equation of state (`EOS`) to be used for the mass continuity
-      equation
-    * `R_bracket` [optional]: Radius search bracket. Defaults to $R_bracket.
-    """ ->
-function setup_planet{T<:Real}(M::Real, eos::EOS,
-    R_bracket::Vector{T}=R_bracket)
-
-    # ODE system options
-    m_inner, m_outer = 0, M
-    solution_grid = linspace(m_outer, m_inner, total_points)
-
-    # density-dependent equations change if layers or the EOS change
-    mass_continuity_with_eos(vs) = mass_continuity(vs, eos)
-    mass_continuity_eq = StructureEquation(mass_continuity_with_eos)
-    structure_equations = EquationSet([mass_continuity_eq,
-                                       pressure_balance_eq])
-
-    setup_planet(m_outer, mean(R_bracket), surface_pressure,
-                 structure_equations, solution_grid, R_bracket)
-end
-@doc """
-    Lower-level function for setting up a planet when the structural
-    equations have already been defined
-    """ ->
-function setup_planet{T<:Real}(M::T, R::T, P_surface::T, struct::EquationSet,
-    solution_grid::Vector{T}, R_bracket::Vector{T})
-
-    # boundary conditions and ODE setup
-    bv = BoundaryValues(M, R, P_surface)
-    system = PlanetSystem(M, struct, bv, solution_grid, R_bracket)
-end
-
-#= Functions to actually solve the structure, given boundary conditions =#
+# Solutions
+#------------------------------------------------------------------------------
 
 @doc "Generate a blank solution structure for a given planet system" ->
 function blank_structure(sys::PlanetSystem)
@@ -133,7 +45,8 @@ function solve(sys::PlanetSystem)
     soln
 end
 
-#= lower level functions to get a radius for a structure =#
+# Radius searching
+#------------------------------------------------------------------------------
 
 # helper functions
 notnan(value) = ~isnan(value)
@@ -204,7 +117,7 @@ function find_radius{T<:Real}(M::T, structure::EquationSet, P_surface::T,
     R::T = find_radius(system)
 end
 
-#= higher level functions for doing MR diagrams =#
+# higher level functions for doing MR diagrams
 
 @doc "Find the radius of a solid sphere of mass `M` using an given `EOS`." ->
 function R(M::Real, eos::EOS; in_earth_units=false)
@@ -222,12 +135,13 @@ function R{T<:Real}(ms::Vector{T}, eos::EOS; in_earth_units=false)
     map(R_withEOS, ms)
 end
 
-#= NUMERICAL METHODS =#
+# Numerical methods
+#------------------------------------------------------------------------------
 
 # accept either single or multi-valued starting conditions
 typealias NumOrVec{T<:Real} Union(T, Vector{T})
 
-@doc "RK4 step of a function `F`, initial conds `x`, from `tstart` to `tend`" ->
+@doc "RK4 step of function `F`, initial conds `x`, from `tstart` to `tend`" ->
 function ode4_step{T<:Real}(F::Function, x::NumOrVec{T},
     tstart::T, tend::T)
 
@@ -271,17 +185,16 @@ end
 # the integrator. We also define length so that we can put the results into
 # array comprehensions, which need a length for the iterator in advance. This
 # means that asking for the entire (dense) solution is really easy.
-import Base: start, next, done, length
 
 # iterator setup
-function start(solver::FixedStepIntegrator)
+function Base.start(solver::FixedStepIntegrator)
     tindex = 1
 
     (tindex, solver.x0)
 end
 
 # step function
-function next(solver::RK4Integrator, state::IntegratorState)
+function Base.next(solver::RK4Integrator, state::IntegratorState)
     tindex, x = state
 
     # can't integrate past the end so just increment the t index instead
@@ -299,7 +212,7 @@ function next(solver::RK4Integrator, state::IntegratorState)
 end
 
 # termination condition
-function done(solver::FixedStepIntegrator, state::IntegratorState)
+function Base.done(solver::FixedStepIntegrator, state::IntegratorState)
     tindex, x = state
     # in general, terminate when we step off the end of the solution grid
     tindex > length(solver.tgrid)
@@ -311,7 +224,10 @@ end
 # radius
 
 # length will be that of the solution grid
-length(solver::FixedStepIntegrator) = length(solver.tgrid)
+Base.length(solver::FixedStepIntegrator) = length(solver.tgrid)
+
+# Dense solvers
+#------------------------------------------------------------------------------
 
 @doc """
     Solve the ODE defined by function `F`, initial conds `x`, and fixed time

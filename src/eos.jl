@@ -1,6 +1,12 @@
+# EOS.JL
+# Equation of state handling
+
+# Required packages
 using Dierckx, Roots
 
-# Equations of state
+# EOS types
+#------------------------------------------------------------------------------
+
 abstract EOS <: Equation
 abstract SingleEOS <: EOS
 abstract PiecewiseEOS <: EOS
@@ -106,7 +112,11 @@ end
 n_eqs(eos::PiecewiseEOS) = length(eos.equations)
 n_eqs(::SingleEOS) = 1
 
-# polytropic EOS
+# Individual EOSes
+#------------------------------------------------------------------------------
+
+# Analytic EOS
+
 mgsio3_func(P::Real) = 4100. + 0.00161*(P^0.541)
 fe_func(P::Real) = 8300. + 0.00349*(P^0.528)
 h2o_func(P::Real) = 1460. + 0.00311*(P^0.513)
@@ -238,7 +248,8 @@ function TFD{T<:Real}(P::T, Z::Integer, A::T)
     TFD(P, [Z], [A])
 end
 
-# EOS interpolation, storage and retrieval
+# Interpolation, storage and retrieval
+# -----------------------------------------------------------------------------
 function Base.write(eos::EOS, pressures::Vector{Float64})
     densities = map(eos, pressures)
     fullname = eos.fullname
@@ -328,8 +339,9 @@ function load_interpolated_eos(file::String; linear=false)
     SimpleEOS(interp_func, name)
 end
 
+# EOS evaluation
+# -----------------------------------------------------------------------------
 import Base.call
-# density retrieval functions for EOS in particular
 function call(eos::InvertedEOS, P::Real)
     fzero(x -> eos.equation(x) - P, eos.a, eos.b)
 end
@@ -338,9 +350,10 @@ call(eos::MassPiecewiseEOS, vs::ValueSet) = get_layer_eos(eos, vs.m)(vs.P)
 call(eos::PressurePiecewiseEOS, vs::ValueSet) = get_layer_eos(eos, vs.P)(vs.P)
 call(eos::PressurePiecewiseEOS, P::Real) = eos(ValueSet(0., 0., P))
 
-# Generate speedier interpolated functions
+# Load interpolated EOS from file
 my_h2o = load_interpolated_eos("$DATADIR/tabulated/h2o.dat")
 fe_seager = load_interpolated_eos("$DATADIR/Fe (Vinet) (Seager 2007) & Fe TFD.eos")
 h2o_seager = load_interpolated_eos("$DATADIR/H2O (BME3) (Seager 2007) & H2O (DFT) & H2O TFD.eos")
 h2o_seager_simple = load_interpolated_eos("$DATADIR/H2O (BME3) (Seager 2007) & H2O TFD.eos")
 mgsio3_seager = load_interpolated_eos("$DATADIR/MgSiO3 (BME4) (Seager 2007) & MgSiO3 TFD.eos")
+

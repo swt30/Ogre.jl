@@ -1,11 +1,24 @@
+# PLOT.JL
+# Plotting functions
+
 export plot, plt, ticker
 
-# plot setup for Python
+# Python plot setup
+#------------------------------------------------------------------------------
+
 using PyCall
 style = pyimport("matplotlib.style")
 plt = pyimport("matplotlib.pyplot")
 ticker = pyimport("matplotlib.ticker")
 style[:use]("fivethirtyeight") # clean up this once dot-overloading is allowed
+
+# export the generic plot function for use in interactive work
+function plot(args...; kwargs...)
+    plt[:plot](args...; kwargs...)
+end
+
+# Planet structure plotting
+#------------------------------------------------------------------------------
 
 function plot(soln::PlanetStructure)
     x = soln.m
@@ -32,7 +45,4 @@ function plot(soln::PlanetStructure)
     plt[:show]()
 end
 
-# export the generic plot function for use in interactive work
-function plot(args...; kwargs...)
-    plt[:plot](args...; kwargs...)
-end
+

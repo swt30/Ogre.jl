@@ -1,6 +1,8 @@
-import Base.zero, Base.call
+# COMMON.JL
+# Common functionality across all of Ogre
 
-#= Callable and equation types =#
+# Callable and equation types
+
 abstract Callable
 abstract Equation <: Callable
 
@@ -15,6 +17,9 @@ end
 
 n_eqs(es::EquationSet) = length(es.equations)
 
+# Type for passing around physical parameters
+#------------------------------------------------------------------------------
+
 @doc """Holds physical values of mass, radius, and pressure.""" ->
 immutable ValueSet{T<:Real}
     m::T
@@ -27,11 +32,13 @@ physical_values{T<:Real}(vs::ValueSet{T}) = [vs.r, vs.P]::Vector{T}
 @doc "Get the independent physical coordinate (mass)" ->
 mass_coordinate(vs::ValueSet) = vs.m::Real
 
-zero(::Type{ValueSet}) = ValueSet(0, 0, 0)
-call(eq::Equation, x::Real) = eq.equation(x)
-call(eq::Equation, vs::ValueSet) = eq.equation(vs)
-call(es::EquationSet, vs::ValueSet) =  map(eq -> eq(vs), es.equations)
-call{T<:Real}(cl::Callable, t::T, y::Vector{T}) = cl(ValueSet(t, y...))
+Base.zero(::Type{ValueSet}) = ValueSet(0, 0, 0)
+Base.call(eq::Equation, x::Real) = eq.equation(x)
+Base.call(eq::Equation, vs::ValueSet) = eq.equation(vs)
+Base.call(es::EquationSet, vs::ValueSet) =  map(eq -> eq(vs), es.equations)
+Base.call{T<:Real}(cl::Callable, t::T, y::Vector{T}) = cl(ValueSet(t, y...))
+
+# Useful common definitions
 
 @doc """Location of the data files in this package""" ->
 const DATADIR = Pkg.dir("Ogre", "data")
@@ -49,3 +56,7 @@ end
 cpmod{T}(pp::T; kws...) = cpmod(pp, kws)
 # TODO: Remove uses of cpmod once default constructors for immutables are
 # changed
+
+# Physical constants
+
+include("constants.jl")

@@ -53,5 +53,3 @@ function main()
 
     plt[:show]()
 end
-
-main()
