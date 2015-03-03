@@ -157,7 +157,11 @@ function ode4_step{T<:Real}(F::Function, x::NumOrVec{T},
     k[:,4] = h*F(tstart + h,    x + k[:,3])
 
     # Integrate
-    x + k[:,1]./6 + k[:,2]./3 + k[:,3]./3 + k[:,4]./6
+    # split onto multiple lines to help with code generation
+    (x + k[:,1]./6
+       + k[:,2]./3
+       + k[:,3]./3
+       + k[:,4]./6)
 end
 
 # types to handle solving

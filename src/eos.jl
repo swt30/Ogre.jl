@@ -351,9 +351,13 @@ call(eos::PressurePiecewiseEOS, vs::ValueSet) = get_layer_eos(eos, vs.P)(vs.P)
 call(eos::PressurePiecewiseEOS, P::Real) = eos(ValueSet(0., 0., P))
 
 # Load interpolated EOS from file
-my_h2o = load_interpolated_eos("$DATADIR/tabulated/h2o.dat")
 fe_seager = load_interpolated_eos("$DATADIR/Fe (Vinet) (Seager 2007) & Fe TFD.eos")
 h2o_seager = load_interpolated_eos("$DATADIR/H2O (BME3) (Seager 2007) & H2O (DFT) & H2O TFD.eos")
 h2o_seager_simple = load_interpolated_eos("$DATADIR/H2O (BME3) (Seager 2007) & H2O TFD.eos")
 mgsio3_seager = load_interpolated_eos("$DATADIR/MgSiO3 (BME4) (Seager 2007) & MgSiO3 TFD.eos")
+
+my_h2o_300 = load_interpolated_eos("$DATADIR/tabulated/h2o-300K.dat")
+my_h2o_500 = load_interpolated_eos("$DATADIR/tabulated/h2o-500K.dat")
+my_h2o_800 = load_interpolated_eos("$DATADIR/tabulated/h2o-800K.dat")
+my_h2o_1200 = load_interpolated_eos("$DATADIR/tabulated/h2o-1200K.dat")
 

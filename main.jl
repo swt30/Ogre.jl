@@ -4,35 +4,20 @@ import Iterators: repeated
 function main()
     ms = linspace(0.5, 10, 30) .* M_earth
 
-    eoses = [Ogre.fe_seager,
-             Ogre.h2o_seager,
-             Ogre.mgsio3_seager]
+    eoses = [Ogre.h2o_seager,
+             Ogre.my_h2o_300,
+             Ogre.my_h2o_500,
+             Ogre.my_h2o_800,
+             Ogre.my_h2o_1200]
     linestyles = repeated("-")
-    colours = ["Crimson", "CornflowerBlue", "Sienna"]
+    colours = ["Crimson", "CornflowerBlue", "Sienna",
+                "LimeGreen", "LightSteelBlue"]
 
     map(eoses, linestyles, colours) do el, ls, c
         @time rs = Ogre.R(ms, el)
         plot(ms ./ M_earth, rs ./ R_earth, label=el.fullname,
              linestyle=ls, color=c)
     end
-
-    mh1 = readdlm("data/M-R/madhu/fe.out"; skipstart=1)
-    mh2 = readdlm("data/M-R/madhu/perovskite.out"; skipstart=1)
-    mh3 = readdlm("data/M-R/madhu/h2o.out"; skipstart=1)
-
-    se1 = readcsv("data/M-R/seager/fe.csv")
-    se2 = readcsv("data/M-R/seager/perovskite.csv")
-    se3 = readcsv("data/M-R/seager/h2o.csv")
-
-    plot(mh1[:, 1], mh1[:, 2], color="Black", linestyle=":")
-    plot(mh2[:, 1], mh2[:, 2], color="Black", linestyle=":")
-    plot(mh3[:, 1], mh3[:, 2], color="Black", linestyle=":",
-         label="Madhu's curves")
-
-    plot(se1[:, 1], se1[:, 2], color="Black", linestyle="--")
-    plot(se2[:, 1], se2[:, 2], color="Black", linestyle="--")
-    plot(se3[:, 1], se3[:, 2], color="Black", linestyle="--",
-         label="Seager's curves")
 
     ax = plt[:gca]()
     ax[:set_xlabel](L"Mass / M$_\oplus$")

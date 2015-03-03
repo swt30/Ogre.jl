@@ -21,21 +21,25 @@ end
 
 @doc "The mass continuity equation: dr/dm = 1/4πr²ρ" ->
 function mass_continuity{T<:Real}(vs::ValueSet{T}, eos::EOS)
-    if vs.m <= 0 || vs.r <= 0 || vs.P <= 0
-        return 0.0
+    dr_dm::Float64 = 0.0
+
+    if vs.m > 0 && vs.r > 0 && vs.P > 0
+        rho = eos(vs)
+        dr_dm = 1 / (4 * pi * vs.r^2 * rho)
     end
 
-    rho = eos(vs)
-    dr_dm::Float64 = 1 / (4 * pi * vs.r^2 * rho)
+    dr_dm
 end
 
 @doc "The pressure balance equation: dP/dm = -Gm/4πr⁴" ->
 function pressure_balance{T<:Real}(vs::ValueSet{T})
-    if vs.m <= 0 || vs.r <= 0 || vs.P <= 0
-        return 0.0
+    dP_dm::Float64 = 0.0
+
+    if vs.m > 0 && vs.r > 0 && vs.P > 0
+        dP_dm = -(G * vs.m) / (4 * pi * vs.r^4)
     end
 
-    dP_dm::Float64 = -(G * vs.m) / (4 * pi * vs.r^4)
+    dP_dm
 end
 
 # this equation does not change with composition
