@@ -25,8 +25,8 @@ end
 function solve!(sys::PlanetSystem, soln::PlanetStructure)
     # make an integrator and run it
     ode_func{T<:Real}(t::T, y::Vector{T}) = (sys.structure_equations(t, y))
-    x0 = physical_values(sys.boundary_values)
-    t0 = mass_coordinate(sys.boundary_values)
+    x0 = nonmass(sys.boundary_values)
+    t0 = mass(sys.boundary_values)
     tgrid = sys.solution_grid
 
     # put the values into the solution

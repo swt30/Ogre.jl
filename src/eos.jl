@@ -10,6 +10,7 @@ using Dierckx, Roots
 abstract EOS <: Equation
 abstract SingleEOS <: EOS
 abstract PiecewiseEOS <: EOS
+abstract SimpleEOS <: SingleEOS
 
 @doc """
     Type for simple equations of state (one function).
@@ -17,7 +18,18 @@ abstract PiecewiseEOS <: EOS
     * `equation`: Function ρ=f(P)
     * `fullname`: Name of the EOS (for printing and plots)
     """ ->
-immutable SimpleEOS <: SingleEOS
+immutable PressureEOS <: SimpleEOS
+    equation::Function
+    fullname::String
+end
+
+@doc """
+    Type for simple equations of state (one function).
+
+    * `equation`: Function ρ=f(P, T)
+    * `fullname`: Name of the EOS (for printing and plots)
+    """ ->
+immutable PressureTempEOS <: SimpleEOS
     equation::Function
     fullname::String
 end
@@ -30,7 +42,7 @@ end
     * `a`, `b`: Density range to invert over
     * `fullname`: Name of the EOS (for printing and plots)
     """ ->
-immutable InvertedEOS{T<:Real} <: SingleEOS
+immutable InvPressureEOS{T<:Real} <: SingleEOS
     equation::Function
     a::T
     b::T
@@ -123,11 +135,11 @@ h2o_func(P::Real) = 1460. + 0.00311*(P^0.513)
 graphite_func(P::Real) = 2250. + 0.00350*(P^0.514)
 sic_func(P::Real) = 3220. + 0.00172*(P^0.537)
 
-mgsio3 = SimpleEOS(mgsio3_func, "MgSiO3")
-fe = SimpleEOS(fe_func, "Fe")
-h2o = SimpleEOS(h2o_func, "H2O")
-graphite = SimpleEOS(graphite_func, "Graphite")
-sic = SimpleEOS(sic_func, "SiC")
+mgsio3 = PressureEOS(mgsio3_func, "MgSiO3")
+fe = PressureEOS(fe_func, "Fe")
+h2o = PressureEOS(h2o_func, "H2O")
+graphite = PressureEOS(graphite_func, "Graphite")
+sic = PressureEOS(sic_func, "SiC")
 
 @doc """
     The Birch-Murnaghan EOS function, in SI units
@@ -160,6 +172,7 @@ function BME{T<:Real}(rho::T, rho0::T, K0::T, dK0::T, d2K0::T)
 
     P4
 end
+BME(args...) = BME(promote(args)...)
 
 @doc """
     The Vinet EOS function in SI units
@@ -177,6 +190,7 @@ function Vinet{T<:Real}(rho::T, rho0::T, K0::T, dK0::T)
 
     P
 end
+Vinet(args...) = Vinet(promote(args)...)
 
 @doc """
     Thomas-Fermi-Dirac EOS with energy correction in SI units.
@@ -247,6 +261,7 @@ end
 function TFD{T<:Real}(P::T, Z::Integer, A::T)
     TFD(P, [Z], [A])
 end
+TFD(args...) = TFD(promote(args)...)
 
 # Interpolation, storage and retrieval
 # -----------------------------------------------------------------------------
@@ -336,19 +351,28 @@ function load_interpolated_eos(file::String; linear=false)
     directory, filename = splitdir(file)
     name, ext = splitext(filename)
 
-    SimpleEOS(interp_func, name)
+    PressureEOS(interp_func, name)
 end
 
 # EOS evaluation
 # -----------------------------------------------------------------------------
 import Base.call
-function call(eos::InvertedEOS, P::Real)
+
+# Inverting EOSes which are written as P(ρ)
+function call(eos::InvPressureEOS, P::Real)
     fzero(x -> eos.equation(x) - P, eos.a, eos.b)
 end
-call(eos::SingleEOS, vs::ValueSet) = eos(vs.P)
-call(eos::MassPiecewiseEOS, vs::ValueSet) = get_layer_eos(eos, vs.m)(vs.P)
-call(eos::PressurePiecewiseEOS, vs::ValueSet) = get_layer_eos(eos, vs.P)(vs.P)
-call(eos::PressurePiecewiseEOS, P::Real) = eos(ValueSet(0., 0., P))
+
+# Split piecewise EOSes appropriately
+call(eos::PressurePiecewiseEOS, vs::ValueSet) = get_layer_eos(eos, vs.P)(vs)
+call(eos::MassPiecewiseEOS, vs::ValueSet) = get_layer_eos(eos, vs.m)(vs)
+call(eos::PressurePiecewiseEOS, P::Real) = eos(ValueSet(0, 0, P))
+
+# Calling EOSes with ValueSets
+call(eos::SingleEOS, vs::MassRadiusPressure) = eos(vs.P)
+call(eos::SingleEOS, vs::PhysicalValues) = eos(vs.P, vs.T)
+call(eos::PressureEOS, P::Real) = eos.equation(P)
+call(eos::PressureTempEOS, P::Real, T::Real) = eos.equation(P, T)
 
 # Load interpolated EOS from file
 fe_seager = load_interpolated_eos("$DATADIR/Fe (Vinet) (Seager 2007) & Fe TFD.eos")

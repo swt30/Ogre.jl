@@ -20,26 +20,42 @@ immutable StructureEquation <: Equation
 end
 
 @doc "The mass continuity equation: dr/dm = 1/4πr²ρ" ->
-function mass_continuity{T<:Real}(vs::ValueSet{T}, eos::EOS)
+function mass_continuity(vs::ValueSet, eos::EOS)
     dr_dm::Float64 = 0.0
 
     if vs.m > 0 && vs.r > 0 && vs.P > 0
-        rho = eos(vs)
-        dr_dm = 1 / (4 * pi * vs.r^2 * rho)
+        ρ = eos(vs)
+        dr_dm = 1 / (4pi * vs.r^2 * ρ)
     end
 
     dr_dm
 end
 
 @doc "The pressure balance equation: dP/dm = -Gm/4πr⁴" ->
-function pressure_balance{T<:Real}(vs::ValueSet{T})
+function pressure_balance(vs::ValueSet)
     dP_dm::Float64 = 0.0
 
     if vs.m > 0 && vs.r > 0 && vs.P > 0
-        dP_dm = -(G * vs.m) / (4 * pi * vs.r^4)
+        dP_dm = -(G * vs.m) / (4pi * vs.r^4)
     end
 
     dP_dm
+end
+
+@doc "The adiabatic energy gradient equation: dT/dm = -Gm/4πr⁴Cₚ" ->
+function temperature_gradient(vs::PhysicalValues, eos::EOS,
+    heatcap::HeatCapacity)
+
+    dT_dm::Float64 = 0.0
+
+    if mass(vs) > 0 && all(nonmass(vs) .> 0)
+        ρ = eos(vs)
+        Cₚ = heatcap(vs)
+
+        dT_dm = -(G * vs.m) / (4pi * vs.r^4 * ρ * Cₚ)
+    end
+
+    dT_dm
 end
 
 # this equation does not change with composition
