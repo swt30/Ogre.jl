@@ -88,3 +88,8 @@ facts("Structure equations") do
         end
     end
 end
+
+facts("Planetary structure types") do
+    @pending "test that we can initialise the types" => true
+    # etc etc
+end

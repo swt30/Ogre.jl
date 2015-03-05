@@ -7,13 +7,17 @@ using Dierckx, Roots
 # EOS types
 #------------------------------------------------------------------------------
 
+@doc """Equation of State""" ->
 abstract EOS <: Equation
+@doc """EOS that consists of just one function""" ->
 abstract SingleEOS <: EOS
+@doc """EOS that is subdivided into multiple pieces""" ->
 abstract PiecewiseEOS <: EOS
+@doc """Simple equation of state calculated directly.""" ->
 abstract SimpleEOS <: SingleEOS
 
 @doc """
-    Type for simple equations of state (one function).
+    An EOS depending solely on pressure.
 
     * `equation`: Function ρ=f(P)
     * `fullname`: Name of the EOS (for printing and plots)
@@ -24,7 +28,7 @@ immutable PressureEOS <: SimpleEOS
 end
 
 @doc """
-    Type for simple equations of state (one function).
+    An EOS depending on both pressure and temperature.
 
     * `equation`: Function ρ=f(P, T)
     * `fullname`: Name of the EOS (for printing and plots)
@@ -35,8 +39,8 @@ immutable PressureTempEOS <: SimpleEOS
 end
 
 @doc """
-    Type for equations of state which must invert some function over a
-    density range.
+    Equation of state which must invert some function over a density
+    range.
 
     * `equation`: Function P=f(ρ)
     * `a`, `b`: Density range to invert over
@@ -120,15 +124,14 @@ function get_layer_eos(eos::PiecewiseEOS, x::Real)
     end
 end
 
-@doc """Get the number of equations in an `EOS`""" ->
-n_eqs(eos::PiecewiseEOS) = length(eos.equations)
-n_eqs(::SingleEOS) = 1
+import Base.length
+length(eos::PiecewiseEOS) = length(eos.equations)
+length(::SingleEOS) = 1
 
 # Individual EOSes
 #------------------------------------------------------------------------------
 
 # Analytic EOS
-
 mgsio3_func(P::Real) = 4100. + 0.00161*(P^0.541)
 fe_func(P::Real) = 8300. + 0.00349*(P^0.528)
 h2o_func(P::Real) = 1460. + 0.00311*(P^0.513)
@@ -384,4 +387,3 @@ my_h2o_300 = load_interpolated_eos("$DATADIR/tabulated/h2o-300K.dat")
 my_h2o_500 = load_interpolated_eos("$DATADIR/tabulated/h2o-500K.dat")
 my_h2o_800 = load_interpolated_eos("$DATADIR/tabulated/h2o-800K.dat")
 my_h2o_1200 = load_interpolated_eos("$DATADIR/tabulated/h2o-1200K.dat")
-

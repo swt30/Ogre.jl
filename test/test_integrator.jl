@@ -115,6 +115,17 @@ facts("Integrator tests") do
                 @fact Ogre.not_far_enough(50) => false
             end
         end
+
+        context("Temperature dependence") do
+            R = R_earth
+            M = M_earth
+            Psurf = 1e5 # Pa
+            Tsurf = 300 # K
+            h2o_heatcap_func(T::Real) = 4200 # J kg⁻¹ K⁻¹
+            Cₚ = Ogre.HeatCapacity(h2o_heatcap_func)
+
+            @pending "produce reasonable results for T dependence" => true
+        end
     end
 end
 

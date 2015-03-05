@@ -30,8 +30,8 @@ facts("Equation of state (EOS) handling") do
                                                   simple_eos3], [0, 1, 2, 3])
 
             context("Get number of equations in each EOS") do
-                @fact Ogre.n_eqs(simple_eos1) => 1
-                @fact Ogre.n_eqs(piecewise_eos) => 3
+                @fact length(simple_eos1) => 1
+                @fact length(piecewise_eos) => 3
             end
 
             context("The PiecewiseEOS returns correct individual EOS") do
