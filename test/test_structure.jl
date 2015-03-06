@@ -119,8 +119,8 @@ facts("Planetary structure types") do
             masscontinuity = Ogre.MassContinuityEq(eos)
             structure = Ogre.EquationSet([masscontinuity,
                                           pressurebalance])
-            expectedsystem = Ogre.PlanetSystem(M, structure, bvs,
-                                               solution_grid, radius_bracket)
+            expectedsystem = Ogre.PlanetSystem{Ogre.NoTemp}(M, structure, bvs,
+                solution_grid, radius_bracket)
             system = Ogre.PlanetSystem(M, eos, bvs, solution_grid,
                                        radius_bracket)
             struct = Ogre.blank_structure(system)
@@ -141,8 +141,8 @@ facts("Planetary structure types") do
             structure = Ogre.EquationSet([masscontinuity,
                                          pressurebalance,
                                          temperaturegradient])
-            expectedsystem = Ogre.PlanetSystem(M, structure, bvs,
-                                               solution_grid, radius_bracket)
+            expectedsystem = Ogre.PlanetSystem{Ogre.WithTemp}(M, structure,
+                bvs, solution_grid, radius_bracket)
             system = Ogre.PlanetSystem(M, eos, Cₚ, bvs, solution_grid,
                                        radius_bracket)
             struct = Ogre.blank_structure(system)

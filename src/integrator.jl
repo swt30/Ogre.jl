@@ -9,7 +9,7 @@ function blank_structure(sys::PlanetSystem)
     # array setup
     n_points = length(sys.solution_grid)
     t = fill(NaN, n_points)
-    y = fill(NaN, (n_points, 2))
+    y = fill(NaN, (n_points, n_nonmass(sys)))
     solution = PlanetStructure(t, y)
 
     solution

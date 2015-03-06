@@ -11,8 +11,8 @@ abstract Equation <: Callable
 
     `equations`: Vector of `Equation`
     """ ->
-immutable EquationSet{T<:Equation} <: Callable
-    equations::Vector{T}
+immutable EquationSet <: Callable
+    equations::Vector{Equation}
 end
 
 import Base.length
@@ -28,10 +28,10 @@ immutable WithTemp <: ModelComplexity; end
 const notemp = NoTemp()
 const withtemp = WithTemp()
 
-abstract ValueSet
+abstract ValueSet{mc<:ModelComplexity}
 
 @doc """Holds physical values of mass, radius, pressure, and temperature.""" ->
-immutable PhysicalValues{R<:Real} <: ValueSet
+immutable PhysicalValues{R<:Real} <: ValueSet{WithTemp}
     m::R
     r::R
     P::R
@@ -42,7 +42,7 @@ function PhysicalValues(m::Real, r::Real, P::Real, T::Real)
 end
 
 @doc """Holds physical values of mass, radius, and pressure""" ->
-immutable MassRadiusPressure{R<:Real} <: ValueSet
+immutable MassRadiusPressure{R<:Real} <: ValueSet{NoTemp}
     m::R
     r::R
     P::R
@@ -52,10 +52,8 @@ function MassRadiusPressure(m::Real, r::Real, P::Real)
 end
 
 # Constructors
-ValueSet(m, r, P) = ValueSet(notemp, m, r, P)
-ValueSet(m, r, P, T) = ValueSet(withtemp, m, r, P, T)
-ValueSet(::NoTemp, args...) = MassRadiusPressure(args...)
-ValueSet(::WithTemp, args...) = PhysicalValues(args...)
+ValueSet(m, r, P) = MassRadiusPressure(m, r, P)
+ValueSet(m, r, P, T) = PhysicalValues(m, r, P, T)
 
 # Properties
 @doc "Get the dependent physical values (radius, pressure, [temperature])" ->
@@ -78,8 +76,8 @@ end
 import Base: zero, call
 zero(::Type{MassRadiusPressure}) = MassRadiusPressure(0, 0, 0)
 zero(::Type{PhysicalValues}) = PhysicalValues(0, 0, 0, 0)
-zero(::Type{ValueSet}, ::NoTemp) = zero(MassRadiusPressure)
-zero(::Type{ValueSet}, ::WithTemp) = zero(PhysicalValues)
+zero(::Type{ValueSet{NoTemp}}) = zero(MassRadiusPressure)
+zero(::Type{ValueSet{WithTemp}}) = zero(PhysicalValues)
 call(eq::Equation, x::Real) = eq.equation(x)
 call(eq::Equation, vs::ValueSet) = eq.equation(vs)
 call(es::EquationSet, vs::ValueSet) =  map(eq -> eq(vs), es.equations)

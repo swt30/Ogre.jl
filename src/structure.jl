@@ -15,17 +15,17 @@ const R_bracket = [0., 15.] .* R_earth
 #------------------------------------------------------------------------------
 
 @doc "Type for a planetary structure equation that is not an EOS" ->
-abstract StructureEquation <: Equation
+abstract StructureEquation{mc<:ModelComplexity} <: Equation
 
-immutable MassContinuityEq <: StructureEquation
+immutable MassContinuityEq{mc<:ModelComplexity} <: StructureEquation{mc}
     equation::Function
 end
 
-immutable PressureBalanceEq <: StructureEquation
+immutable PressureBalanceEq <: StructureEquation{NoTemp}
     equation::Function
 end
 
-immutable TemperatureGradientEq <: StructureEquation
+immutable TemperatureGradientEq <: StructureEquation{WithTemp}
     equation::Function
 end
 
@@ -41,9 +41,9 @@ function mass_continuity_f(vs::ValueSet, eos::EOS)
 
     dr_dm
 end
-function MassContinuityEq(eos::EOS)
-    mc(vs::ValueSet) = mass_continuity_f(vs, eos)
-    MassContinuityEq(mc)
+function MassContinuityEq{mc<:ModelComplexity}(eos::EOS{mc})
+    masscontinuity(vs::ValueSet) = mass_continuity_f(vs, eos)
+    MassContinuityEq{mc}(masscontinuity)
 end
 
 
@@ -81,10 +81,9 @@ function temperature_gradient_f(vs::PhysicalValues, eos::EOS,
     dT_dm
 end
 function TemperatureGradientEq(eos::EOS, Cₚ::HeatCapacity)
-    tg(vs::ValueSet) = temperature_gradient_f(vs, eos, Cₚ)
-    TemperatureGradientEq(tg)
+    tempgradient(vs::ValueSet) = temperature_gradient_f(vs, eos, Cₚ)
+    TemperatureGradientEq(tempgradient)
 end
-
 
 # PLANETARY STRUCTURE #
 #------------------------------------------------------------------------------
@@ -101,27 +100,27 @@ typealias BoundaryValues ValueSet
     * `solution_grid`: a grid of mass coordinates for the output
     * `radius_search_bracket`: the radius range to search when solving for R
     """ ->
-immutable PlanetSystem{T<:Real}
+immutable PlanetSystem{mc<:ModelComplexity, T<:Real}
     M::T
     structure_equations::EquationSet
-    boundary_values::BoundaryValues
+    boundary_values::BoundaryValues{mc}
     solution_grid::Vector{T}
     radius_search_bracket::Vector{T}
 end
-function PlanetSystem{T<:Real}(M::Real, eos::PressureEOS,
+function PlanetSystem{T<:Real}(M::Real, eos::EOS{NoTemp},
     bvs::MassRadiusPressure, grid::Vector{T}, r_bracket::Vector{T})
 
     masscontinuity = MassContinuityEq(eos)
     structure = EquationSet([masscontinuity, pressurebalance])
-    PlanetSystem(M, structure, bvs, grid, r_bracket)
+    PlanetSystem{WithTemp}(M, structure, bvs, grid, r_bracket)
 end
-function PlanetSystem{T<:Real}(M::Real, eos::EOS, Cₚ::HeatCapacity,
+function PlanetSystem{T<:Real}(M::Real, eos::EOS{WithTemp}, Cₚ::HeatCapacity,
     bvs::PhysicalValues, grid::Vector{T}, r_bracket::Vector{T})
 
     masscontinuity = MassContinuityEq(eos)
     temperaturegradient = TemperatureGradientEq(eos, Cₚ)
     structure = EquationSet([masscontinuity, pressurebalance, temperaturegradient])
-    PlanetSystem(M, structure, bvs, grid, r_bracket)
+    PlanetSystem{NoTemp}(M, structure, bvs, grid, r_bracket)
 end
 
 @doc """
