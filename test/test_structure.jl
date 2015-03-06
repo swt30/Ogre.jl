@@ -13,17 +13,20 @@ facts("Structure equations") do
             eos_func(P::Real) = 4100. + 0.00161*(P^0.541)
             eos = Ogre.PressureEOS(eos_func, "Analytic MgSiO3")
 
+            masscontinuity = Ogre.MassContinuityEq(eos)
+            pressurebalance = Ogre.PressureBalanceEq()
+
             context("Zero gradients at the r=0 limit") do
                 zero_values = zero(Ogre.MassRadiusPressure)
-                @fact Ogre.pressure_balance(zero_values) => 0
-                @fact Ogre.mass_continuity(zero_values, eos) => 0
+                @fact pressurebalance(zero_values) => 0
+                @fact masscontinuity(zero_values) => 0
             end
 
             context("Correct signs for the structure equations") do
                 # change in pressure is negative outwards
-                @fact Ogre.pressure_balance(realistic_values) => less_than(0)
+                @fact pressurebalance(realistic_values) => less_than(0)
                 # change in mass is positive outwards
-                @fact Ogre.mass_continuity(realistic_values, eos) => greater_than(0)
+                @fact masscontinuity(realistic_values) => greater_than(0)
             end
 
             context("Attempting to go over the singularity at r=0 returns zero") do
@@ -31,8 +34,8 @@ facts("Structure equations") do
                 negative_pressure = Ogre.ValueSet(5.4e22, 1e6, -340e9)
                 negative_mass = Ogre.ValueSet(-5.4e22, 1e6, 340e9)
                 map([negative_radius, negative_pressure, negative_mass]) do vs
-                    @fact Ogre.pressure_balance(vs) => 0
-                    @fact Ogre.mass_continuity(vs, eos) => 0
+                    @fact pressurebalance(vs) => 0
+                    @fact masscontinuity(vs) => 0
                 end
             end
         end
@@ -56,20 +59,24 @@ facts("Structure equations") do
             heatcap(args...) = 100
             Cₚ = Ogre.HeatCapacity(heatcap)
 
+            masscontinuity = Ogre.MassContinuityEq(eos)
+            pressurebalance = Ogre.PressureBalanceEq()
+            temperaturegradient = Ogre.TemperatureGradientEq(eos, Cₚ)
+
             context("Zero gradients at the r=0 limit") do
                 zero_values = zero(Ogre.PhysicalValues)
-                @fact Ogre.pressure_balance(zero_values) => 0
-                @fact Ogre.mass_continuity(zero_values, eos) => 0
-                @fact Ogre.temperature_gradient(zero_values, eos, Cₚ) => 0
+                @fact pressurebalance(zero_values) => 0
+                @fact masscontinuity(zero_values) => 0
+                @fact temperaturegradient(zero_values) => 0
             end
 
             context("Correct signs for the structure equations") do
                 # change in pressure is negative outwards
-                @fact Ogre.pressure_balance(realistic_values) => less_than(0)
+                @fact pressurebalance(realistic_values) => less_than(0)
                 # change in mass is positive outwards
-                @fact Ogre.mass_continuity(realistic_values, eos) => greater_than(0)
+                @fact masscontinuity(realistic_values) => greater_than(0)
                 # change in temperature is negative outwards
-                @fact Ogre.temperature_gradient(realistic_values, eos, Cₚ) => less_than(0)
+                @fact temperaturegradient(realistic_values) => less_than(0)
             end
 
             context("Attempting to go over the singularity at r=0 returns zero") do
@@ -79,9 +86,9 @@ facts("Structure equations") do
                 negative_temperature = Ogre.ValueSet(5.4e22, -1e6, 340e9, -5000.)
                 map([negative_radius, negative_pressure,
                      negative_mass, negative_temperature]) do vs
-                    @fact Ogre.pressure_balance(vs) => 0
-                    @fact Ogre.mass_continuity(vs, eos) => 0
-                    @fact Ogre.temperature_gradient(vs, eos, Cₚ) => 0
+                    @fact pressurebalance(vs) => 0
+                    @fact masscontinuity(vs) => 0
+                    @fact temperaturegradient(vs) => 0
                 end
             end
         end
@@ -89,6 +96,59 @@ facts("Structure equations") do
 end
 
 facts("Planetary structure types") do
-    @pending "test that we can initialise the types" => true
-    # etc etc
+    context("Boundary values") do
+        bvs = Ogre.BoundaryValues(1,2,3)
+        bvsT = Ogre.BoundaryValues(1,2,3,4)
+        @fact Ogre.radius(bvs) => 2
+        @fact Ogre.temperature(bvsT) => 4
+    end
+
+    context("Planet system and solution setup") do
+        M = 5.972e24
+        R = 6.3781e6
+        Psurf = 1e5
+        solution_grid = linspace(0, M, 5)
+        radius_bracket = [0, 10] * M
+
+        pressurebalance = Ogre.PressureBalanceEq()
+
+        context("No temperature dependence") do
+            bvs = Ogre.BoundaryValues(M, R, Psurf)
+            eos_f(P) = 4100. + 0.00161*(P^0.541)
+            eos = Ogre.SimpleEOS(Ogre.notemp, eos_f, "")
+            masscontinuity = Ogre.MassContinuityEq(eos)
+            structure = Ogre.EquationSet([masscontinuity,
+                                          pressurebalance])
+            expectedsystem = Ogre.PlanetSystem(M, structure, bvs,
+                                               solution_grid, radius_bracket)
+            system = Ogre.PlanetSystem(M, eos, bvs, solution_grid,
+                                       radius_bracket)
+            struct = Ogre.blank_structure(system)
+
+            @fact size(struct.m) => (5,)
+            @fact size(struct.y) => (5, 2)
+        end
+
+        context("Temperature dependence") do
+            Tsurf = 300
+            bvs = Ogre.BoundaryValues(M, R, Psurf, Tsurf)
+            eos_f(P, T) = 4100. + 0.00161*(P^0.541)*(T^-0.054)
+            eos = Ogre.SimpleEOS(Ogre.withtemp, eos_f, "")
+            Cₚ_f(T) = T
+            Cₚ = Ogre.HeatCapacity(Cₚ_f)
+            masscontinuity = Ogre.MassContinuityEq(eos)
+            temperaturegradient = Ogre.TemperatureGradientEq(eos, Cₚ)
+            structure = Ogre.EquationSet([masscontinuity,
+                                         pressurebalance,
+                                         temperaturegradient])
+            expectedsystem = Ogre.PlanetSystem(M, structure, bvs,
+                                               solution_grid, radius_bracket)
+            system = Ogre.PlanetSystem(M, eos, Cₚ, bvs, solution_grid,
+                                       radius_bracket)
+            struct = Ogre.blank_structure(system)
+
+            @fact size(struct.m) => (5,)
+            @fact size(struct.y) => (5, 3)
+        end
+    end
 end

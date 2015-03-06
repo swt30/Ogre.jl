@@ -66,6 +66,8 @@ facts("Integrator tests") do
 
                 @fact fe_radii => roughly(target_fe_radii, rtol=0.01)
                 @fact mgsio3_radii => roughly(target_mgsio3_radii, rtol=0.01)
+
+                @pending "do the same using the temperature equations but include a no-temp-dependence EOS to show it's the same" => 1
             end
 
             context("Dual- and tri-layer solutions work") do
@@ -115,36 +117,24 @@ facts("Integrator tests") do
             end
         end
 
-        # TODO: enable tests once PlanetSystem is working
+        context("Temperature dependence") do
+            R = R_earth
+            R_bracket = [0, 10] * R
+            M = M_earth
+            Psurf = 1e5 # Pa
+            Tsurf = 300 # K
+            h2o_heatcap_func(T::Real) = 4200 # J kg⁻¹ K⁻¹
+            Cₚ = Ogre.HeatCapacity(h2o_heatcap_func)
+            eos = Ogre.SimpleEOS(Ogre.withtemp, (P, T) -> 1000, "Test EOS")
+            m_inner, m_outer = 0, M_earth
+            solution_grid = linspace(m_inner, m_outer, 100)
+            boundary = Ogre.BoundaryValues(M, R, Psurf, Tsurf)
+            system = Ogre.PlanetSystem(M, eos, Cₚ, boundary, solution_grid,
+                                       R_bracket)
+            soln = Ogre.solve(system)
 
-        # context("Temperature dependence") do
-        #     R = R_earth
-        #     R_bracket = [0, 10] * R
-        #     M = M_earth
-        #     Psurf = 1e5 # Pa
-        #     Tsurf = 300 # K
-        #     h2o_heatcap_func(T::Real) = 4200 # J kg⁻¹ K⁻¹
-        #     Cₚ = Ogre.HeatCapacity(h2o_heatcap_func)
-        #     eos = Ogre.SimpleEOS(Ogre.withtemp, (P, T) -> 1000, "Test EOS")
-
-        #     sys = Ogre.PlanetSystem(M,)
-
-        #     @pending "produce reasonable results for T dependence" => true
-
-        #     m_inner, m_outer = 0, M_earth
-        #     solution_grid = linspace(m_inner, m_outer, 100)
-        #     mass_continuity_f(vs) = Ogre.mass_continuity(vs, eos)
-        #     temperature_gradient_f(vs) = Ogre.temperature_gradient(vs, eos, Cₚ)
-        #     mass_continuity_eq = Ogre.StructureEquation(mass_continuity_f)
-        #     temperature_gradient_eq = Ogre.StructureEquation(temperature_gradient_f)
-        #     struct = Ogre.EquationSet([mass_continuity_eq,
-        #                                Ogre.pressure_balance_eq,
-        #                                temperature_gradient_eq])
-        #     boundary = Ogre.BoundaryValues(M, R, Psurf, Tsurf)
-        #     system = Ogre.PlanetSystem(M, struct, boundary, solution_grid,
-        #                                R_bracket)
-        #     Ogre.solve(system)
-        # end
+            @pending "check that the structure is the right size after solution" => 1
+        end
     end
 end
 
