@@ -1,5 +1,4 @@
-import Ogre
-using FactCheck
+include("header.jl")
 
 # simplify a couple of common variables
 const DATADIR = Ogre.DATADIR
@@ -10,9 +9,9 @@ facts("Equation of state (EOS) handling") do
         eqn1(x) = x
         eqn2(x) = x^2
         eqn3(x) = log10(x)
-        simple_eos1 = Ogre.PressureEOS(eqn1, "a test EOS")
-        simple_eos2 = Ogre.PressureEOS(eqn2, "a test EOS")
-        simple_eos3 = Ogre.PressureEOS(eqn3, "a test EOS")
+        simple_eos1 = Ogre.SimpleEOS(Ogre.notemp, eqn1, "a test EOS")
+        simple_eos2 = Ogre.SimpleEOS(Ogre.notemp, eqn2, "a test EOS")
+        simple_eos3 = Ogre.SimpleEOS(Ogre.notemp, eqn3, "a test EOS")
 
         context("Calling a simple EOS") do
             @fact simple_eos1(42) => 42
@@ -61,14 +60,14 @@ facts("Equation of state (EOS) handling") do
                     transition_pressures = [0, 44.3e9, 7686e9, 1e20]
 
                     h2o_VII_seager_func(rho::Real) = Ogre.BME(rho, 1460., 23.7, 4.15) * 1e9
-                    h2o_seager_low = (
-                        Ogre.InvPressureEOS(h2o_VII_seager_func, 1e3, 1e8,
-                                            "H2O (BME3) (Seager 2007)"))
+                    h2o_seager_low = Ogre.InvPressureEOS(h2o_VII_seager_func,
+                                                         1e3, 1e8,
+                                                         "H2O (BME3) (Seager 2007)")
 
                     # TODO: this line is fragile as it relies on the data directory - add data to test dir
                     h2o_seager_dft = Ogre.load_interpolated_eos("$DATADIR/tabulated/H2O (DFT).eos")
                     h2o_tfd_func(P::Real) = Ogre.TFD(P, [1, 8], [1.00794, 15.9994], [2., 1.])
-                    h2o_tfd = Ogre.PressureEOS(h2o_tfd_func, "H2O TFD")
+                    h2o_tfd = Ogre.SimpleEOS(Ogre.notemp, h2o_tfd_func, "H2O TFD")
 
                     eoses = [h2o_seager_low, h2o_seager_dft, h2o_tfd]
                     P_piecewise_eos = Ogre.PressurePiecewiseEOS(eoses,
@@ -187,13 +186,15 @@ facts("Equation of state (EOS) handling") do
 
         context("Calling a simple EOS") do
             @fact simple_eos1(12, 3) => 36
+            @fact_throws simple_eos1(12)
         end
 
         context("Calling using ValueSets") do
             vs = Ogre.ValueSet(1,2,3,4) # mass, radius, pressure, temperature
+            vs2 = Ogre.ValueSet(1,2,3)
             @fact simple_eos1(vs) => eqn1(3,4)
+            @fact_throws simple_eos1(vs2)
         end
-
     end
 end
 

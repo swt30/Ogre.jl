@@ -1,3 +1,5 @@
+include("header.jl")
+
 using FactCheck
 FactCheck.setstyle(:default) # :compact or :default
 FactCheck.clear_results()

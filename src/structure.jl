@@ -23,9 +23,10 @@ end
 function mass_continuity(vs::ValueSet, eos::EOS)
     dr_dm::Float64 = 0.0
 
-    if vs.m > 0 && vs.r > 0 && vs.P > 0
+    if isphysical(vs)
+        r = radius(vs)
         ρ = eos(vs)
-        dr_dm = 1 / (4pi * vs.r^2 * ρ)
+        dr_dm = 1 / (4pi * r^2 * ρ)
     end
 
     dr_dm
@@ -35,8 +36,10 @@ end
 function pressure_balance(vs::ValueSet)
     dP_dm::Float64 = 0.0
 
-    if vs.m > 0 && vs.r > 0 && vs.P > 0
-        dP_dm = -(G * vs.m) / (4pi * vs.r^4)
+    if isphysical(vs)
+        m = mass(vs)
+        r = radius(vs)
+        dP_dm = -(G * m) / (4pi * r^4)
     end
 
     dP_dm
@@ -48,11 +51,13 @@ function temperature_gradient(vs::PhysicalValues, eos::EOS,
 
     dT_dm::Float64 = 0.0
 
-    if mass(vs) > 0 && all(nonmass(vs) .> 0)
+    if isphysical(vs)
         ρ = eos(vs)
         Cₚ = heatcap(vs)
+        r = radius(vs)
+        m = mass(vs)
 
-        dT_dm = -(G * vs.m) / (4pi * vs.r^4 * ρ * Cₚ)
+        dT_dm = -(G * m) / (4pi * r^4 * ρ * Cₚ)
     end
 
     dT_dm
@@ -93,7 +98,16 @@ type PlanetStructure{T<:Real}
     y::Matrix{T}
 end
 
-Base.zero(::Type{PlanetStructure}) = PlanetStructure([0.], [0. 0.])
+@doc "Generate a blank solution structure for a given planet system" ->
+function blank_structure(sys::PlanetSystem)
+    # array setup
+    n_points = length(sys.solution_grid)
+    t = fill(NaN, n_points)
+    y = fill(NaN, (n_points, 2))
+    solution = PlanetStructure(t, y)
+
+    solution
+end
 
 @doc "Current guess for planet radius, based on the search bracket" ->
 R_guess(system::PlanetSystem) = mean(system.radius_search_bracket)

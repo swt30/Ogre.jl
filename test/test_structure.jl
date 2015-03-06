@@ -1,5 +1,4 @@
-import Ogre
-using FactCheck
+include("header.jl")
 
 facts("Structure equations") do
     # realistic values taken from PREM at r=1000 km from the centre

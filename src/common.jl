@@ -15,49 +15,75 @@ immutable EquationSet{T<:Equation} <: Callable
     equations::Vector{T}
 end
 
-Base.length(es::EquationSet) = length(es.equations)
+import Base.length
+length(es::EquationSet) = length(es.equations)
 
 # Type for passing around physical parameters
 #------------------------------------------------------------------------------
 
+abstract ModelComplexity
+immutable NoTemp <: ModelComplexity; end
+immutable WithTemp <: ModelComplexity; end
+
+const notemp = NoTemp()
+const withtemp = WithTemp()
+
 abstract ValueSet
 
 @doc """Holds physical values of mass, radius, pressure, and temperature.""" ->
-immutable PhysicalValues{E<:Real} <: ValueSet
-    m::E
-    r::E
-    P::E
-    T::E
+immutable PhysicalValues{R<:Real} <: ValueSet
+    m::R
+    r::R
+    P::R
+    T::R
 end
 function PhysicalValues(m::Real, r::Real, P::Real, T::Real)
     PhysicalValues(promote(m, r, P, T)...)
 end
 
 @doc """Holds physical values of mass, radius, and pressure""" ->
-immutable MassRadiusPressure{T<:Real} <: ValueSet
-    m::T
-    r::T
-    P::T
+immutable MassRadiusPressure{R<:Real} <: ValueSet
+    m::R
+    r::R
+    P::R
 end
 function MassRadiusPressure(m::Real, r::Real, P::Real)
     MassRadiusPressure(promote(m, r, P)...)
 end
 
-ValueSet(m::Real, r::Real, P::Real) = MassRadiusPressure(m, r, P)
-ValueSet(m::Real, r::Real, P::Real, T::Real) = PhysicalValues(m, r, P, T)
+# Constructors
+ValueSet(m, r, P) = ValueSet(notemp, m, r, P)
+ValueSet(m, r, P, T) = ValueSet(withtemp, m, r, P, T)
+ValueSet(::NoTemp, args...) = MassRadiusPressure(args...)
+ValueSet(::WithTemp, args...) = PhysicalValues(args...)
 
+# Properties
 @doc "Get the dependent physical values (radius, pressure, [temperature])" ->
 nonmass(pv::PhysicalValues) = [pv.r, pv.P, pv.T]
 nonmass(mrp::MassRadiusPressure) = [mrp.r, mrp.P]
 @doc "Get the independent physical coordinate (mass)" ->
 mass(vs::ValueSet) = vs.m
+radius(vs::ValueSet) = vs.r
+pressure(vs::ValueSet) = vs.P
+temperature(vs::PhysicalValues) = vs.T
 
-Base.zero(::Type{PhysicalValues}) = PhysicalValues(0, 0, 0, 0)
-Base.zero(::Type{MassRadiusPressure}) = MassRadiusPressure(0, 0, 0)
-Base.call(eq::Equation, x::Real) = eq.equation(x)
-Base.call(eq::Equation, vs::ValueSet) = eq.equation(vs)
-Base.call(es::EquationSet, vs::ValueSet) =  map(eq -> eq(vs), es.equations)
-Base.call{T<:Real}(cl::Callable, t::T, y::Vector{T}) = cl(ValueSet(t, y...))
+function isphysical(vs::PhysicalValues)
+    mass(vs) > 0 && radius(vs) > 0 && pressure(vs) > 0 && temperature(vs) > 0
+end
+function isphysical(vs::MassRadiusPressure)
+    mass(vs) > 0 && radius(vs) > 0 && pressure(vs) > 0
+end
+
+# Interaction
+import Base: zero, call
+zero(::Type{MassRadiusPressure}) = MassRadiusPressure(0, 0, 0)
+zero(::Type{PhysicalValues}) = PhysicalValues(0, 0, 0, 0)
+zero(::Type{ValueSet}, ::NoTemp) = zero(MassRadiusPressure)
+zero(::Type{ValueSet}, ::WithTemp) = zero(PhysicalValues)
+call(eq::Equation, x::Real) = eq.equation(x)
+call(eq::Equation, vs::ValueSet) = eq.equation(vs)
+call(es::EquationSet, vs::ValueSet) =  map(eq -> eq(vs), es.equations)
+call{T<:Real}(cl::Callable, t::T, y::Vector{T}) = cl(ValueSet(t, y...))
 
 # Useful common definitions
 @doc """Location of the data files in this package""" ->

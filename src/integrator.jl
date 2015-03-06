@@ -106,7 +106,7 @@ function find_radius(system::PlanetSystem)
     end
 end
 
-@doc "Create and a solve for a `PlanetSystem`'s radius'" ->
+@doc "Create and solve for a `PlanetSystem`'s radius'" ->
 function find_radius{T<:Real}(M::T, structure::EquationSet, P_surface::T,
     solution_grid::Vector{T}, R_bracket::Vector{T})
 

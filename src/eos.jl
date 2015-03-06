@@ -38,6 +38,10 @@ immutable PressureTempEOS <: SimpleEOS
     fullname::String
 end
 
+# Constructurs for simple EOS
+SimpleEOS(::NoTemp, f::Function, name::String) = PressureEOS(f, name)
+SimpleEOS(::WithTemp, f::Function, name::String) = PressureTempEOS(f, name)
+
 @doc """
     Equation of state which must invert some function over a density
     range.
@@ -138,11 +142,11 @@ h2o_func(P::Real) = 1460. + 0.00311*(P^0.513)
 graphite_func(P::Real) = 2250. + 0.00350*(P^0.514)
 sic_func(P::Real) = 3220. + 0.00172*(P^0.537)
 
-mgsio3 = PressureEOS(mgsio3_func, "MgSiO3")
-fe = PressureEOS(fe_func, "Fe")
-h2o = PressureEOS(h2o_func, "H2O")
-graphite = PressureEOS(graphite_func, "Graphite")
-sic = PressureEOS(sic_func, "SiC")
+mgsio3 = SimpleEOS(notemp, mgsio3_func, "MgSiO3")
+fe = SimpleEOS(notemp, fe_func, "Fe")
+h2o = SimpleEOS(notemp, h2o_func, "H2O")
+graphite = SimpleEOS(notemp, graphite_func, "Graphite")
+sic = SimpleEOS(notemp, sic_func, "SiC")
 
 @doc """
     The Birch-Murnaghan EOS function, in SI units
@@ -367,15 +371,16 @@ function call(eos::InvPressureEOS, P::Real)
 end
 
 # Split piecewise EOSes appropriately
-call(eos::PressurePiecewiseEOS, vs::ValueSet) = get_layer_eos(eos, vs.P)(vs)
-call(eos::MassPiecewiseEOS, vs::ValueSet) = get_layer_eos(eos, vs.m)(vs)
+call(eos::PressurePiecewiseEOS, vs::ValueSet) = get_layer_eos(eos, pressure(vs))(vs)
+call(eos::MassPiecewiseEOS, vs::ValueSet) = get_layer_eos(eos, mass(vs))(vs)
 call(eos::PressurePiecewiseEOS, P::Real) = eos(ValueSet(0, 0, P))
 
 # Calling EOSes with ValueSets
-call(eos::SingleEOS, vs::MassRadiusPressure) = eos(vs.P)
-call(eos::SingleEOS, vs::PhysicalValues) = eos(vs.P, vs.T)
+call(eos::PressureEOS, vs::ValueSet) = eos(pressure(vs))
+call(eos::PressureTempEOS, vs::PhysicalValues) = eos(pressure(vs), temperature(vs))
 call(eos::PressureEOS, P::Real) = eos.equation(P)
 call(eos::PressureTempEOS, P::Real, T::Real) = eos.equation(P, T)
+call(eos::InvPressureEOS, vs::ValueSet) = eos(pressure(vs))
 
 # Load interpolated EOS from file
 fe_seager = load_interpolated_eos("$DATADIR/Fe (Vinet) (Seager 2007) & Fe TFD.eos")
