@@ -4,17 +4,6 @@
 # Solutions
 #------------------------------------------------------------------------------
 
-@doc "Generate a blank solution structure for a given planet system" ->
-function blank_structure(sys::PlanetSystem)
-    # array setup
-    n_points = length(sys.solution_grid)
-    t = fill(NaN, n_points)
-    y = fill(NaN, (n_points, 2))
-    solution = PlanetStructure(t, y)
-
-    solution
-end
-
 @doc """
     Solve a planetary structure, writing the solution to a given solution
     type.
@@ -25,24 +14,24 @@ end
 function solve!(sys::PlanetSystem, soln::PlanetStructure)
     # make an integrator and run it
     ode_func{T<:Real}(t::T, y::Vector{T}) = (sys.structure_equations(t, y))
-    x0 = physical_values(sys.boundary_values)
-    t0 = mass_coordinate(sys.boundary_values)
+    x0 = nonmass(sys.boundary_values)
+    t0 = mass(sys.boundary_values)
     tgrid = sys.solution_grid
 
     # put the values into the solution
     solver = PlanetRK4(ode_func, x0, tgrid)
     for (i, x) in enumerate(solver)
-        soln.m[i] = tgrid[i]
-        soln.y[i, :] = x
+        mass(soln)[i] = tgrid[i]
+        nonmass(soln)[:, i] = x
     end
+
+    soln
 end
 
 @doc "Generate a new `PlanetStructure` object and solve a `PlanetSystem`" ->
 function solve(sys::PlanetSystem)
     soln = blank_structure(sys)
     solve!(sys, soln)
-
-    soln
 end
 
 # Radius searching
@@ -50,13 +39,11 @@ end
 
 # helper functions
 notnan(value) = ~isnan(value)
-dropnans(arr::Array) = filter(notnan, arr)
-r_centre(result::PlanetStructure) = dropnans(result.y[:, 1])[end]
 hit_the_centre(R::Real) = R < 0
 not_far_enough(R::Real) = R > 100
-hit_the_centre(result::PlanetStructure) = hit_the_centre(r_centre(result))
-not_far_enough(result::PlanetStructure) = not_far_enough(r_centre(result))
-unacceptable(result::PlanetStructure) = hit_the_centre(result) || not_far_enough(result)
+hit_the_centre(ps::PlanetStructure) = hit_the_centre(radius(centre(ps)))
+not_far_enough(ps::PlanetStructure) = not_far_enough(radius(centre(ps)))
+acceptable(ps::PlanetStructure) = !hit_the_centre(ps) && !not_far_enough(ps)
 
 @doc """
     Reproduce a `PlanetSystem` but change the radius value to be at the
@@ -96,42 +83,54 @@ end
     radius that produces an acceptable solution
     """ ->
 function find_radius(system::PlanetSystem)
+    if R_guess(system) != system.boundary_values.r
+        system = update_boundary_r(system)
+    end
     result = solve(system)
-    if unacceptable(result)
-        updated_search_radii = adapt_search_radius(system, result)
-        prepped_for_re_solving = update_boundary_r(updated_search_radii)
-        find_radius(prepped_for_re_solving)
+    if acceptable(result)
+        return R_guess(system)
     else
-        system.boundary_values.r
+        system = adapt_search_radius(system, result)
+        return find_radius(system)
     end
 end
 
-@doc "Create and a solve for a `PlanetSystem`'s radius'" ->
+@doc "Create and solve for a `PlanetSystem`'s radius'" ->
 function find_radius{T<:Real}(M::T, structure::EquationSet, P_surface::T,
     solution_grid::Vector{T}, R_bracket::Vector{T})
 
     R_guess = mean(R_bracket)
-    system = setup_planet(M, R_guess, P_surface, structure,
+    system = PlanetSystem(M, R_guess, P_surface, structure,
                           solution_grid, R_bracket)
-    radius = zero(PlanetStructure)
     R::T = find_radius(system)
 end
 
 # higher level functions for doing MR diagrams
 
 @doc "Find the radius of a solid sphere of mass `M` using an given `EOS`." ->
-function R(M::Real, eos::EOS; in_earth_units=false)
+function R(M::Real, eos::EOS{NoTemp}; in_earth_units=false)
     Mscale = in_earth_units ? M_earth : 1
     Rscale = in_earth_units ? 1/R_earth : 1
 
-    planet_system = setup_planet(M * Mscale, eos)
-    r = find_radius(planet_system) * Rscale
+    sys = DefaultPlanetSystem(M * Mscale, eos)
+    r = find_radius(sys) * Rscale
 
     r::Float64
 end
+
+function R(M::Real, eos::EOS{WithTemp}, Cₚ::HeatCapacity; in_earth_units=false)
+    Mscale = in_earth_units ? M_earth : 1
+    Rscale = in_earth_units ? 1/R_earth : 1
+
+    sys = DefaultPlanetSystem(M * Mscale, eos, Cₚ)
+    r = find_radius(sys) * Rscale
+
+    r::Float64
+end
+
 # vectorized form of the above
-function R{T<:Real}(ms::Vector{T}, eos::EOS; in_earth_units=false)
-    R_withEOS(M::T) = R(M::T, eos; in_earth_units=in_earth_units)
+function R{T<:Real}(ms::Vector{T}, args...; in_earth_units=false)
+    R_withEOS(M) = R(M, args...; in_earth_units=in_earth_units)
     map(R_withEOS, ms)
 end
 
@@ -222,10 +221,10 @@ function Base.done(solver::FixedStepIntegrator, state::IntegratorState)
     tindex > length(solver.tgrid)
 end
 
-# for planets, if r<0, the structure equations will yield zeroes: this allows
-# us to step "over" the core, and so the negative sign of the radius at the
-# central point signals the radius search function that we should increase our
-# radius
+# for planets, if a value becomes unphysical (e.g. r<0) then the structure
+# equations will yield zeroes. this allows us to step "over" the core, and so
+# the negative sign of the radius at the central point signals the radius
+# search function that we should increase our radius
 
 # length will be that of the solution grid
 Base.length(solver::FixedStepIntegrator) = length(solver.tgrid)
