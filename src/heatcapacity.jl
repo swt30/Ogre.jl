@@ -5,7 +5,8 @@
 type HeatCapacity <: Equation
     equation::Function
 end
-HeatCapacity(::WithTemp, f::Function) = HeatCapacity(f)
+HeatCapacity(::Type{WithTemp}, f::Function) = HeatCapacity(f)
 
-Base.call(cp::HeatCapacity, x::Real) = cp.equation(x)
-Base.call(cp::HeatCapacity, pv::PhysicalValues) = cp(temperature(pv))
+import Base.call
+call(cp::HeatCapacity, x::Real) = cp.equation(x)
+call(cp::HeatCapacity, pv::PhysicalValues) = cp(temperature(pv))

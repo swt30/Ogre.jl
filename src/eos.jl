@@ -26,6 +26,8 @@ immutable PressureEOS <: SimpleEOS{NoTemp}
     equation::Function
     fullname::String
 end
+SimpleEOS(::Type{NoTemp}, f::Function, name::String) = PressureEOS(f, name)
+
 
 @doc """
     An EOS depending on both pressure and temperature.
@@ -37,10 +39,8 @@ immutable PressureTempEOS <: SimpleEOS{WithTemp}
     equation::Function
     fullname::String
 end
+SimpleEOS(::Type{WithTemp}, f::Function, name::String) = PressureTempEOS(f, name)
 
-# Constructors for simple EOS
-SimpleEOS(::NoTemp, f::Function, name::String) = PressureEOS(f, name)
-SimpleEOS(::WithTemp, f::Function, name::String) = PressureTempEOS(f, name)
 
 @doc """
     Equation of state which must invert some function over a density
@@ -65,7 +65,7 @@ end
       past the ends of this vector will just evaluate the nearest EOS.
     * `fullname`: Name of the EOS (for printing and plotting)
     """ ->
-immutable MassPiecewiseEOS{T<:Real, E<:SingleEOS} <: PiecewiseEOS
+immutable MassPiecewiseEOS{T<:Real, E<:SingleEOS{NoTemp}} <: PiecewiseEOS{NoTemp}
     equations::Vector{E}
     transition_values::Vector{T}
     fullname::String
@@ -142,11 +142,11 @@ h2o_func(P::Real) = 1460. + 0.00311*(P^0.513)
 graphite_func(P::Real) = 2250. + 0.00350*(P^0.514)
 sic_func(P::Real) = 3220. + 0.00172*(P^0.537)
 
-mgsio3 = SimpleEOS(notemp, mgsio3_func, "MgSiO3")
-fe = SimpleEOS(notemp, fe_func, "Fe")
-h2o = SimpleEOS(notemp, h2o_func, "H2O")
-graphite = SimpleEOS(notemp, graphite_func, "Graphite")
-sic = SimpleEOS(notemp, sic_func, "SiC")
+mgsio3 = SimpleEOS(NoTemp, mgsio3_func, "MgSiO3")
+fe = SimpleEOS(NoTemp, fe_func, "Fe")
+h2o = SimpleEOS(NoTemp, h2o_func, "H2O")
+graphite = SimpleEOS(NoTemp, graphite_func, "Graphite")
+sic = SimpleEOS(NoTemp, sic_func, "SiC")
 
 @doc """
     The Birch-Murnaghan EOS function, in SI units
@@ -342,7 +342,7 @@ function lininterp{T<:Real}(x::Array{T}, y::Array{T})
 end
 
 @doc """
-    Read a previous-written temperature-dependent EOS into a `SimpleEOS`
+    Read a previously-written temperature-independent EOS into a `SimpleEOS`
 
     If `linear`=`true`, the EOS is assumed to be on a linear grid.
     However, the grid does not have to be regular.
@@ -358,7 +358,7 @@ function load_interpolated_eos(file::String; linear=false)
     directory, filename = splitdir(file)
     name, ext = splitext(filename)
 
-    SimpleEOS(notemp, interp_func, name)
+    SimpleEOS(NoTemp, interp_func, name)
 end
 
 # EOS evaluation

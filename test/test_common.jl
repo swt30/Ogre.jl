@@ -2,8 +2,8 @@ include("header.jl")
 
 facts("Common functionality") do
     context("Value sets") do
-        vs1 = Ogre.ValueSet(1,2,3)
-        vs2 = Ogre.ValueSet(1,2,3,4)
+        vs1 = res.value_set_no_temp
+        vs2 = res.value_set_full
         @fact_throws ValueSet(1,2)
 
         context("Type hierarchy") do
@@ -30,12 +30,13 @@ facts("Common functionality") do
     end
 
     context("Copy-modification of types") do
-        vs1 = Ogre.ValueSet(1,2,3)
+        vs1 = res.value_set_no_temp
         vs1m = Ogre.cpmod(vs1, P=4)
-        vs2 = Ogre.ValueSet(1,2,3,4)
+        vs2 = res.value_set_full
         vs2m = Ogre.cpmod(vs2, T=5)
 
         @fact vs1m => Ogre.ValueSet(1,2,4)
         @fact vs2m => Ogre.ValueSet(1,2,3,5)
+        @pending Ogre.cpmod(vs2, a_field_that_doesnt_exist=6) => "throws"
     end
 end

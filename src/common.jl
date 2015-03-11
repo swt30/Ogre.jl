@@ -25,8 +25,11 @@ abstract ModelComplexity
 immutable NoTemp <: ModelComplexity; end
 immutable WithTemp <: ModelComplexity; end
 
-const notemp = NoTemp()
-const withtemp = WithTemp()
+@doc "Number of physical variables used" ->
+nvars(::Type{NoTemp}) = 3
+nvars(::Type{WithTemp}) = 4
+@doc "Number of independent physical variables used" ->
+ndeps{mc<:ModelComplexity}(::Type{mc}) = nvars(mc) - 1
 
 abstract ValueSet{mc<:ModelComplexity}
 
@@ -40,6 +43,8 @@ end
 function PhysicalValues(m::Real, r::Real, P::Real, T::Real)
     PhysicalValues(promote(m, r, P, T)...)
 end
+ValueSet(m, r, P, T) = PhysicalValues(m, r, P, T)
+
 
 @doc """Holds physical values of mass, radius, and pressure""" ->
 immutable MassRadiusPressure{R<:Real} <: ValueSet{NoTemp}
@@ -50,16 +55,13 @@ end
 function MassRadiusPressure(m::Real, r::Real, P::Real)
     MassRadiusPressure(promote(m, r, P)...)
 end
-
-# Constructors
 ValueSet(m, r, P) = MassRadiusPressure(m, r, P)
-ValueSet(m, r, P, T) = PhysicalValues(m, r, P, T)
 
 # Properties
-@doc "Get the dependent physical values (radius, pressure, [temperature])" ->
+@doc "Dependent physical values (radius, pressure, [temperature])" ->
 nonmass(pv::PhysicalValues) = [pv.r, pv.P, pv.T]
 nonmass(mrp::MassRadiusPressure) = [mrp.r, mrp.P]
-@doc "Get the independent physical coordinate (mass)" ->
+@doc "Independent physical coordinate (mass)" ->
 mass(vs::ValueSet) = vs.m
 radius(vs::ValueSet) = vs.r
 pressure(vs::ValueSet) = vs.P

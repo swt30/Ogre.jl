@@ -103,11 +103,42 @@ facts("Planetary structure types") do
         @fact Ogre.temperature(bvsT) => 4
     end
 
+    context("Centre and surface values") do
+        mc, ms = 1, 2
+        rc, rs = 3, 4
+        Pc, Ps = 5, 6
+        Tc, Ts = 7, 8
+        npoints = 10
+
+        m = linspace(ms, mc, npoints)
+        r = linspace(rs, rc, npoints)
+        P = linspace(Ps, Pc, npoints)
+        T = linspace(Ts, Tc, npoints)
+
+        s1 = Ogre.PlanetStructure(m, r, P)
+        s2 = Ogre.PlanetStructure(m, r, P, T)
+
+        @fact Ogre.mass(Ogre.centre(s1)) => mc
+        @fact Ogre.mass(Ogre.centre(s2)) => mc
+        @fact Ogre.mass(Ogre.surface(s1)) => ms
+        @fact Ogre.mass(Ogre.surface(s2)) => ms
+        @fact Ogre.radius(Ogre.centre(s1)) => rc
+        @fact Ogre.radius(Ogre.centre(s2)) => rc
+        @fact Ogre.radius(Ogre.surface(s1)) => rs
+        @fact Ogre.radius(Ogre.surface(s2)) => rs
+        @fact Ogre.pressure(Ogre.centre(s1)) => Pc
+        @fact Ogre.pressure(Ogre.centre(s2)) => Pc
+        @fact Ogre.pressure(Ogre.surface(s1)) => Ps
+        @fact Ogre.pressure(Ogre.surface(s2)) => Ps
+        @fact Ogre.temperature(Ogre.centre(s2)) => Tc
+        @fact Ogre.temperature(Ogre.surface(s2)) => Ts
+    end
+
     context("Planet system and solution setup") do
         M = 5.972e24
         R = 6.3781e6
         Psurf = 1e5
-        solution_grid = linspace(0, M, 5)
+        solution_grid = linspace(M, 0, 5)
         radius_bracket = [0, 10] * M
 
         pressurebalance = Ogre.PressureBalanceEq()
@@ -115,25 +146,25 @@ facts("Planetary structure types") do
         context("No temperature dependence") do
             bvs = Ogre.BoundaryValues(M, R, Psurf)
             eos_f(P) = 4100. + 0.00161*(P^0.541)
-            eos = Ogre.SimpleEOS(Ogre.notemp, eos_f, "")
+            eos = Ogre.SimpleEOS(Ogre.NoTemp, eos_f, "")
             masscontinuity = Ogre.MassContinuityEq(eos)
             structure = Ogre.EquationSet([masscontinuity,
                                           pressurebalance])
-            expectedsystem = Ogre.PlanetSystem{Ogre.NoTemp}(M, structure, bvs,
-                solution_grid, radius_bracket)
             system = Ogre.PlanetSystem(M, eos, bvs, solution_grid,
                                        radius_bracket)
             struct = Ogre.blank_structure(system)
 
-            @fact size(struct.m) => (5,)
-            @fact size(struct.y) => (5, 2)
+            @fact length(Ogre.mass(struct)) => 5
+            @fact length(Ogre.radius(struct)) => 5
+            @fact length(Ogre.pressure(struct)) => 5
+            @fact_throws Ogre.temperature(struct) => 5
         end
 
         context("Temperature dependence") do
             Tsurf = 300
             bvs = Ogre.BoundaryValues(M, R, Psurf, Tsurf)
             eos_f(P, T) = 4100. + 0.00161*(P^0.541)*(T^-0.054)
-            eos = Ogre.SimpleEOS(Ogre.withtemp, eos_f, "")
+            eos = Ogre.SimpleEOS(Ogre.WithTemp, eos_f, "")
             Cₚ_f(T) = T
             Cₚ = Ogre.HeatCapacity(Cₚ_f)
             masscontinuity = Ogre.MassContinuityEq(eos)
@@ -141,14 +172,14 @@ facts("Planetary structure types") do
             structure = Ogre.EquationSet([masscontinuity,
                                          pressurebalance,
                                          temperaturegradient])
-            expectedsystem = Ogre.PlanetSystem{Ogre.WithTemp}(M, structure,
-                bvs, solution_grid, radius_bracket)
             system = Ogre.PlanetSystem(M, eos, Cₚ, bvs, solution_grid,
                                        radius_bracket)
             struct = Ogre.blank_structure(system)
 
-            @fact size(struct.m) => (5,)
-            @fact size(struct.y) => (5, 3)
+            @fact length(Ogre.mass(struct)) => 5
+            @fact length(Ogre.radius(struct)) => 5
+            @fact length(Ogre.pressure(struct)) => 5
+            @fact length(Ogre.temperature(struct)) => 5
         end
     end
 end

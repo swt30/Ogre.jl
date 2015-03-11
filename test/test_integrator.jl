@@ -40,8 +40,12 @@ facts("Integrator tests") do
     end
 
     context("Planetary integrator test cases") do
-        R_earth = 6.3781e6 # m
-        M_earth = 5.972e24 # kg
+        R_earth = Ogre.R_earth # m
+        M_earth = Ogre.M_earth # kg
+        surface_pressure = 1e5 # Pa
+
+        NoTemp = Ogre.NoTemp
+        WithTemp = Ogre.WithTemp
 
         dual_layer_eoses = [Ogre.mgsio3, Ogre.fe]
         tri_layer_eoses = [Ogre.h2o, Ogre.mgsio3, Ogre.fe]
@@ -66,47 +70,58 @@ facts("Integrator tests") do
 
                 @fact fe_radii => roughly(target_fe_radii, rtol=0.01)
                 @fact mgsio3_radii => roughly(target_mgsio3_radii, rtol=0.01)
-
-                @pending "do the same using the temperature equations but include a no-temp-dependence EOS to show it's the same" => 1
             end
 
             context("Dual- and tri-layer solutions work") do
                 # accept a pretty large error since we're really just looking
                 # to make sure that it produces the right type of solution
                 @fact (Ogre.R(M_earth, dual_layer_eos)
-                       => roughly(R_earth, rtol=0.1))
+                       => roughly(R_earth, rtol=0.05))
                 @fact (Ogre.R(M_earth, tri_layer_eos)
-                       => roughly(R_earth, rtol=0.1))
+                       => roughly(R_earth, rtol=0.05))
             end
         end
 
         context("Solving for internal structure (tri-layer)") do
             actual_radius = Ogre.R(M_earth, tri_layer_eos)
-            R_bracket = [actual_radius, actual_radius]
+            r_bracket = [actual_radius, actual_radius]
+            bvs = Ogre.BoundaryValues(M_earth, actual_radius, surface_pressure)
+            grid = linspace(M_earth, 0, Ogre.total_points)
 
-            system = Ogre.setup_planet(M_earth, tri_layer_eos, R_bracket)
+            system = Ogre.PlanetSystem(M_earth, tri_layer_eos,
+                                       bvs, grid, r_bracket)
             soln = Ogre.solve(system)
 
-            context("Solution outputs are the correct shape") do
-                @fact ndims(soln.m) => 1
-                @fact ndims(soln.y) => 2
+            context("Solution outputs are the correct type") do
+                @fact isa(soln, Ogre.PlanetStructure{NoTemp}) => true
             end
 
             context("Solution boundaries match the boundary conditions") do
-                surface_pressure = 1e5
-                r, P = soln.y[:, 1] , soln.y[:, 2]
-                @fact soln.m[1] => M_earth
-                @fact soln.m[end] => 0
-                @fact P[1] => surface_pressure
-                @fact r[1] => actual_radius
-                @fact r[end] => less_than(100)
-                @fact r[end] => greater_than(0)
+                @fact Ogre.mass(Ogre.centre(soln)) => 0
+                @fact Ogre.mass(Ogre.surface(soln)) => M_earth
+                @fact Ogre.pressure(Ogre.centre(soln)) =>
+                      greater_than(Ogre.pressure(Ogre.surface(soln)))
+                @fact Ogre.pressure(Ogre.surface(soln)) => surface_pressure
+                @fact Ogre.radius(Ogre.centre(soln)) => less_than(100)
+                @fact Ogre.radius(Ogre.centre(soln)) => greater_than(0)
+                @fact Ogre.radius(Ogre.surface(soln)) => actual_radius
             end
         end
 
+        context("Solving a single-layer solution two different ways") do
+            f(P) = Ogre.mgsio3_func(P)
+            f(P, T) = f(P)
+            Cₚ = Ogre.HeatCapacity(T -> 1)
+            eos_notemp = Ogre.SimpleEOS(NoTemp, f, "No temperature dependence")
+            eos_withtemp = Ogre.SimpleEOS(WithTemp, f, "With temp dependence")
+
+            actual_radius = Ogre.R(M_earth, eos_notemp)
+            tempdep_radius = Ogre.R(M_earth, eos_withtemp, Cₚ)
+            @fact tempdep_radius => actual_radius
+        end
+
         context("Helper function tests") do
-            R_bracket = [0, 15] * R_earth
-            system = Ogre.setup_planet(M_earth, dual_layer_eos, R_bracket)
+            system = Ogre.DefaultPlanetSystem(M_earth, dual_layer_eos)
 
             context("Determining when we're close to the centre of the planet") do
                 @fact Ogre.hit_the_centre(-50) => true
@@ -119,21 +134,37 @@ facts("Integrator tests") do
 
         context("Temperature dependence") do
             R = R_earth
-            R_bracket = [0, 10] * R
+            R_bracket = [0, 2] * R_earth
             M = M_earth
             Psurf = 1e5 # Pa
             Tsurf = 300 # K
             h2o_heatcap_func(T::Real) = 4200 # J kg⁻¹ K⁻¹
             Cₚ = Ogre.HeatCapacity(h2o_heatcap_func)
-            eos = Ogre.SimpleEOS(Ogre.withtemp, (P, T) -> 1000, "Test EOS")
+            eos = Ogre.SimpleEOS(WithTemp, (P, T) -> 1000, "Test EOS")
             m_inner, m_outer = 0, M_earth
-            solution_grid = linspace(m_inner, m_outer, 100)
+            solution_grid = linspace(m_outer, m_inner, 100)
             boundary = Ogre.BoundaryValues(M, R, Psurf, Tsurf)
             system = Ogre.PlanetSystem(M, eos, Cₚ, boundary, solution_grid,
                                        R_bracket)
             soln = Ogre.solve(system)
 
-            @pending "check that the structure is the right size after solution" => 1
+            #TODO: adjust R finding code to return the structure in parallel?
+
+            mass = Ogre.mass
+            radius = Ogre.radius
+            pressure = Ogre.pressure
+            temperature = Ogre.temperature
+            centre = Ogre.centre
+            surface = Ogre.surface
+
+            @fact mass(centre(soln)) => 0
+            @fact mass(surface(soln)) => M_earth
+            @fact pressure(centre(soln)) => greater_than(pressure(surface(soln)))
+            @fact pressure(surface(soln)) => surface_pressure
+            @fact radius(surface(soln)) => R
+            @fact temperature(centre(soln)) => greater_than(temperature(surface(soln)))
+            @fact temperature(surface(soln)) => Tsurf
+            @fact isa(soln, Ogre.PlanetStructure{WithTemp}) => true
         end
     end
 end
