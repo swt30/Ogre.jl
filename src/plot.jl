@@ -24,7 +24,7 @@ function plot(soln::PlanetStructure{NoTemp})
     x = vec(mass(soln))
     r = vec(radius(soln))
     P = vec(pressure(soln))
-    # the use of vec() is because these functions return array slices
+    # the use of vec() is because these functions return array views
     # (SubArrays) which are apparently not popular with PyPlot
 
     fig = plt[:figure]()
@@ -37,7 +37,7 @@ function plot(soln::PlanetStructure{NoTemp})
     ax2[:set_ylabel]("Radius, r / m")
 
     for axes in fig[:get_axes]()
-        axes[:yaxis][:get_major_formatter]()[:set_powerlimits]((0, 1))
+        axes[:yaxis][:get_major_formatter]()[:set_powerlimits]((0, 4))
     end
 
     fig[:tight_layout]()
@@ -68,7 +68,7 @@ function plot(soln::PlanetStructure{WithTemp})
     ax3[:set_ylabel]("Radius, r / m")
 
     for axes in fig[:get_axes]()
-        axes[:yaxis][:get_major_formatter]()[:set_powerlimits]((0, 1))
+        axes[:yaxis][:get_major_formatter]()[:set_powerlimits]((0, 4))
     end
 
     fig[:tight_layout]()

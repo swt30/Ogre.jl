@@ -321,10 +321,17 @@ function write_eoses_to_files()
     end
 end
 
-@doc """
-    Create an interpolating function using a log-spaced coordinate grid.
-    """ ->
-function loginterp{T<:Real}(x::Array{T}, y::Array{T})
+@doc "Create an interpolating function in linear space" ->
+function lininterp{T<:Real}(x::Vector{T}, y::Vector{T})
+    spline = Spline1D(x, y, k=2)
+    interp_func(x::Real) = evaluate(spline, Float64(x))
+    interp_func{T<:Real}(x::Vector{T}) = evaluate(spline, Vector{Float64}(x))
+
+    interp_func
+end
+
+@doc "Create an interpolating function using a log-spaced coordinate grid." ->
+function loginterp{T<:Real}(x::Vector{T}, y::Vector{T})
     # first transform the grid to be linear
     logx = log10(x)
     # then do the interpolation as if it were linear
@@ -333,12 +340,22 @@ function loginterp{T<:Real}(x::Array{T}, y::Array{T})
     interp_func(x) = lin_interp_func(log10(x))
 end
 
-@doc """Create an interpolating function in linear space""" ->
-function lininterp{T<:Real}(x::Array{T}, y::Array{T})
+@doc "Create a linear interpolating function from a 2D grid" ->
+function lininterp2d{T<:Real}(x::Vector{T}, y::Vector{T}, z::Matrix{T})
+    spline = Spline2D(x, y, z, kx=1, ky=1)
+    interp_func(x::Real, y::Real) = evaluate(spline, Float64(x), Float64(y))
+    interp_func(x::Vector{T}, y::Vector{T}) = evaluate(spline, x, y)
 
-    spline = Spline1D(x, y, k=2)
+    interp_func
+end
 
-    interp_func(x) = evaluate(spline, convert(Float64, x))
+@doc "Create a log-spaced interpolating function from a 2D grid" ->
+function loginterp2d{T<:Real}(x::Vector{T}, y::Vector{T}, z::Matrix{T})
+    logx = log10(x)
+    logy = log10(y)
+
+    lin_interp_func = lininterp2d(logx, logy, z)
+    interp_func(x, y) = lin_interp_func(log10(x), log10(y))
 end
 
 @doc """
@@ -355,10 +372,44 @@ function load_interpolated_eos(file::String; linear=false)
     else
         interp_func = loginterp(P, rho)
     end
-    directory, filename = splitdir(file)
-    name, ext = splitext(filename)
+    _, filename = splitdir(file)
+    name, _ = splitext(filename)
 
     SimpleEOS(NoTemp, interp_func, name)
+end
+
+hasnan(x) = any(isnan(x))
+
+@doc """
+    Read a previously-written 2D temperature-independent EOS into a `SimpleEOS`
+
+    If `linear`=`true`, the EOS is assumed to be on a linear grid.
+    However, the grid does not have to be regular.
+    """ ->
+function load_2D_eos(file::String; linear=false)
+    data = readdlm(file, Float64)
+    P = vec(data[2:end, 1]) # dimension 1
+    T = vec(data[1, 2:end]) # dimension 2
+    rho = data[2:end, 2:end]
+
+    if hasnan(rho)
+        warn("2D data contains NaNs: setting these to zero for interpolation")
+        rho[isnan(rho)] = 0
+    end
+
+    if linear
+        interp_func = lininterp2d(P, T, rho)
+    else
+        interp_func = loginterp2d(P, T, rho)
+    end
+
+    # @show interp_func(P[1,1], T[1,1])
+    # @show interp_func(P[1,1] + 1, T[1,1] + 1)
+
+    _, filename = splitdir(file)
+    name, _ = splitext(filename)
+
+    SimpleEOS(WithTemp, interp_func, name)
 end
 
 # EOS evaluation
@@ -391,3 +442,5 @@ my_h2o_300 = load_interpolated_eos("$DATADIR/tabulated/h2o-300K.dat")
 my_h2o_500 = load_interpolated_eos("$DATADIR/tabulated/h2o-500K.dat")
 my_h2o_800 = load_interpolated_eos("$DATADIR/tabulated/h2o-800K.dat")
 my_h2o_1200 = load_interpolated_eos("$DATADIR/tabulated/h2o-1200K.dat")
+
+my_h2o = load_2D_eos("$DATADIR/tabulated/my_h2o_100x100.dat")

@@ -1,14 +1,18 @@
 using Ogre, LaTeXStrings
 import Iterators: repeated
 
+using Dierckx
+
 function main()
-    ms = linspace(0.5, 10, 30) .* M_earth
+    ms = linspace(0.5, 10, 30) * M_earth
+
+    Cₚ_func(T::Real) = 4200
+    Cₚ = Ogre.HeatCapacity(Cₚ_func)
+    Cₚ_inf_func(T::Real) = Inf
+    Cₚ_inf = Ogre.HeatCapacity(Cₚ_inf_func)
 
     eoses = [Ogre.h2o_seager,
-             Ogre.my_h2o_300,
-             Ogre.my_h2o_500,
-             Ogre.my_h2o_800,
-             Ogre.my_h2o_1200]
+             Ogre.my_h2o_300]
     linestyles = repeated("-")
     colours = ["Crimson", "CornflowerBlue", "Sienna",
                 "LimeGreen", "LightSteelBlue"]
@@ -20,6 +24,9 @@ function main()
         Ogre.plot(ms ./ M_earth, rs ./ R_earth, label=el.fullname,
              linestyle=ls, color=c)
     end
+    @time rs = Ogre.R(ms, Ogre.my_h2o, Cₚ)
+    Ogre.plot(ms ./ M_earth, rs ./ R_earth, label=Ogre.my_h2o.fullname,
+         linestyle="--", color="Black")
 
     ax = plt[:gca]()
     ax[:set_xlabel](L"Mass / M$_\oplus$")

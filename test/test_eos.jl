@@ -119,25 +119,33 @@ facts("Equation of state (EOS) handling") do
                 context("for a simple EOS") do
                     Plin = linspace(1, 10)
                     Plog = logspace(0, 1)
-                    rholin = Plin.^2
-                    rholog = Plog.^2
-                    log_interpolation = Ogre.loginterp(Plog, rholog)
-                    lin_interpolation = Ogre.lininterp(Plin, rholin)
+                    rholin = [P^2 for P in Plin]
+                    rholog = [P^2 for P in Plog]
+                    lininterp = Ogre.lininterp(Plin, rholin)
+                    loginterp = Ogre.loginterp(Plog, rholog)
 
                     values_to_check = [1, 2, 4.7, 7.5, 8]
-                    expected_results = values_to_check.^2
+                    expected_results = [P^2 for P in values_to_check]
 
-                    function check_eos{T<:Real}(eos::Function,
-                                                inputs::Vector{T},
-                                                outputs::Vector{T})
-                        @assert length(inputs) == length(outputs)
-                        map(inputs, outputs) do input, output
-                            @fact eos(input) => roughly(output)
-                        end
-                    end
+                    @fact loginterp(values_to_check) => roughly(expected_results)
+                    @fact lininterp(values_to_check) => roughly(expected_results)
+                end
 
-                    check_eos(log_interpolation, values_to_check, expected_results)
-                    check_eos(lin_interpolation, values_to_check, expected_results)
+                context("for a 2D EOS") do
+                    Plin = linspace(1,10)
+                    Plog = logspace(0,1)
+                    Tlin = linspace(10,100)
+                    Tlog = logspace(1,2)
+                    rholin = [P^2 + T^2 for P in Plin, T in Tlin]
+                    rholog = [P^2 + T^2 for P in Plog, T in Tlog]
+                    lininterp2d = Ogre.lininterp2d(Plin, Tlin, rholin)
+                    loginterp2d = Ogre.loginterp2d(Plog, Tlog, rholog)
+                    P_to_check = [1, 2, 3, 5.8, 9.1]
+                    T_to_check = [10, 25, 40.3, 64.3, 94]
+                    expected_results = [P^2 + T^2 for (P, T) in zip(P_to_check, T_to_check)]
+
+                    @fact lininterp2d(P_to_check, T_to_check) => roughly(expected_results, rtol=0.01)
+                    @fact loginterp2d(P_to_check, T_to_check) => roughly(expected_results, rtol=0.01)
                 end
             end
         end
