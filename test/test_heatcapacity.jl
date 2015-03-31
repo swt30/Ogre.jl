@@ -1,16 +1,12 @@
 include("header.jl")
 
 facts("Heat capacity handling") do
-    capfunc(T) = exp(T)
-
-    Cₚ = Ogre.HeatCapacity(Ogre.WithTemp, capfunc)
-    Cₚ₂ = Ogre.HeatCapacity(capfunc)
-
     context("Construction") do
-        @fact_throws Ogre.HeatCapacity(Ogre.NoTemp, capfunc)
+        @fact_throws Ogre.HeatCapacity(Ogre.NoTemp, res.heat_capacity_function)
     end
 
     context("Values are as expected") do
+        Cₚ = res.exponential_heat_capacity
         context("called directly") do
             @fact Cₚ(1) => roughly(e)
             @fact Cₚ(0) => 1

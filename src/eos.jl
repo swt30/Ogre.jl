@@ -341,7 +341,11 @@ function loginterp{T<:Real}(x::Vector{T}, y::Vector{T})
 end
 
 @doc "Create a linear interpolating function from a 2D grid" ->
-function lininterp2d{T<:Real}(x::Vector{T}, y::Vector{T}, z::Matrix{T})
+function lininterp{T<:Real}(x::Vector{T}, y::Vector{T}, z::Matrix{T})
+    if hasnan(z)
+        warn("2D data contains NaNs: setting to sentinel value of -1e99")
+        z[isnan(z)] = -1e99
+    end
     spline = Spline2D(x, y, z, kx=1, ky=1)
     interp_func(x::Real, y::Real) = evaluate(spline, Float64(x), Float64(y))
     interp_func(x::Vector{T}, y::Vector{T}) = evaluate(spline, x, y)
@@ -350,11 +354,11 @@ function lininterp2d{T<:Real}(x::Vector{T}, y::Vector{T}, z::Matrix{T})
 end
 
 @doc "Create a log-spaced interpolating function from a 2D grid" ->
-function loginterp2d{T<:Real}(x::Vector{T}, y::Vector{T}, z::Matrix{T})
+function loginterp{T<:Real}(x::Vector{T}, y::Vector{T}, z::Array{T})
     logx = log10(x)
     logy = log10(y)
 
-    lin_interp_func = lininterp2d(logx, logy, z)
+    lin_interp_func = lininterp(logx, logy, z)
     interp_func(x, y) = lin_interp_func(log10(x), log10(y))
 end
 
@@ -379,6 +383,7 @@ function load_interpolated_eos(file::String; linear=false)
 end
 
 hasnan(x) = any(isnan(x))
+notnan(x) = !isnan(x)
 
 @doc """
     Read a previously-written 2D temperature-independent EOS into a `SimpleEOS`
@@ -388,23 +393,15 @@ hasnan(x) = any(isnan(x))
     """ ->
 function load_2D_eos(file::String; linear=false)
     data = readdlm(file, Float64)
-    P = vec(data[2:end, 1]) # dimension 1
-    T = vec(data[1, 2:end]) # dimension 2
+    P = vec(data[2:end, 1]) # dimension 1 (columns)
+    T = vec(data[1, 2:end]) # dimension 2 (rows)
     rho = data[2:end, 2:end]
 
-    if hasnan(rho)
-        warn("2D data contains NaNs: setting these to zero for interpolation")
-        rho[isnan(rho)] = 0
-    end
-
     if linear
-        interp_func = lininterp2d(P, T, rho)
+        interp_func = lininterp(P, T, rho)
     else
-        interp_func = loginterp2d(P, T, rho)
+        interp_func = loginterp(P, T, rho)
     end
-
-    # @show interp_func(P[1,1], T[1,1])
-    # @show interp_func(P[1,1] + 1, T[1,1] + 1)
 
     _, filename = splitdir(file)
     name, _ = splitext(filename)

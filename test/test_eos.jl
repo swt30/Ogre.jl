@@ -117,13 +117,8 @@ facts("Equation of state (EOS) handling") do
         context("Interpolated EOS") do
             context("match the actual function values") do
                 context("for a simple EOS") do
-                    Plin = linspace(1, 10)
-                    Plog = logspace(0, 1)
-                    rholin = [P^2 for P in Plin]
-                    rholog = [P^2 for P in Plog]
-                    lininterp = Ogre.lininterp(Plin, rholin)
-                    loginterp = Ogre.loginterp(Plog, rholog)
-
+                    lininterp = res.eos_interpolated_1D_linear
+                    loginterp = res.eos_interpolated_1D_log
                     values_to_check = [1, 2, 4.7, 7.5, 8]
                     expected_results = [P^2 for P in values_to_check]
 
@@ -132,20 +127,24 @@ facts("Equation of state (EOS) handling") do
                 end
 
                 context("for a 2D EOS") do
-                    Plin = linspace(1,10)
-                    Plog = logspace(0,1)
-                    Tlin = linspace(10,100)
-                    Tlog = logspace(1,2)
-                    rholin = [P^2 + T^2 for P in Plin, T in Tlin]
-                    rholog = [P^2 + T^2 for P in Plog, T in Tlog]
-                    lininterp2d = Ogre.lininterp2d(Plin, Tlin, rholin)
-                    loginterp2d = Ogre.loginterp2d(Plog, Tlog, rholog)
+                    lininterp2d = res.eos_interpolated_2D_linear
+                    loginterp2d = res.eos_interpolated_2D_log
+
                     P_to_check = [1, 2, 3, 5.8, 9.1]
                     T_to_check = [10, 25, 40.3, 64.3, 94]
                     expected_results = [P^2 + T^2 for (P, T) in zip(P_to_check, T_to_check)]
 
                     @fact lininterp2d(P_to_check, T_to_check) => roughly(expected_results, rtol=0.01)
                     @fact loginterp2d(P_to_check, T_to_check) => roughly(expected_results, rtol=0.01)
+
+                    context("with NaN values") do
+                        rnan = copy(res.rholin_2D)
+                        # set a value near the edge = NaN and check if the rest of the points are okay
+                        rnan[2] = NaN
+                        interp2dnan = Ogre.lininterp(res.Plin, res.Tlin, rnan)
+                        @fact interp2dnan(P_to_check, T_to_check) => roughly(expected_results, rtol=0.01)
+                        @fact interp2dnan(1.1, 10.) => less_than(0)
+                    end
                 end
             end
         end
