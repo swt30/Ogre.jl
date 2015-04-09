@@ -92,7 +92,7 @@ const DATADIR = Pkg.dir("Ogre", "data")
 @doc """Copy a type, modifying certain fields""" ->
 function cpmod{T}(pp::T, di)
     di = !isa(di, Associative) ? Dict(di) : di
-    ns = names(pp)
+    ns = fieldnames(pp)
     args = Array(Any, length(ns))
     for (i,n) in enumerate(ns)
         args[i] = get(di, n, getfield(pp, n))

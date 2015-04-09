@@ -4,13 +4,11 @@
 # Solutions
 #------------------------------------------------------------------------------
 
-@doc """
-    Solve a planetary structure, writing the solution to a given solution
-    type.
+@doc """ Solve a `PlanetSystem`, writing the solution to a given
+    `PlanetStructure`.
 
     * `sys`: A `PlanetSystem` to solve
-    * `soln`: A `PlanetStructure` to write the solution to
-    """ ->
+    * `soln`: A `PlanetStructure` to write the solution to """ ->
 function solve!(sys::PlanetSystem, soln::PlanetStructure)
     # make an integrator and run it
     ode_func{T<:Real}(t::T, y::Vector{T}) = (sys.structure_equations(t, y))
@@ -53,6 +51,8 @@ function update_boundary_r(system::PlanetSystem)
     R_guess = mean(system.radius_search_bracket)
     updated_boundary_values = cpmod(system.boundary_values, r=R_guess)
     updated_system = cpmod(system, boundary_values=updated_boundary_values)
+
+    updated_system
 end
 
 @doc "Reproduce a `PlanetSystem`, altering its radius search bracket" ->
@@ -78,21 +78,34 @@ function adapt_search_radius(system::PlanetSystem, result::PlanetStructure)
     end
 end
 
-@doc """
-    Recursively search the radius search bracket of a `PlanetSystem` to get a
-    radius that produces an acceptable solution
-    """ ->
-function find_radius(system::PlanetSystem)
+@doc """ Recursively search the radius search bracket of a `PlanetSystem` to get
+    a result that has an acceptable error at the centre. Returns a
+    `PlanetSystem` with the appropriate radius. """ ->
+function converge(system::PlanetSystem)
     if R_guess(system) != system.boundary_values.r
         system = update_boundary_r(system)
     end
     result = solve(system)
     if acceptable(result)
-        return R_guess(system)
+        return system
     else
         system = adapt_search_radius(system, result)
-        return find_radius(system)
+        return converge(system)
     end
+end
+
+# basic functions for geting radii and structures
+@doc "Get the correct internal structure for a `PlanetSystem`" ->
+find_structure(system::PlanetSystem) = solve(converge(system))
+@doc "Find the radius of a `PlanetSystem` by solving the system" ->
+find_radius(system::PlanetSystem) = radius(surface(find_structure(system)))
+
+@doc "Solve a `PlanetSystem` and give both the total radius and the structure" ->
+function find_structure_and_radius(system::PlanetSystem)
+    struct = find_structure(system)
+    r = radius(surface(struct))
+
+    return struct, r
 end
 
 @doc "Create and solve for a `PlanetSystem`'s radius'" ->
@@ -106,11 +119,10 @@ function find_radius{T<:Real}(M::T, structure::EquationSet, P_surface::T,
 end
 
 # higher level functions for doing MR diagrams
-
 @doc "Find the radius of a solid sphere of mass `M` using an given `EOS`." ->
 function R(M::Real, eos::EOS{NoTemp}; in_earth_units=false)
-    Mscale = in_earth_units ? M_earth : 1
-    Rscale = in_earth_units ? 1/R_earth : 1
+    Mscale = in_earth_units ? M_earth : 1.
+    Rscale = in_earth_units ? 1/R_earth : 1.
 
     sys = DefaultPlanetSystem(M * Mscale, eos)
     r = find_radius(sys) * Rscale
@@ -119,8 +131,8 @@ function R(M::Real, eos::EOS{NoTemp}; in_earth_units=false)
 end
 
 function R(M::Real, eos::EOS{WithTemp}, Cₚ::HeatCapacity; in_earth_units=false)
-    Mscale = in_earth_units ? M_earth : 1
-    Rscale = in_earth_units ? 1/R_earth : 1
+    Mscale = in_earth_units ? M_earth : 1.
+    Rscale = in_earth_units ? 1/R_earth : 1.
 
     sys = DefaultPlanetSystem(M * Mscale, eos, Cₚ)
     r = find_radius(sys) * Rscale
@@ -221,10 +233,11 @@ function Base.done(solver::FixedStepIntegrator, state::IntegratorState)
     tindex > length(solver.tgrid)
 end
 
-# for planets, if a value becomes unphysical (e.g. r<0) then the structure
-# equations will yield zeroes. this allows us to step "over" the core, and so
-# the negative sign of the radius at the central point signals the radius
-# search function that we should increase our radius
+# for planets, if a value becomes unphysical (such as r<0 or P<0) then the
+# structure equations will yield zeroes for each remaining step. This allows us
+# to step "over" the core and leaves us with a slightly negative value at the
+# centre. This negative sign signals the radius search function that we should
+# increase our radius.
 
 # length will be that of the solution grid
 Base.length(solver::FixedStepIntegrator) = length(solver.tgrid)
@@ -232,11 +245,9 @@ Base.length(solver::FixedStepIntegrator) = length(solver.tgrid)
 # Dense solvers
 #------------------------------------------------------------------------------
 
-@doc """
-    Solve the ODE defined by function `F`, initial conds `x`, and fixed time
-    steps `tgrid`. Returns dense output (an array of solutions at each point in
-    `tgrid`)
-""" ->
+@doc """ Solve the ODE defined by function `F`, initial conds `x`, and fixed
+    time steps `tgrid`. Returns dense output (an array of solutions at each
+    point in `tgrid`) """ ->
 function ode4_dense{T<:Real}(F::Function, x::T, tgrid::Vector{T})
     solver = GenericRK4(F, x, tgrid)
 
