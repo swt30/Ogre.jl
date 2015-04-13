@@ -91,8 +91,7 @@ end
 
 typealias BoundaryValues ValueSet
 
-@doc """
-    Describes planetary parameters to be solved for an interior structure.
+@doc """Describes planetary parameters to be solved for an interior structure.
 
     * `M`: total mass
     * `structure_equations`: set of structural equations which incorporate the
@@ -150,10 +149,8 @@ end
 n_depvars{mc<:ModelComplexity}(sys::PlanetSystem{mc}) = n_depvars(mc)
 npoints(sys::PlanetSystem) = length(sys.solution_grid)
 
-@doc """
-    A planetary structure, containing mass grid `m` and internal physical
-    values `y`
-    """ ->
+@doc """A planetary structure, containing mass grid `m` and internal physical
+    values `y` """ ->
 abstract PlanetStructure{mc<:ModelComplexity}
 
 type MassRadiusPressureStructure{T<:Real} <: PlanetStructure{NoTemp}
@@ -193,7 +190,6 @@ function blank_structure(sys::PlanetSystem{NoTemp})
     n = npoints(sys)
     MassRadiusPressureStructure(fill(NaN, 3, n))
 end
-
 function blank_structure(sys::PlanetSystem{WithTemp})
     n = npoints(sys)
     FullPlanetStructure(fill(NaN, 4, n))
@@ -223,4 +219,3 @@ end
 
 # some convenience functions
 nonmass(ps::PlanetStructure) = sub(ps.data, 2:nvars(ps), :)
-

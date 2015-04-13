@@ -12,7 +12,7 @@ facts("Equation of state (EOS) handling") do
         context("Calling using ValueSets") do
             vs = res.value_set_no_temp
             @fact eos_linear(vs) => 3
-            @fact eos_squared(vs) => 9
+            @fact eos_squared(vs) => 3^2
         end
 
         context("Piecewise EOS") do
@@ -39,9 +39,9 @@ facts("Equation of state (EOS) handling") do
                 end
 
                 context("A more complicated pressure-piecewise EOS") do
-                    # We construct a pressure-piecewise EOS based on Sara Seager's
-                    # water EOS in her 2007 paper, then attempt to draw from it to see
-                    # if it matches our expectations
+                    # We construct a pressure-piecewise EOS based on Sara
+                    # Seager's water EOS in her 2007 paper, then attempt to draw
+                    # from it to see if it matches our expectations
 
                     test_pressures = [1e8, 1e11, 1e14]
                     eoses = res.h2o_VII_seager_individual_eoses
@@ -62,15 +62,13 @@ facts("Equation of state (EOS) handling") do
             function test_TFD(A, Z, n, anticipated_densities)
                 TFD(P) = Ogre.TFD(P, Z, A, n)
                 @vectorize_1arg Real TFD
-                @fact TFD(pressures) => roughly(anticipated_densities,
-                                                     rtol=0.01)
+                @fact TFD(pressures) => roughly(anticipated_densities, rtol=0.01)
             end
 
             function test_TFD(A, Z, anticipated_densities)
                 TFD(P) = Ogre.TFD(P, Z, A)
                 @vectorize_1arg Real TFD
-                @fact TFD(pressures) => roughly(anticipated_densities,
-                                                     rtol=0.01)
+                @fact TFD(pressures) => roughly(anticipated_densities, rtol=0.01)
             end
 
             context("with a single element") do
@@ -84,8 +82,7 @@ facts("Equation of state (EOS) handling") do
 
             context("with multiple elements") do
                 context("TiO2") do
-                    test_TFD([47.867, 15.9994], [22, 8], [1., 2.],
-                             [3190, 4920, 10400])
+                    test_TFD([47.867, 15.9994], [22, 8], [1., 2.], [3190, 4920, 10400])
                 end
                 context("PbS") do
                     test_TFD([207.2, 32.065], [82, 16], [12800, 17000, 29600])
@@ -134,15 +131,20 @@ facts("Equation of state (EOS) handling") do
                     T_to_check = [10, 25, 40.3, 64.3, 94]
                     expected_results = [P^2 + T^2 for (P, T) in zip(P_to_check, T_to_check)]
 
-                    @fact lininterp2d(P_to_check, T_to_check) => roughly(expected_results, rtol=0.01)
-                    @fact loginterp2d(P_to_check, T_to_check) => roughly(expected_results, rtol=0.01)
+                    @fact (lininterp2d(P_to_check, T_to_check) => 
+                           roughly(expected_results, rtol=0.01))
+                    @fact (loginterp2d(P_to_check, T_to_check) => 
+                           roughly(expected_results, rtol=0.01))
 
                     context("with NaN values") do
                         rnan = copy(res.rholin_2D)
-                        # set a value near the edge = NaN and check if the rest of the points are okay
+                        # set a value near the edge = NaN and check if the rest
+                        # of the points are okay
                         rnan[2] = NaN
-                        interp2dnan = Ogre.lininterp(res.Plin, res.Tlin, rnan)
-                        @fact interp2dnan(P_to_check, T_to_check) => roughly(expected_results, rtol=0.01)
+                        interp2dnan = Ogre.lininterp(res.Plin, res.Tlin, rnan, 
+                                                     suppress_warnings=true)
+                        @fact (interp2dnan(P_to_check, T_to_check) => 
+                               roughly(expected_results, rtol=0.01))
                         @fact interp2dnan(1.1, 10.) => less_than(0)
                     end
                 end

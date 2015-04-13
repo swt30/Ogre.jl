@@ -27,6 +27,15 @@ facts("Common functionality") do
             @fact_throws Ogre.temperature(vs1)
             @fact Ogre.temperature(vs2) => 4
         end
+
+        context("Zero values or less are considered 'unphysical'") do
+            @fact Ogre.zero(Ogre.ValueSet{Ogre.NoTemp}) => not(Ogre.isphysical)
+            @fact Ogre.zero(Ogre.ValueSet{Ogre.WithTemp}) => not(Ogre.isphysical)
+            @fact Ogre.ValueSet(0, 0, -1) => not(Ogre.isphysical)
+            @fact Ogre.ValueSet(0, 0, 0, -1) => not(Ogre.isphysical)
+        end
+
+        
     end
 
     context("Copy-modification of types") do

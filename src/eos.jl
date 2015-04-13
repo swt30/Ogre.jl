@@ -7,21 +7,19 @@ using Dierckx, Roots
 # EOS types
 #------------------------------------------------------------------------------
 
-@doc """Equation of State""" ->
+@doc "Equation of State" ->
 abstract EOS{mc<:ModelComplexity} <: Equation
-@doc """EOS that consists of just one function""" ->
+@doc "EOS that consists of just one function" ->
 abstract SingleEOS{mc<:ModelComplexity} <: EOS{mc}
-@doc """EOS that is subdivided into multiple pieces""" ->
+@doc "EOS that is subdivided into multiple pieces" ->
 abstract PiecewiseEOS{mc<:ModelComplexity} <: EOS{mc}
-@doc """Simple equation of state calculated directly.""" ->
+@doc "Simple equation of state calculated directly." ->
 abstract SimpleEOS{mc<:ModelComplexity} <: SingleEOS{mc}
 
-@doc """
-    An EOS depending solely on pressure.
+@doc """An EOS depending solely on pressure.
 
     * `equation`: Function ρ=f(P)
-    * `fullname`: Name of the EOS (for printing and plots)
-    """ ->
+    * `fullname`: Name of the EOS (for printing and plots) """ ->
 immutable PressureEOS <: SimpleEOS{NoTemp}
     equation::Function
     fullname::String
@@ -29,12 +27,10 @@ end
 SimpleEOS(::Type{NoTemp}, f::Function, name::String) = PressureEOS(f, name)
 
 
-@doc """
-    An EOS depending on both pressure and temperature.
+@doc """An EOS depending on both pressure and temperature.
 
     * `equation`: Function ρ=f(P, T)
-    * `fullname`: Name of the EOS (for printing and plots)
-    """ ->
+    * `fullname`: Name of the EOS (for printing and plots) """ ->
 immutable PressureTempEOS <: SimpleEOS{WithTemp}
     equation::Function
     fullname::String
@@ -42,14 +38,11 @@ end
 SimpleEOS(::Type{WithTemp}, f::Function, name::String) = PressureTempEOS(f, name)
 
 
-@doc """
-    Equation of state which must invert some function over a density
-    range.
+@doc """Equation of state which inverts some function over a density range.
 
     * `equation`: Function P=f(ρ)
     * `a`, `b`: Density range to invert over
-    * `fullname`: Name of the EOS (for printing and plots)
-    """ ->
+    * `fullname`: Name of the EOS (for printing and plots) """ ->
 immutable InvPressureEOS{T<:Real} <: SingleEOS{NoTemp}
     equation::Function
     a::T
@@ -57,8 +50,7 @@ immutable InvPressureEOS{T<:Real} <: SingleEOS{NoTemp}
     fullname::String
 end
 
-@doc """
-    Type for equations of state which are piecewise in the mass coordinate.
+@doc """Type for equations of state which are piecewise in the mass coordinate.
 
     * `equations`: Vector of `SingleEOS` for each piece.
     * `transition_values`: Vector defining the edge of each piece. Evaluating
@@ -83,8 +75,8 @@ function MassPiecewiseEOS{T<:Real, E<:SingleEOS}(equations::Vector{E},
     MassPiecewiseEOS(equations, layer_edges)
 end
 
-@doc """
-    Type for equations of state which are piecewise in the pressure coordinate.
+@doc """Type for equations of state which are piecewise in the pressure
+    coordinate.
 
     * `equations`: Vector of `SingleEOS` for each piece.
     * `transition_values`: Vector defining the edge of each piece. Evaluating
@@ -103,9 +95,8 @@ function PressurePiecewiseEOS{T<:Real, E<:SingleEOS}(equations::Vector{E},
     PressurePiecewiseEOS(equations, transition_values, fullname)
 end
 
-@doc """
-    Get the appropriate individual EOS from a `PiecewiseEOS`, whether
-    mass-piecewise or pressure-piecewise.
+@doc """Get the appropriate individual EOS from a `PiecewiseEOS`, whether mass-
+    piecewise or pressure-piecewise.
 
     * `eos`: `PiecewiseEOS` to evaluate
     * `x`: Value to evaluate at
@@ -148,8 +139,7 @@ h2o = SimpleEOS(NoTemp, h2o_func, "H2O")
 graphite = SimpleEOS(NoTemp, graphite_func, "Graphite")
 sic = SimpleEOS(NoTemp, sic_func, "SiC")
 
-@doc """
-    The Birch-Murnaghan EOS function, in SI units
+@doc """The Birch-Murnaghan EOS function, in SI units
 
     * `rho`: Density
     * `rho0`: Reference density
@@ -181,8 +171,7 @@ function BME{T<:Real}(rho::T, rho0::T, K0::T, dK0::T, d2K0::T)
 end
 BME(args...) = BME(promote(args)...)
 
-@doc """
-    The Vinet EOS function in SI units
+@doc """The Vinet EOS function in SI units
 
     * `rho`: Density
     * `rho0`: Reference density
@@ -199,8 +188,7 @@ function Vinet{T<:Real}(rho::T, rho0::T, K0::T, dK0::T)
 end
 Vinet(args...) = Vinet(promote(args)...)
 
-@doc """
-    Thomas-Fermi-Dirac EOS with energy correction in SI units.
+@doc """Thomas-Fermi-Dirac EOS with energy correction in SI units.
 
     * `P`: Pressure
     * `Z`: Atomic number
@@ -282,7 +270,7 @@ function Base.write(eos::EOS, pressures::Vector{Float64})
     end
 end
 
-@doc """Put a number of interpolated EOSes into data files for later use""" ->
+@doc "Put a number of interpolated EOSes into data files for later use" ->
 function write_eoses_to_files()
     # Seager's versions of the BME
     fe_eps_seager_func(rho::Real) = Vinet(rho, 8300., 156.2, 6.08) * 1e9
@@ -341,9 +329,11 @@ function loginterp{T<:Real}(x::Vector{T}, y::Vector{T})
 end
 
 @doc "Create a linear interpolating function from a 2D grid" ->
-function lininterp{T<:Real}(x::Vector{T}, y::Vector{T}, z::Matrix{T})
+function lininterp{T<:Real}(x::Vector{T}, y::Vector{T}, z::Matrix{T}; suppress_warnings=false)
     if hasnan(z)
-        warn("2D data contains NaNs: setting to sentinel value of -1e99")
+        if !suppress_warnings
+            warn("2D data contains NaNs: setting to sentinel value of -1e99")
+        end
         z[isnan(z)] = -1e99
     end
     spline = Spline2D(x, y, z, kx=1, ky=1)
@@ -354,11 +344,11 @@ function lininterp{T<:Real}(x::Vector{T}, y::Vector{T}, z::Matrix{T})
 end
 
 @doc "Create a log-spaced interpolating function from a 2D grid" ->
-function loginterp{T<:Real}(x::Vector{T}, y::Vector{T}, z::Array{T})
+function loginterp{T<:Real}(x::Vector{T}, y::Vector{T}, z::Array{T}; kwargs...)
     logx = log10(x)
     logy = log10(y)
 
-    lin_interp_func = lininterp(logx, logy, z)
+    lin_interp_func = lininterp(logx, logy, z; kwargs...)
     interp_func(x, y) = lin_interp_func(log10(x), log10(y))
 end
 
@@ -391,16 +381,16 @@ notnan(x) = !isnan(x)
     If `linear`=`true`, the EOS is assumed to be on a linear grid.
     However, the grid does not have to be regular.
     """ ->
-function load_2D_eos(file::String; linear=false)
+function load_2D_eos(file::String; linear=false, suppress_warnings=false)
     data = readdlm(file, Float64)
     P = vec(data[2:end, 1]) # dimension 1 (columns)
     T = vec(data[1, 2:end]) # dimension 2 (rows)
     rho = data[2:end, 2:end]
 
     if linear
-        interp_func = lininterp(P, T, rho)
+        interp_func = lininterp(P, T, rho; suppress_warnings=suppress_warnings)
     else
-        interp_func = loginterp(P, T, rho)
+        interp_func = loginterp(P, T, rho; suppress_warnings=suppress_warnings)
     end
 
     _, filename = splitdir(file)
@@ -440,4 +430,6 @@ my_h2o_500 = load_interpolated_eos("$DATADIR/tabulated/h2o-500K.dat")
 my_h2o_800 = load_interpolated_eos("$DATADIR/tabulated/h2o-800K.dat")
 my_h2o_1200 = load_interpolated_eos("$DATADIR/tabulated/h2o-1200K.dat")
 
-my_h2o = load_2D_eos("$DATADIR/tabulated/my_h2o_100x100.dat")
+my_h2o_full = load_2D_eos("$DATADIR/tabulated/my_h2o_100x100.dat", suppress_warnings=true)
+
+

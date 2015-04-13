@@ -2,6 +2,7 @@
 # Types related to the heat capacity of materials, as required for the
 # adiabatic temperature gradient
 
+@doc "An isobaric heat capacity (Cₚ)" ->
 type HeatCapacity <: Equation
     equation::Function
 end

@@ -7,34 +7,31 @@ using PyPlot
 function main()
     ms = linspace(0.5, 10, 30) * M_earth
 
-    Cₚ_func(T::Real) = 4200
-    Cₚ = Ogre.HeatCapacity(Cₚ_func)
-    Cₚ_inf_func(T::Real) = Inf
-    Cₚ_inf = Ogre.HeatCapacity(Cₚ_inf_func)
+    Cₚ = Ogre.HeatCapacity(T -> 4200)  # constant heat capacity
+    Cₚ_inf = Ogre.HeatCapacity(T -> Inf)  # infinite heat capacity
 
     eoses = [Ogre.h2o_seager,
              Ogre.my_h2o_300,
-             Ogre.my_h2o_500]
-    linestyles = ["--", "-", "-"]
-    colours = ["Black", "CornflowerBlue", "#fc4f30"]
-
-    Ogre.R(M_earth, eoses[1])
-
+             Ogre.my_h2o_500,
+             Ogre.my_h2o_800]
+    linestyles = ["--", "-", "-", "-"]
+    colours = ["Black", "CornflowerBlue", "#fc4f30", "Gray"]
     legendtexts = ["BME/TFD (isothermal ice VII)",
                    "Realistic water EOS (isothermal 300K)",
-                   "Realistic water EOS (isothermal 500K)"]
+                   "Realistic water EOS (isothermal 500K)",
+                   "Realistic water EOS (isothermal 800K)"]
 
     fig = figure()
+    ax = subplot(111)
     map(eoses, linestyles, colours, legendtexts) do el, ls, c, lg
         @time rs = Ogre.R(ms, el)
-        plot(ms ./ M_earth, rs ./ R_earth, label=lg,
-             linestyle=ls, color=c)
+        plot(ms ./ M_earth, rs ./ R_earth, label=lg, linestyle=ls, color=c)
     end
-    # @time rs = Ogre.R(ms, Ogre.my_h2o, Cₚ)
-    # Ogre.plot(ms ./ M_earth, rs ./ R_earth, label="Realistic water EOS (adiabat)",
-    #      linestyle="-", color="Crimson")
 
-    ax = gca()
+    @time rs = Ogre.R(ms, Ogre.my_h2o_full, Cₚ)
+    Ogre.plot(ms ./ M_earth, rs ./ R_earth, label="Realistic water EOS (adiabat)",
+              linestyle="--", color="Crimson")
+
     xlabel(L"Mass / M$_\oplus$")
     ylabel(L"Radius / R$_\oplus$")
     xlim(0, 10)
@@ -51,5 +48,6 @@ function main()
     yax[:set_major_formatter](ScalarFormatter())
 
     tight_layout()
-
 end
+
+main()

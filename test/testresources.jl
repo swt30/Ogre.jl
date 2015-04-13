@@ -63,7 +63,8 @@ eos_interpolated_1D_linear = Ogre.lininterp(Plin, rholin_1D)
 eos_interpolated_1D_log = Ogre.loginterp(Plog, rholog_1D)
 eos_interpolated_2D_linear = Ogre.lininterp(Plin, Tlin, rholin_2D)
 eos_interpolated_2D_log = Ogre.loginterp(Plog, Tlog, rholog_2D)
-eos_interpolated_2D_linear_withnans = Ogre.lininterp(Plin, Tlin, rholin_2D_withnans)
+eos_interpolated_2D_linear_withnans = Ogre.lininterp(Plin, Tlin, rholin_2D_withnans; 
+                                                     suppress_warnings=true)
 
 # Heat capacities
 heat_capacity_function = exp

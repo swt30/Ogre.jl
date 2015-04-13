@@ -6,11 +6,9 @@
 abstract Callable
 abstract Equation <: Callable
 
-@doc """
-    A set of equations which can be evaluated all at once.
+@doc """A set of equations which can be evaluated all at once.
 
-    `equations`: Vector of `Equation`
-    """ ->
+    `equations`: Vector of `Equation` """ ->
 immutable EquationSet <: Callable
     equations::Vector{Equation}
 end
@@ -33,7 +31,7 @@ ndeps{mc<:ModelComplexity}(::Type{mc}) = nvars(mc) - 1
 
 abstract ValueSet{mc<:ModelComplexity}
 
-@doc """Holds physical values of mass, radius, pressure, and temperature.""" ->
+@doc "Holds physical values of mass, radius, pressure, and temperature." ->
 immutable PhysicalValues{R<:Real} <: ValueSet{WithTemp}
     m::R
     r::R
@@ -46,7 +44,7 @@ end
 ValueSet(m, r, P, T) = PhysicalValues(m, r, P, T)
 
 
-@doc """Holds physical values of mass, radius, and pressure""" ->
+@doc "Holds physical values of mass, radius, and pressure" ->
 immutable MassRadiusPressure{R<:Real} <: ValueSet{NoTemp}
     m::R
     r::R
@@ -58,15 +56,19 @@ end
 ValueSet(m, r, P) = MassRadiusPressure(m, r, P)
 
 # Properties
-@doc "Dependent physical values (radius, pressure, [temperature])" ->
-nonmass(pv::PhysicalValues) = [pv.r, pv.P, pv.T]
-nonmass(mrp::MassRadiusPressure) = [mrp.r, mrp.P]
-@doc "Independent physical coordinate (mass)" ->
+@doc "Get independent physical coordinate (mass)" ->
 mass(vs::ValueSet) = vs.m
+@doc "Get radius coordinate" ->
 radius(vs::ValueSet) = vs.r
+@doc "Get the pressure" ->
 pressure(vs::ValueSet) = vs.P
+@doc "Get the temperature" ->
 temperature(vs::PhysicalValues) = vs.T
+@doc "Get dependent physical values (radius, pressure, [temperature])" ->
+nonmass(pv::PhysicalValues) = [radius(pv), pressure(pv), temperature(pv)]
+nonmass(mrp::MassRadiusPressure) = [radius(mrp), pressure(mrp)]
 
+@doc "Is a given `ValueSet` physical (all positive?)"
 function isphysical(vs::PhysicalValues)
     mass(vs) > 0 && radius(vs) > 0 && pressure(vs) > 0 && temperature(vs) > 0
 end
@@ -86,10 +88,10 @@ call(es::EquationSet, vs::ValueSet) =  map(eq -> eq(vs), es.equations)
 call{T<:Real}(cl::Callable, t::T, y::Vector{T}) = cl(ValueSet(t, y...))
 
 # Useful common definitions
-@doc """Location of the data files in this package""" ->
+@doc "Location of the data files in this package" ->
 const DATADIR = Pkg.dir("Ogre", "data")
 
-@doc """Copy a type, modifying certain fields""" ->
+@doc "Copy a type, modifying certain fields" ->
 function cpmod{T}(pp::T, di)
     di = !isa(di, Associative) ? Dict(di) : di
     ns = fieldnames(pp)
