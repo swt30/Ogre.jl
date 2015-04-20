@@ -149,11 +149,9 @@ end
 typealias NumOrVec{T<:Real} Union(T, Vector{T})
 
 @doc "RK4 step of function `F`, initial conds `x`, from `tstart` to `tend`" ->
-function ode4_step{T<:Real}(F::Function, x::NumOrVec{T},
-    tstart::T, tend::T)
-
-    h::T = tend - tstart
-    k = zeros(T, (length(x), 4))
+function ode4_step(F::Function, x, tstart, tend)
+    h = tend - tstart
+    k = zeros(eltype(x), (length(x), 4))
 
     # Beginning derivative
     k[:,1] = h*F(tstart,        x)
@@ -165,10 +163,7 @@ function ode4_step{T<:Real}(F::Function, x::NumOrVec{T},
 
     # Integrate
     # split onto multiple lines to help with code generation (?)
-    (x + k[:,1]./6
-       + k[:,2]./3
-       + k[:,3]./3
-       + k[:,4]./6)
+    x + k[:,1]/6 + k[:,2]/3 + k[:,3]/3 + k[:,4]/6
 end
 
 # types to handle solving
@@ -246,14 +241,14 @@ Base.length(solver::FixedStepIntegrator) = length(solver.tgrid)
 @doc """ Solve the ODE defined by function `F`, initial conds `x`, and fixed
     time steps `tgrid`. Returns dense output (an array of solutions at each
     point in `tgrid`) """ ->
-function ode4_dense{T<:Real}(F::Function, x::T, tgrid::Vector{T})
+function ode4_dense(F::Function, x, tgrid)
     solver = GenericRK4(F, x, tgrid)
 
     # return a 1D array
     # the x[1] is to flatten any 1x1 arrays into single values
     [x[1] for x in solver]
 end
-function ode4_dense{T<:Real}(F::Function, x::Vector{T}, tgrid::Vector{T})
+function ode4_dense(F::Function, x::Vector, tgrid)
     solver = GenericRK4(F, x, tgrid)
 
     # return a 2D array

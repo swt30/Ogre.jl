@@ -117,18 +117,17 @@ immutable TempDepPlanet{T<:Real} <: PlanetSystem{WithTemp}
     radius_search_bracket::Vector{T}
 end
 
-function PlanetSystem{T<:Real}(M::T, eos::EOS{NoTemp},
-    bvs::BoundaryValues{NoTemp}, grid::Vector{T}=linspace(M, 0, total_points),
-    r_bracket::Vector{T}=R_bracket)
+function PlanetSystem(M, eos::EOS{NoTemp}, bvs::BoundaryValues{NoTemp}, 
+    grid=linspace(M, 0, total_points), r_bracket=R_bracket)
 
     masscontinuity = MassContinuityEq(eos)
     structure = EquationSet([masscontinuity, pressurebalance])
 
     TempIndepPlanet(M, structure, bvs, grid, r_bracket)
 end
-function PlanetSystem{T<:Real}(M::T, eos::EOS{WithTemp}, Cₚ::HeatCapacity,
-    bvs::BoundaryValues{WithTemp}, grid::Vector{T}=linspace(M, 0, total_points),
-    r_bracket::Vector{T}=R_bracket)
+function PlanetSystem(M, eos::EOS{WithTemp}, Cₚ::HeatCapacity, 
+    bvs::BoundaryValues{WithTemp}, grid=linspace(M, 0, total_points),
+    r_bracket=R_bracket)
 
     masscontinuity = MassContinuityEq(eos)
     temperaturegradient = TemperatureGradientEq(eos, Cₚ)
@@ -137,11 +136,11 @@ function PlanetSystem{T<:Real}(M::T, eos::EOS{WithTemp}, Cₚ::HeatCapacity,
     TempDepPlanet(M, structure, bvs, grid, r_bracket)
 end
 
-function DefaultPlanetSystem(M::Real, eos::EOS{NoTemp})
+function DefaultPlanetSystem(M, eos::EOS{NoTemp})
     bvs = BoundaryValues(M, mean(R_bracket), P_surf)
     PlanetSystem(M, eos, bvs)
 end
-function DefaultPlanetSystem(M::Real, eos::EOS{WithTemp}, Cₚ::HeatCapacity)
+function DefaultPlanetSystem(M, eos::EOS{WithTemp}, Cₚ::HeatCapacity)
     bvs = BoundaryValues(M, mean(R_bracket), P_surf, T_surf)
     PlanetSystem(M, eos, Cₚ, bvs)
 end

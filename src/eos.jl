@@ -62,15 +62,11 @@ immutable MassPiecewiseEOS{T<:Real, E<:SingleEOS{NoTemp}} <: PiecewiseEOS{NoTemp
     transition_values::Vector{T}
     fullname::String
 end
-function MassPiecewiseEOS{T<:Real, E<:SingleEOS}(equations::Vector{E},
-    transition_values::Vector{T})
-
+function MassPiecewiseEOS(equations, transition_values)
     fullname = join([n.fullname for n in equations], " & ")
     MassPiecewiseEOS(equations, transition_values, fullname)
 end
-function MassPiecewiseEOS{T<:Real, E<:SingleEOS}(equations::Vector{E},
-    M::Real, mass_fractions::Vector{T})
-
+function MassPiecewiseEOS(equations, M, mass_fractions)
     layer_edges = [0, cumsum(mass_fractions)] .* M
     MassPiecewiseEOS(equations, layer_edges)
 end
@@ -88,9 +84,7 @@ immutable PressurePiecewiseEOS{T<:Real, E<:SingleEOS} <: PiecewiseEOS
     transition_values::Vector{T}
     fullname::String
 end
-function PressurePiecewiseEOS{T<:Real, E<:SingleEOS}(equations::Vector{E},
-    transition_values::Vector{T})
-
+function PressurePiecewiseEOS(equations, transition_values)
     fullname = join([n.fullname for n in equations], " & ")
     PressurePiecewiseEOS(equations, transition_values, fullname)
 end
@@ -103,7 +97,7 @@ end
 
     Returns a `SingleEOS`.
     """ ->
-function get_layer_eos(eos::PiecewiseEOS, x::Real)
+function get_layer_eos(eos::PiecewiseEOS, x)
     # get layer number
     layer_edges = eos.transition_values
     for (layer_num, layer_end) in enumerate(layer_edges[2:end])
@@ -127,11 +121,11 @@ length(::SingleEOS) = 1
 #------------------------------------------------------------------------------
 
 # Analytic EOS
-mgsio3_func(P::Real) = 4100. + 0.00161*(P^0.541)
-fe_func(P::Real) = 8300. + 0.00349*(P^0.528)
-h2o_func(P::Real) = 1460. + 0.00311*(P^0.513)
-graphite_func(P::Real) = 2250. + 0.00350*(P^0.514)
-sic_func(P::Real) = 3220. + 0.00172*(P^0.537)
+mgsio3_func(P) = 4100. + 0.00161*(P^0.541)
+fe_func(P) = 8300. + 0.00349*(P^0.528)
+h2o_func(P) = 1460. + 0.00311*(P^0.513)
+graphite_func(P) = 2250. + 0.00350*(P^0.514)
+sic_func(P) = 3220. + 0.00172*(P^0.537)
 
 mgsio3 = SimpleEOS(NoTemp, mgsio3_func, "MgSiO3")
 fe = SimpleEOS(NoTemp, fe_func, "Fe")
@@ -141,52 +135,50 @@ sic = SimpleEOS(NoTemp, sic_func, "SiC")
 
 @doc """The Birch-Murnaghan EOS function, in SI units
 
-    * `rho`: Density
-    * `rho0`: Reference density
-    * `K0`: Bulk modulus
-    * `dK0`: First derivative of the bulk modulus (dimensionless)
+    * `ρ`: Density
+    * `ρ₀`: Reference density
+    * `K₀`: Bulk modulus
+    * `dK₀`: First derivative of the bulk modulus (dimensionless)
 
     Optional parameters
     -------------------
-    * `d2K0`: Second derivative of the bulk modulus for 4th order BME
+    * `d2K₀`: Second derivative of the bulk modulus for 4th order BME
     """ ->
-function BME{T<:Real}(rho::T, rho0::T, K0::T, dK0::T)
-    eta = rho/rho0
+function BME(ρ, ρ₀, K₀, dK₀)
+    eta = ρ/ρ₀
 
-    P3 = (3/2*K0*(eta^(7/3) - eta^(5/3))
-          * (1 + 3/4*(dK0 - 4)*(eta^(2/3) - 1)))
+    P3 = (3/2*K₀*(eta^(7/3) - eta^(5/3))
+          * (1 + 3/4*(dK₀ - 4)*(eta^(2/3) - 1)))
 
     P3
 end
-function BME{T<:Real}(rho::T, rho0::T, K0::T, dK0::T, d2K0::T)
-    eta = rho/rho0
+function BME(ρ, ρ₀, K₀, dK₀, d2K₀)
+    eta = ρ/ρ₀
 
-    P3 = BME(rho, rho0, K0, dK0)
+    P3 = BME(ρ, ρ₀, K₀, dK₀)
 
-    P4 = P3 + (3/2*K0*(eta^(7/3) - eta^(5/3))
+    P4 = P3 + (3/2*K₀*(eta^(7/3) - eta^(5/3))
                * 3/8*(eta^(2/3) - 1)^2
-               * (K0*d2K0 + dK0*(dK0 - 7) + 143/9))
+               * (K₀*d2K₀ + dK₀*(dK₀ - 7) + 143/9))
 
     P4
 end
-BME(args...) = BME(promote(args)...)
 
 @doc """The Vinet EOS function in SI units
 
-    * `rho`: Density
-    * `rho0`: Reference density
-    * `K0`: Bulk modulus
-    * `dK0`: First derivative of the bulk modulus (dimensionless)
+    * `ρ`: Density
+    * `ρ₀`: Reference density
+    * `K₀`: Bulk modulus
+    * `dK₀`: First derivative of the bulk modulus (dimensionless)
     """ ->
-function Vinet{T<:Real}(rho::T, rho0::T, K0::T, dK0::T)
-    eta = rho/rho0
+function Vinet(ρ, ρ₀, K0, dK₀)
+    eta = ρ/ρ₀
 
     P = (3K0*eta^(2/3) * (1 - eta^(-1/3))
-         * exp(3/2*(dK0 - 1)*(1 - eta^(-1/3))))
+         * exp(3/2*(dK₀ - 1)*(1 - eta^(-1/3))))
 
     P
 end
-Vinet(args...) = Vinet(promote(args)...)
 
 @doc """Thomas-Fermi-Dirac EOS with energy correction in SI units.
 
@@ -199,8 +191,7 @@ Vinet(args...) = Vinet(promote(args)...)
     parameter. If you do not supply `n` it will be assumed to be [1, 1, ...]
     (equal numbers of all atoms). The length of `n` must match `Z` and `A`.
     """ ->
-function TFD{T<:Real, N<:Integer}(P::T,
-    Z::Vector{N}, A::Vector{T}, n::Vector{T})
+function TFD{N<:Integer}(P, Z::Vector{N}, A::Vector, n::Vector)
 
     # inputs should be the same size
     @assert length(Z) == length(A) == length(n)
@@ -247,16 +238,15 @@ function TFD{T<:Real, N<:Integer}(P::T,
     ρ = num/denom * 3.866
 
     # rho is in g/cm3 but we want it in kg/m3: 1 g/cm3 = 1000 kg/m3
-    1000ρ::T
+    1000ρ
 end
-function TFD{T<:Real, N<:Integer}(P::T, Z::Vector{N}, A::Vector{T})
+function TFD{N<:Integer}(P, Z::Vector{N}, A::Vector)
     n = ones(A)
     TFD(P, Z, A, n)
 end
-function TFD{T<:Real}(P::T, Z::Integer, A::T)
+function TFD(P, Z::Integer, A)
     TFD(P, [Z], [A])
 end
-TFD(args...) = TFD(promote(args)...)
 
 # Interpolation, storage and retrieval
 # -----------------------------------------------------------------------------
@@ -273,9 +263,9 @@ end
 @doc "Put a number of interpolated EOSes into data files for later use" ->
 function write_eoses_to_files()
     # Seager's versions of the BME
-    fe_eps_seager_func(rho::Real) = Vinet(rho, 8300., 156.2, 6.08) * 1e9
-    h2o_VII_seager_func(rho::Real) = BME(rho, 1460., 23.7, 4.15) * 1e9
-    mgsio3_pv_seager_func(rho::Real) = BME(rho, 4100., 247., 3.97, -0.016) * 1e9
+    fe_eps_seager_func(ρ) = Vinet(ρ, 8300., 156.2, 6.08) * 1e9
+    h2o_VII_seager_func(ρ) = BME(ρ, 1460., 23.7, 4.15) * 1e9
+    mgsio3_pv_seager_func(ρ) = BME(ρ, 4100., 247., 3.97, -0.016) * 1e9
     fe_seager_low = InvPressureEOS(fe_eps_seager_func, 1e3, 1e14,
                                 "Fe (Vinet) (Seager 2007)")
     h2o_seager_low = InvPressureEOS(h2o_VII_seager_func, 1e3, 1e8,
@@ -284,9 +274,9 @@ function write_eoses_to_files()
     mgsio3_seager_low = InvPressureEOS(mgsio3_pv_seager_func, 1e3, 5e4,
                                      "MgSiO3 (BME4) (Seager 2007)")
 
-    fe_tfd_func(P::Real) = TFD(P, 26, 55.845)
-    h2o_tfd_func(P::Real) = TFD(P, [1, 8], [1.00794, 15.9994], [2., 1.])
-    mgsio3_tfd_func(P::Real) = TFD(P, [12, 14, 8],
+    fe_tfd_func(P) = TFD(P, 26, 55.845)
+    h2o_tfd_func(P) = TFD(P, [1, 8], [1.00794, 15.9994], [2., 1.])
+    mgsio3_tfd_func(P) = TFD(P, [12, 14, 8],
                                    [24.305, 28.0855, 15.9994], [1., 1., 3.])
 
     fe_tfd = SimpleEOS(notemp, fe_tfd_func, "Fe TFD")
@@ -388,5 +378,3 @@ my_h2o_800 = load_interpolated_eos("$DATADIR/tabulated/h2o-800K.dat")
 my_h2o_1200 = load_interpolated_eos("$DATADIR/tabulated/h2o-1200K.dat")
 
 my_h2o_full = load_2D_eos("$DATADIR/tabulated/my_h2o_100x100.dat", suppress_warnings=true)
-
-

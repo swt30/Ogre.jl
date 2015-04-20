@@ -38,7 +38,7 @@ immutable PhysicalValues{R<:Real} <: ValueSet{WithTemp}
     P::R
     T::R
 end
-function PhysicalValues(m::Real, r::Real, P::Real, T::Real)
+function PhysicalValues(m, r, P, T)
     PhysicalValues(promote(m, r, P, T)...)
 end
 ValueSet(m, r, P, T) = PhysicalValues(m, r, P, T)
@@ -50,7 +50,7 @@ immutable MassRadiusPressure{R<:Real} <: ValueSet{NoTemp}
     r::R
     P::R
 end
-function MassRadiusPressure(m::Real, r::Real, P::Real)
+function MassRadiusPressure(m, r, P)
     MassRadiusPressure(promote(m, r, P)...)
 end
 ValueSet(m, r, P) = MassRadiusPressure(m, r, P)
@@ -85,7 +85,7 @@ zero(::Type{ValueSet{WithTemp}}) = zero(PhysicalValues)
 call(eq::Equation, x::Real) = eq.equation(x)
 call(eq::Equation, vs::ValueSet) = eq.equation(vs)
 call(es::EquationSet, vs::ValueSet) =  map(eq -> eq(vs), es.equations)
-call{T<:Real}(cl::Callable, t::T, y::Vector{T}) = cl(ValueSet(t, y...))
+call(cl::Callable, t::Real, y::Vector) = cl(ValueSet(t, y...))
 
 # Useful common definitions
 @doc "Location of the data files in this package" ->
@@ -113,44 +113,44 @@ include("constants.jl")
 #-------------------------------------------------------------------------------
 
 @doc "Create an interpolating function in linear space" ->
-function lininterp{T<:Real}(x::Vector{T}, y::Vector{T})
-    spline = Spline1D(x, y, k=2)
+function lininterp(xs, ys)
+    spline = Spline1D(xs, ys, k=2)
     interp_func(x::Real) = evaluate(spline, Float64(x))
-    interp_func{T<:Real}(x::Vector{T}) = evaluate(spline, Vector{Float64}(x))
+    interp_func(x::Vector) = evaluate(spline, Vector{Float64}(x))
 
     interp_func
 end
 
 @doc "Create an interpolating function using a log-spaced coordinate grid." ->
-function loginterp{T<:Real}(x::Vector{T}, y::Vector{T})
+function loginterp(xs, ys)
     # first transform the grid to be linear
-    logx = log10(x)
+    logxs = log10(xs)
     # then do the interpolation as if it were linear
-    lin_interp_func = lininterp(logx, y)
+    lin_interp_func = lininterp(logxs, ys)
 
     interp_func(x) = lin_interp_func(log10(x))
 end
 
 @doc "Create a linear interpolating function from a 2D grid" ->
-function lininterp{T<:Real}(x::Vector{T}, y::Vector{T}, z::Matrix{T}; suppress_warnings=false)
-    if hasnan(z)
+function lininterp(xs, ys, zs::Matrix; suppress_warnings=false)
+    if hasnan(zs)
         if !suppress_warnings
             warn("2D data contains NaNs: setting to sentinel value of -1e99")
         end
-        z[isnan(z)] = -1e99
+        zs[isnan(zs)] = -1e99
     end
-    spline = Spline2D(x, y, z, kx=1, ky=1)
+    spline = Spline2D(xs, ys, zs, kx=1, ky=1)
     interp_func(x::Real, y::Real) = evaluate(spline, Float64(x), Float64(y))
-    interp_func(x::Vector{T}, y::Vector{T}) = evaluate(spline, x, y)
+    interp_func(x::Vector, y::Vector) = evaluate(spline, x, y)
 
     interp_func
 end
 
 @doc "Create a log-spaced interpolating function from a 2D grid" ->
-function loginterp{T<:Real}(x::Vector{T}, y::Vector{T}, z::Array{T}; kwargs...)
-    logx = log10(x)
-    logy = log10(y)
+function loginterp(xs, ys, zs::Matrix; kwargs...)
+    logxs = log10(xs)
+    logys = log10(ys)
 
-    lin_interp_func = lininterp(logx, logy, z; kwargs...)
+    lin_interp_func = lininterp(logxs, logys, zs; kwargs...)
     interp_func(x, y) = lin_interp_func(log10(x), log10(y))
 end
