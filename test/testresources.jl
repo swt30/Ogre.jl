@@ -27,7 +27,7 @@ h2o_seager_low = Ogre.InvPressureEOS(h2o_VII_seager_f,
                                      1e3, 1e8,
                                      "H2O (BME3) (Seager 2007)")
 # TODO: this line is fragile as it relies on the data directory - add data to test dir
-h2o_seager_dft = Ogre.load_interpolated_eos("$DATADIR/tabulated/H2O (DFT).eos")
+h2o_seager_dft = Ogre.load_interpolated_eos("$DATADIR/tabulated/h2o-dft.eos")
 h2o_tfd_f(P::Real) = Ogre.TFD(P, [1, 8], [1.00794, 15.9994], [2., 1.])
 h2o_tfd = Ogre.SimpleEOS(Ogre.NoTemp, h2o_tfd_f, "H2O TFD")
 
