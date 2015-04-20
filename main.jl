@@ -7,8 +7,9 @@ using PyPlot
 function main()
     ms = linspace(0.5, 10, 30) * M_earth
 
-    Cₚ = Ogre.HeatCapacity(T -> 4200)  # constant heat capacity
+    Cₚ_const = Ogre.HeatCapacity(T -> 4200)  # constant heat capacity for liquid water
     Cₚ_inf = Ogre.HeatCapacity(T -> Inf)  # infinite heat capacity
+    Cₚ = Ogre.HeatCapacity("data/tabulated/heatcap-h2o.dat")  # realistic h.c.
 
     eoses = [Ogre.h2o_seager,
              Ogre.my_h2o_300,

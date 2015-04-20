@@ -108,3 +108,49 @@ cpmod{T}(pp::T; kws...) = cpmod(pp, kws)
 # Physical constants
 
 include("constants.jl")
+
+# Interpolation
+#-------------------------------------------------------------------------------
+
+@doc "Create an interpolating function in linear space" ->
+function lininterp{T<:Real}(x::Vector{T}, y::Vector{T})
+    spline = Spline1D(x, y, k=2)
+    interp_func(x::Real) = evaluate(spline, Float64(x))
+    interp_func{T<:Real}(x::Vector{T}) = evaluate(spline, Vector{Float64}(x))
+
+    interp_func
+end
+
+@doc "Create an interpolating function using a log-spaced coordinate grid." ->
+function loginterp{T<:Real}(x::Vector{T}, y::Vector{T})
+    # first transform the grid to be linear
+    logx = log10(x)
+    # then do the interpolation as if it were linear
+    lin_interp_func = lininterp(logx, y)
+
+    interp_func(x) = lin_interp_func(log10(x))
+end
+
+@doc "Create a linear interpolating function from a 2D grid" ->
+function lininterp{T<:Real}(x::Vector{T}, y::Vector{T}, z::Matrix{T}; suppress_warnings=false)
+    if hasnan(z)
+        if !suppress_warnings
+            warn("2D data contains NaNs: setting to sentinel value of -1e99")
+        end
+        z[isnan(z)] = -1e99
+    end
+    spline = Spline2D(x, y, z, kx=1, ky=1)
+    interp_func(x::Real, y::Real) = evaluate(spline, Float64(x), Float64(y))
+    interp_func(x::Vector{T}, y::Vector{T}) = evaluate(spline, x, y)
+
+    interp_func
+end
+
+@doc "Create a log-spaced interpolating function from a 2D grid" ->
+function loginterp{T<:Real}(x::Vector{T}, y::Vector{T}, z::Array{T}; kwargs...)
+    logx = log10(x)
+    logy = log10(y)
+
+    lin_interp_func = lininterp(logx, logy, z; kwargs...)
+    interp_func(x, y) = lin_interp_func(log10(x), log10(y))
+end
