@@ -20,7 +20,7 @@ function HeatCapacity(filename::String)
     P = Vector{Float64}(vec(data[1, 2:end]))
     Cₚs = Matrix{Float64}(data[2:end, 2:end]) .* 1000
 
-    Cₚ = Cₚs[:, 6]
+    Cₚ = Cₚs[:, 6] # 1: low temp, 6: hi-temp
     heatcap_f = lininterp(T, Cₚ)
 
     HeatCapacity(heatcap_f)

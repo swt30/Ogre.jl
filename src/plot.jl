@@ -17,22 +17,21 @@ plotstyle.use("fivethirtyeight")
 
 import PyPlot.plot
 function plot(soln::PlanetStructure{NoTemp})
-    x = vec(mass(soln))
-    r = vec(radius(soln))
-    P = vec(pressure(soln))
+    x = vec(mass(soln)) ./ M_earth
+    r = vec(radius(soln)) ./ R_earth
+    P = vec(pressure(soln)) ./ 1e9
     # the use of vec() is because these functions return array views
     # (SubArrays) which are apparently not popular with PyPlot
 
-    fig = figure()
     ax1 = subplot(211)
-    ylabel("Pressure, P / Pa")
+    ylabel("Pressure / GPa")
     setp(ax1[:get_xticklabels](), visible=false)
 
     ax2 = subplot(212, sharex=ax1)
-    xlabel("Mass enclosed, m / kg")
-    ylabel("Radius, r / m")
+    xlabel(L"Mass enclosed / M$_\oplus$")
+    ylabel(L"Radius / R$_\oplus$")
 
-    for ax in fig[:get_axes]()
+    for ax in gcf()[:get_axes]()
         ax[:yaxis][:get_major_formatter]()[:set_powerlimits]((0, 4))
     end
 
@@ -42,25 +41,24 @@ function plot(soln::PlanetStructure{NoTemp})
 end
 
 function plot(soln::PlanetStructure{WithTemp})
-    x = vec(mass(soln))
-    r = vec(radius(soln))
-    P = vec(pressure(soln))
+    x = vec(mass(soln)) ./ M_earth
+    r = vec(radius(soln)) ./ R_earth
+    P = vec(pressure(soln)) ./ 1e9
     T = vec(temperature(soln))
 
-    fig = figure()
     ax1 = subplot(311)
-    ylabel("Temperature, T / K")
+    ylabel("Temperature / K")
     setp(ax1[:get_xticklabels](), visible=false)
 
     ax2 = subplot(312, sharex=ax1)
-    ylabel("Pressure, P / Pa")
+    ylabel("Pressure / GPa")
     setp(ax2[:get_xticklabels](), visible=false)
 
     ax3 = subplot(313, sharex=ax1)
-    xlabel("Mass enclosed, m / kg")
-    ylabel("Radius, r / m")
+    xlabel(L"Mass enclosed / M$_\oplus$")
+    ylabel(L"Radius / R$_\oplus$")
 
-    for ax in fig[:get_axes]()
+    for ax in gcf()[:get_axes]()
         ax[:yaxis][:get_major_formatter]()[:set_powerlimits]((0, 4))
     end
 

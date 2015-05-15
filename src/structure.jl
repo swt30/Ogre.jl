@@ -64,25 +64,38 @@ end
 PressureBalanceEq() = PressureBalanceEq(pressure_balance_f)
 const pressurebalance = PressureBalanceEq()
 
+@doc "Thermal expansivity αᵥ = -1/ρ (∂ρ/∂T)ₚ"
+function thermal_expansivity(pv::PhysicalValues, eos::EOS)
+    T1 = temperature(pv)     
+    T2 = temperature(pv) + 1
+    P = pressure(pv)
+    ρ = eos(P, T1)
+    dρ = eos(P, T2) - ρ
+
+    alpha = -1/ρ * dρ
+end
+
 @doc "Adiabatic energy gradient: dT/dm = -Gm/4πr⁴Cₚ" ->
-function temperature_gradient_f(vs::PhysicalValues, eos::EOS,
+function temperature_gradient_f(pv::PhysicalValues, eos::EOS,
     heatcap::HeatCapacity)
 
     dT_dm::Float64 = 0.0
 
-    if isphysical(vs)
-        ρ = eos(vs)
-        Cₚ = heatcap(vs)
-        r = radius(vs)
-        m = mass(vs)
+    if isphysical(pv)
+        ρ = eos(pv)
+        cₚ = heatcap(pv)
+        r = radius(pv)
+        m = mass(pv)
+        T = temperature(pv)
+        α = 5e-4
 
-        dT_dm = -(G * m) / (4pi * r^4 * ρ * Cₚ)
+        dT_dm = -(G * m * α * T) / (4pi * r^4 * ρ * cₚ)
     end
 
     dT_dm
 end
 function TemperatureGradientEq(eos::EOS, Cₚ::HeatCapacity)
-    tempgradient(vs::ValueSet) = temperature_gradient_f(vs, eos, Cₚ)
+    tempgradient(pv::PhysicalValues) = temperature_gradient_f(pv, eos, Cₚ)
     TemperatureGradientEq(tempgradient)
 end
 
