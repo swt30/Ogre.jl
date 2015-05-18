@@ -47,7 +47,6 @@ function MassContinuityEq{mc<:ModelComplexity}(eos::EOS{mc})
     MassContinuityEq{mc}(masscontinuity)
 end
 
-
 @doc "Pressure balance: dP/dm = -Gm/4πr⁴" ->
 function pressure_balance_f(vs::ValueSet)
     dP_dm::Float64 = 0.0
@@ -115,18 +114,18 @@ typealias BoundaryValues ValueSet
     """ ->
 abstract PlanetSystem{mc<:ModelComplexity}
 
-immutable TempIndepPlanet{T<:Real} <: PlanetSystem{NoTemp}
+immutable TempIndepPlanet{T<:Real, V<:AbstractVector} <: PlanetSystem{NoTemp}
     M::T
     structure_equations::EquationSet
     boundary_values::BoundaryValues{NoTemp}
-    solution_grid::Vector{T}
+    solution_grid::V
     radius_search_bracket::Vector{T}
 end
-immutable TempDepPlanet{T<:Real} <: PlanetSystem{WithTemp}
+immutable TempDepPlanet{T<:Real, V<:AbstractVector} <: PlanetSystem{WithTemp}
     M::T
     structure_equations::EquationSet
     boundary_values::BoundaryValues{WithTemp}
-    solution_grid::Vector{T}
+    solution_grid::V
     radius_search_bracket::Vector{T}
 end
 

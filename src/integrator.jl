@@ -1,6 +1,8 @@
 # INTEGRATOR.JL
 # Numerical routines and solutions of planetary structral models
 
+using Compat
+
 # Solutions
 #------------------------------------------------------------------------------
 
@@ -171,20 +173,20 @@ abstract IntegratorMethod
 abstract FixedStepIntegrator <: IntegratorMethod
 abstract RK4Integrator <: FixedStepIntegrator
 
-typealias IntegratorState{I<:Integer, T<:Real} (I, NumOrVec{T})
+typealias IntegratorState{I<:Integer, T<:Real} @compat Tuple{I, NumOrVec{T}}
 
 @doc "Type for general RK4 solving" ->
-immutable GenericRK4{T<:Real} <: RK4Integrator
-    F::Function
+immutable GenericRK4{T<:Real, V<:AbstractVector{Float64}} <: RK4Integrator
+    F
     x0::NumOrVec{T}
-    tgrid::Vector{T}
+    tgrid::V
 end
 
 @doc "Type for more specifically solving planetary structures" ->
-immutable PlanetRK4{T<:Real} <: RK4Integrator
-    F::Function
+immutable PlanetRK4{T<:Real, V<:AbstractVector{Float64}} <: RK4Integrator
+    F
     x0::NumOrVec{T}
-    tgrid::Vector{T}
+    tgrid::V
 end
 
 # This section uses the iterator protocol by defining start, next, and done for

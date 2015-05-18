@@ -113,6 +113,7 @@ facts("Integrator tests") do
             @fact pressure(surface(soln)) => res.atmospheric_pressure
             @fact temperature(centre(soln)) => greater_than(temperature(surface(soln)))
             @fact temperature(surface(soln)) => 300
+            @fact radius(centre(soln)) => less_than(100)
             @fact isa(soln, Ogre.PlanetStructure{Ogre.WithTemp}) => true
         end
     end

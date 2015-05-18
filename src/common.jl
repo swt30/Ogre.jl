@@ -113,16 +113,20 @@ include("constants.jl")
 #-------------------------------------------------------------------------------
 
 @doc "Create an interpolating function in linear space" ->
-function lininterp(xs, ys)
+function lininterp(xs::Vector, ys::Vector)
     spline = Spline1D(xs, ys, k=2)
+
     interp_func(x::Real) = evaluate(spline, Float64(x))
-    interp_func(x::Vector) = evaluate(spline, Vector{Float64}(x))
+    interp_func(x::AbstractVector) = evaluate(spline, Vector{Float64}(x))
 
     interp_func
 end
+function lininterp{S, T}(xs::AbstractVector{S}, ys::AbstractVector{T})
+    lininterp(Vector{S}(xs), Vector{T}(ys))
+end
 
 @doc "Create an interpolating function using a log-spaced coordinate grid." ->
-function loginterp(xs, ys)
+function loginterp(xs::Vector, ys::Vector)
     # first transform the grid to be linear
     logxs = log10(xs)
     # then do the interpolation as if it were linear
@@ -130,9 +134,12 @@ function loginterp(xs, ys)
 
     interp_func(x) = lin_interp_func(log10(x))
 end
+function loginterp{S, T}(xs::AbstractVector{S}, ys::AbstractVector{T})
+    loginterp(Vector{S}(xs), Vector{T}(ys))
+end
 
 @doc "Create a linear interpolating function from a 2D grid" ->
-function lininterp(xs, ys, zs::Matrix; suppress_warnings=false)
+function lininterp(xs::Vector, ys::Vector, zs::Matrix; suppress_warnings=false)
     if hasnan(zs)
         if !suppress_warnings
             warn("2D data contains NaNs: setting to sentinel value of -1e99")
@@ -140,14 +147,20 @@ function lininterp(xs, ys, zs::Matrix; suppress_warnings=false)
         zs[isnan(zs)] = -1e99
     end
     spline = Spline2D(xs, ys, zs, kx=1, ky=1)
+
     interp_func(x::Real, y::Real) = evaluate(spline, Float64(x), Float64(y))
-    interp_func(x::Vector, y::Vector) = evaluate(spline, x, y)
+    function interp_func(x::AbstractVector, y::AbstractVector)
+        evaluate(spline, Vector{Float64}(x), Vector{Float64}(y))
+    end
 
     interp_func
 end
+function lininterp{S, T}(xs::AbstractVector{S}, ys::AbstractVector{T}, zs; kwargs...)
+    lininterp(Vector{S}(xs), Vector{T}(ys), zs; kwargs...)
+end
 
 @doc "Create a log-spaced interpolating function from a 2D grid" ->
-function loginterp(xs, ys, zs::Matrix; kwargs...)
+function loginterp(xs::Vector, ys::Vector, zs::Matrix; kwargs...)
     logxs = log10(xs)
     logys = log10(ys)
 

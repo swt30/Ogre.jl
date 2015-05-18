@@ -45,7 +45,8 @@ eos_PT_f(P, T) = P * T
 eos_P2T2_f(P, T) = P^2 + T^2
 eos_logPdivT_f(P, T) = log10(P / T)
 simple_Tdep_eos_functions = [eos_PT_f, eos_P2T2_f, eos_logPdivT_f]
-simple_Tdep_eoses = map(f -> Ogre.SimpleEOS(Ogre.WithTemp, f, ""), simple_Tdep_eos_functions)
+simple_Tdep_eoses = map(f -> Ogre.SimpleEOS(Ogre.WithTemp, f, ""), 
+                        simple_Tdep_eos_functions)
 
 # EOS - interpolated
 Plin = linspace(1,10)
@@ -111,7 +112,7 @@ tri_layer_planet_r_bracket = fill(tri_layer_planet_actual_radius, 2)
 tri_layer_planet_boundary_vals = Ogre.BoundaryValues(Ogre.M_earth, 
 								                     tri_layer_planet_actual_radius, 
 								                     atmospheric_pressure)
-earth_mass_planet_solution_grid = linspace(Ogre.M_earth, 0)
+earth_mass_planet_solution_grid = linspace(Ogre.M_earth, 0, 100)
 tri_layer_planet = Ogre.PlanetSystem(Ogre.M_earth, tri_layer_eos,
                            			 tri_layer_planet_boundary_vals, 
                            			 earth_mass_planet_solution_grid, 
