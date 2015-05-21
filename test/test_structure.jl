@@ -13,8 +13,8 @@ facts("Structure equations") do
             eos_func(P::Real) = 4100. + 0.00161*(P^0.541)
             eos = Ogre.PressureEOS(eos_func, "Analytic MgSiO3")
 
-            masscontinuity = Ogre.MassContinuityEq(eos)
-            pressurebalance = Ogre.PressureBalanceEq()
+            masscontinuity = Ogre.MassContinuity(eos)
+            pressurebalance = Ogre.PressureBalance()
 
             context("Zero gradients at the r=0 limit") do
                 zero_values = zero(Ogre.MassRadiusPressure)
@@ -59,9 +59,9 @@ facts("Structure equations") do
             heatcap(args...) = 100
             Cₚ = Ogre.HeatCapacity(heatcap)
 
-            masscontinuity = Ogre.MassContinuityEq(eos)
-            pressurebalance = Ogre.PressureBalanceEq()
-            temperaturegradient = Ogre.TemperatureGradientEq(eos, Cₚ)
+            masscontinuity = Ogre.MassContinuity(eos)
+            pressurebalance = Ogre.PressureBalance()
+            temperaturegradient = Ogre.TemperatureGradient(eos, Cₚ)
 
             context("Zero gradients at the r=0 limit") do
                 zero_values = zero(Ogre.PhysicalValues)
@@ -141,13 +141,13 @@ facts("Planetary structure types") do
         solution_grid = linspace(M, 0, 5)
         radius_bracket = [0, 10] * M
 
-        pressurebalance = Ogre.PressureBalanceEq()
+        pressurebalance = Ogre.PressureBalance()
 
         context("No temperature dependence") do
             bvs = Ogre.BoundaryValues(M, R, Psurf)
             eos_f(P) = 4100. + 0.00161*(P^0.541)
             eos = Ogre.SimpleEOS(Ogre.NoTemp, eos_f, "")
-            masscontinuity = Ogre.MassContinuityEq(eos)
+            masscontinuity = Ogre.MassContinuity(eos)
             structure = Ogre.EquationSet([masscontinuity,
                                           pressurebalance])
             system = Ogre.PlanetSystem(M, eos, bvs, solution_grid,
@@ -167,8 +167,8 @@ facts("Planetary structure types") do
             eos = Ogre.SimpleEOS(Ogre.WithTemp, eos_f, "")
             Cₚ_f(T) = T
             Cₚ = Ogre.HeatCapacity(Cₚ_f)
-            masscontinuity = Ogre.MassContinuityEq(eos)
-            temperaturegradient = Ogre.TemperatureGradientEq(eos, Cₚ)
+            masscontinuity = Ogre.MassContinuity(eos)
+            temperaturegradient = Ogre.TemperatureGradient(eos, Cₚ)
             structure = Ogre.EquationSet([masscontinuity,
                                          pressurebalance,
                                          temperaturegradient])

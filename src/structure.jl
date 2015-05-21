@@ -18,37 +18,34 @@ const R_bracket = [0., 10.] .* R_earth
 @doc "Type for a planetary structure equation that is not an EOS" ->
 abstract StructureEquation{mc<:ModelComplexity} <: Equation
 
-immutable MassContinuityEq{mc<:ModelComplexity} <: StructureEquation{mc}
-    equation::Function
-end
-
-immutable PressureBalanceEq <: StructureEquation{NoTemp}
-    equation::Function
-end
-
-immutable TemperatureGradientEq <: StructureEquation{WithTemp}
-    equation::Function
-end
-
 @doc "Mass continuity: dr/dm = 1/4πr²ρ" ->
-function mass_continuity_f(vs::ValueSet, eos::EOS)
+immutable MassContinuity{mc<:ModelComplexity, E<:EOS} <: StructureEquation{mc}
+    eos::E
+end
+function MassContinuity{mc<:ModelComplexity}(eos::EOS{mc})
+    MassContinuity{mc, typeof(eos)}(eos)
+end
+
+function Base.call(mce::MassContinuity, vs::ValueSet)
     dr_dm::Float64 = 0.0
 
     if isphysical(vs)
         r = radius(vs)
-        ρ = eos(vs)
+        ρ = mce.eos(vs)
         dr_dm = 1 / (4pi * r^2 * ρ)
     end
 
     dr_dm
 end
-function MassContinuityEq{mc<:ModelComplexity}(eos::EOS{mc})
-    masscontinuity(vs::ValueSet) = mass_continuity_f(vs, eos)
-    MassContinuityEq{mc}(masscontinuity)
-end
 
 @doc "Pressure balance: dP/dm = -Gm/4πr⁴" ->
-function pressure_balance_f(vs::ValueSet)
+immutable PressureBalance <: StructureEquation{NoTemp} 
+    # this equation does not change with composition
+end
+
+const pressurebalance = PressureBalance()
+
+function Base.call(pbe::PressureBalance, vs::ValueSet)
     dP_dm::Float64 = 0.0
 
     if isphysical(vs)
@@ -59,30 +56,19 @@ function pressure_balance_f(vs::ValueSet)
 
     dP_dm
 end
-# this equation does not change with composition
-PressureBalanceEq() = PressureBalanceEq(pressure_balance_f)
-const pressurebalance = PressureBalanceEq()
 
-@doc "Thermal expansivity αᵥ = -1/ρ (∂ρ/∂T)ₚ"
-function thermal_expansivity(pv::PhysicalValues, eos::EOS)
-    T1 = temperature(pv)     
-    T2 = temperature(pv) + 1
-    P = pressure(pv)
-    ρ = eos(P, T1)
-    dρ = eos(P, T2) - ρ
-
-    alpha = -1/ρ * dρ
+@doc "Adiabatic temperature gradient: dT/dm = -Gm/4πr⁴Cₚ"
+immutable TemperatureGradient{E<:EOS, HC<:HeatCapacity} <: StructureEquation{WithTemp}
+    eos::E
+    heatcap::HC
 end
 
-@doc "Adiabatic energy gradient: dT/dm = -Gm/4πr⁴Cₚ" ->
-function temperature_gradient_f(pv::PhysicalValues, eos::EOS,
-    heatcap::HeatCapacity)
-
+function Base.call(tg::TemperatureGradient, pv::PhysicalValues)
     dT_dm::Float64 = 0.0
 
     if isphysical(pv)
-        ρ = eos(pv)
-        cₚ = heatcap(pv)
+        ρ = tg.eos(pv)
+        cₚ = tg.heatcap(pv)
         r = radius(pv)
         m = mass(pv)
         T = temperature(pv)
@@ -93,9 +79,16 @@ function temperature_gradient_f(pv::PhysicalValues, eos::EOS,
 
     dT_dm
 end
-function TemperatureGradientEq(eos::EOS, Cₚ::HeatCapacity)
-    tempgradient(pv::PhysicalValues) = temperature_gradient_f(pv, eos, Cₚ)
-    TemperatureGradientEq(tempgradient)
+
+@doc "Thermal expansivity αᵥ = -1/ρ (∂ρ/∂T)ₚ"
+function thermal_expansivity(pv::PhysicalValues, eos::EOS)
+    T1 = temperature(pv)     
+    T2 = temperature(pv) + 1
+    P = pressure(pv)
+    ρ = eos(P, T1)
+    dρ = eos(P, T2) - ρ
+
+    alpha = -1/ρ * dρ
 end
 
 # PLANETARY STRUCTURE #
@@ -132,7 +125,7 @@ end
 function PlanetSystem(M, eos::EOS{NoTemp}, bvs::BoundaryValues{NoTemp}, 
     grid=linspace(M, 0, total_points), r_bracket=R_bracket)
 
-    masscontinuity = MassContinuityEq(eos)
+    masscontinuity = MassContinuity(eos)
     structure = EquationSet([masscontinuity, pressurebalance])
 
     TempIndepPlanet(M, structure, bvs, grid, r_bracket)
@@ -141,8 +134,8 @@ function PlanetSystem(M, eos::EOS{WithTemp}, Cₚ::HeatCapacity,
     bvs::BoundaryValues{WithTemp}, grid=linspace(M, 0, total_points),
     r_bracket=R_bracket)
 
-    masscontinuity = MassContinuityEq(eos)
-    temperaturegradient = TemperatureGradientEq(eos, Cₚ)
+    masscontinuity = MassContinuity(eos)
+    temperaturegradient = TemperatureGradient(eos, Cₚ)
     structure = EquationSet([masscontinuity, pressurebalance, temperaturegradient])
 
     TempDepPlanet(M, structure, bvs, grid, r_bracket)

@@ -12,15 +12,15 @@ using Compat
     * `sys`: A `PlanetSystem` to solve
     * `soln`: A `PlanetStructure` to write the solution to""" ->
 function solve!(sys::PlanetSystem, soln::PlanetStructure)
-    # make an integrator and run it
-    ode_func{T<:Real}(t::T, y::Vector{T}) = (sys.structure_equations(t, y))
+    # initial values
     x0 = nonmass(sys.boundary_values)
     t0 = mass(sys.boundary_values)
     tgrid = sys.solution_grid
 
-    # put the values into the solution
-    solver = PlanetRK4(ode_func, x0, tgrid)
+    # solve and write to solution array
+    solver = PlanetRK4(sys.structure_equations, x0, tgrid)
     for (i, x) in enumerate(solver)
+        # mass and nonmass are array views, so we can assign to them 
         mass(soln)[i] = tgrid[i]
         nonmass(soln)[:, i] = x
     end
@@ -151,7 +151,7 @@ end
 typealias NumOrVec{T<:Real} Union(T, Vector{T})
 
 @doc "RK4 step of function `F`, initial conds `x`, from `tstart` to `tend`" ->
-function ode4_step(F::Function, x, tstart, tend)
+function ode4_step(F, x, tstart, tend)
     h = tend - tstart
     k = zeros(eltype(x), (length(x), 4))
 
@@ -164,8 +164,10 @@ function ode4_step(F::Function, x, tstart, tend)
     k[:,4] = h*F(tstart + h,    x + k[:,3])
 
     # Integrate
-    # split onto multiple lines to help with code generation (?)
-    x + k[:,1]/6 + k[:,2]/3 + k[:,3]/3 + k[:,4]/6
+    (x + k[:,1]/6 
+       + k[:,2]/3 
+       + k[:,3]/3 
+       + k[:,4]/6)
 end
 
 # types to handle solving
@@ -173,18 +175,16 @@ abstract IntegratorMethod
 abstract FixedStepIntegrator <: IntegratorMethod
 abstract RK4Integrator <: FixedStepIntegrator
 
-typealias IntegratorState{I<:Integer, T<:Real} @compat Tuple{I, NumOrVec{T}}
-
 @doc "Type for general RK4 solving" ->
 immutable GenericRK4{T<:Real, V<:AbstractVector{Float64}} <: RK4Integrator
-    F
+    func
     x0::NumOrVec{T}
     tgrid::V
 end
 
 @doc "Type for more specifically solving planetary structures" ->
 immutable PlanetRK4{T<:Real, V<:AbstractVector{Float64}} <: RK4Integrator
-    F
+    func
     x0::NumOrVec{T}
     tgrid::V
 end
@@ -198,7 +198,7 @@ function Base.start(solver::FixedStepIntegrator)
 end
 
 # step function
-function Base.next(solver::RK4Integrator, state::IntegratorState)
+function Base.next(solver::RK4Integrator, state)
     tindex, x = state
     tnext = tindex + 1
 
@@ -211,7 +211,7 @@ function Base.next(solver::RK4Integrator, state::IntegratorState)
     # do a RK step to get the next values 
     tstart = solver.tgrid[tindex]
     tend = solver.tgrid[tnext]
-    xnext = ode4_step(solver.F, x, tstart, tend)
+    xnext = ode4_step(solver.func, x, tstart, tend)
 
     # the new state is the incremented index and the new values 
     newstate = (tnext, xnext)
@@ -220,7 +220,7 @@ function Base.next(solver::RK4Integrator, state::IntegratorState)
 end
 
 # termination condition
-function Base.done(solver::FixedStepIntegrator, state::IntegratorState)
+function Base.done(solver::FixedStepIntegrator, state)
     tindex, x = state
     # we're done once we step off the end of the solution grid
     tindex > length(solver.tgrid) 
@@ -243,14 +243,14 @@ Base.length(solver::FixedStepIntegrator) = length(solver.tgrid)
 @doc """ Solve the ODE defined by function `F`, initial conds `x`, and fixed
     time steps `tgrid`. Returns dense output (an array of solutions at each
     point in `tgrid`) """ ->
-function ode4_dense(F::Function, x, tgrid)
+function ode4_dense(F, x, tgrid)
     solver = GenericRK4(F, x, tgrid)
 
     # return a 1D array
     # the x[1] is to flatten any 1x1 arrays into single values
     [x[1] for x in solver]
 end
-function ode4_dense(F::Function, x::Vector, tgrid)
+function ode4_dense(F, x::Vector, tgrid)
     solver = GenericRK4(F, x, tgrid)
 
     # return a 2D array
