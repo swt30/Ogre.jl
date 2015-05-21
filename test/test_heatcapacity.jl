@@ -6,7 +6,7 @@ facts("Heat capacity handling") do
     end
 
     context("Values are as expected") do
-        Cₚ = res.exponential_heat_capacity
+        Cₚ = res.heatcap.exponential
         context("called directly") do
             @fact Cₚ(1) => roughly(e)
             @fact Cₚ(0) => 1

@@ -2,7 +2,7 @@ include("header.jl")
 
 facts("Equation of state (EOS) handling") do
     context("without temperature dependence") do
-        eos_linear, eos_squared, eos_log = res.simple_eoses
+        eos_linear, eos_squared, eos_log = res.eos.simples
 
         context("Calling a simple EOS") do
             @fact eos_linear(42) => 42
@@ -18,11 +18,11 @@ facts("Equation of state (EOS) handling") do
         context("Piecewise EOS") do
             context("Get number of equations in each EOS") do
                 @fact length(eos_linear) => 1
-                @fact length(res.simple_piecewise_EOS) => 3
+                @fact length(res.eos.P_piecewise) => 3
             end
 
             context("The PiecewiseEOS returns correct individual EOS") do
-                peos = res.simple_piecewise_EOS
+                peos = res.eos.piecewise
                 @fact Ogre.get_layer_eos(peos, -1)  => eos_linear
                 @fact Ogre.get_layer_eos(peos, 0.5) => eos_linear
                 @fact Ogre.get_layer_eos(peos, 1.5) => eos_squared
@@ -32,7 +32,7 @@ facts("Equation of state (EOS) handling") do
 
             context("Pressure-piecewise EOS calls match the individual EOS") do
                 context("A really simple piecewise EOS") do
-                    peos = res.simple_P_piecewise_EOS
+                    peos = res.eos.P_piecewise
                     @fact peos(0.5) => eos_linear(0.5)
                     @fact peos(1.5) => eos_squared(1.5)
                     @fact peos(2.5) => eos_log(2.5)
@@ -44,8 +44,8 @@ facts("Equation of state (EOS) handling") do
                     # from it to see if it matches our expectations
 
                     test_pressures = [1e8, 1e11, 1e14]
-                    eoses = res.h2o_VII_seager_individual_eoses
-                    piecewise = res.h2o_VII_seager
+                    eoses = res.eos.h2o_VII_seager_individual_eoses
+                    piecewise = res.eos.h2o_VII_seager
 
                     for (eos, P) in zip(eoses, test_pressures)
                         @fact piecewise(P) => eos(P)
@@ -93,8 +93,8 @@ facts("Equation of state (EOS) handling") do
         context("EOS inversion") do
             context("Known functions invert properly") do
                 sample_density = 1e8
-                testfuncs = res.simple_eos_functions
-                eoses = res.simple_inv_eoses
+                testfuncs = res.eos.simple_fs
+                eoses = res.eos.simple_inverteds
                 pressures = map(f -> f(sample_density), testfuncs)
 
                 map(eoses, pressures) do eos, P
@@ -103,9 +103,9 @@ facts("Equation of state (EOS) handling") do
             end
 
             context("Fail inverting outside the range specified") do
-                inv_linear = res.simple_inv_eoses[1]
+                inv_linear = res.eos.simple_inverteds[1]
                 sample_density = 1e12
-                P = res.eos_linear_f(sample_density)
+                P = res.eos.linear_f(sample_density)
 
                 @fact_throws inv_linear(P)
             end
@@ -114,8 +114,8 @@ facts("Equation of state (EOS) handling") do
         context("Interpolated EOS") do
             context("match the actual function values") do
                 context("for a simple EOS") do
-                    lininterp = res.eos_interpolated_1D_linear
-                    loginterp = res.eos_interpolated_1D_log
+                    lininterp = res.eos.interp_1D_lin
+                    loginterp = res.eos.interp_1D_log
                     values_to_check = [1, 2, 4.7, 7.5, 8]
                     expected_results = [P^2 for P in values_to_check]
 
@@ -124,8 +124,8 @@ facts("Equation of state (EOS) handling") do
                 end
 
                 context("for a 2D EOS") do
-                    lininterp2d = res.eos_interpolated_2D_linear
-                    loginterp2d = res.eos_interpolated_2D_log
+                    lininterp2d = res.eos.interp_2D_lin
+                    loginterp2d = res.eos.interp_2D_log
 
                     P_to_check = [1, 2, 3, 5.8, 9.1]
                     T_to_check = [10, 25, 40.3, 64.3, 94]
@@ -137,11 +137,11 @@ facts("Equation of state (EOS) handling") do
                            roughly(expected_results, rtol=0.01))
 
                     context("with NaN values") do
-                        rnan = copy(res.rholin_2D)
+                        rnan = copy(res.eos.rholin_2D)
                         # set a value near the edge = NaN and check if the rest
                         # of the points are okay
                         rnan[2] = NaN
-                        interp2dnan = Ogre.lininterp(res.Plin, res.Tlin, rnan, 
+                        interp2dnan = Ogre.lininterp(res.eos.Plin, res.eos.Tlin, rnan, 
                                                      suppress_warnings=true)
                         @fact (interp2dnan(P_to_check, T_to_check) => 
                                roughly(expected_results, rtol=0.01))
@@ -153,7 +153,7 @@ facts("Equation of state (EOS) handling") do
     end
 
     context("with temperature dependence") do
-        teos = res.simple_Tdep_eoses[1]
+        teos = res.eos.Tdeps[1]
         context("Calling a simple EOS") do
             @fact teos(12, 3) => 36
             @fact_throws teos[1](12)
