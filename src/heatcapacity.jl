@@ -5,14 +5,33 @@
 using Dierckx
 
 @doc "An isobaric heat capacity (Cₚ)" ->
-type HeatCapacity <: Equation
-    equation::Function
+abstract HeatCapacity
+
+type ConstantHeatCapacity{T<:Real} <: HeatCapacity
+    value::T
 end
-HeatCapacity(::Type{WithTemp}, f::Function) = HeatCapacity(f)
+
+abstract VaryingHeatCapacity <: HeatCapacity
+
+type THeatCapacity <: VaryingHeatCapacity
+    func
+end
+
+type TPHeatCapacity <: VaryingHeatCapacity
+    func
+end
+
+HeatCapacity(::Type{WithTemp}, f::Function) = THeatCapacity(f)
+HeatCapacity(::Type{WithTempPressure}, f::Function) = TPHeatCapacity(f)
+HeatCapacity(n::Number) = ConstantHeatCapacity(n)
 
 import Base.call
-call(cp::HeatCapacity, x::Real) = cp.equation(x)
-call(cp::HeatCapacity, pv::PhysicalValues) = cp(temperature(pv))
+call(cp::HeatCapacity, pv::PhysicalValues) = cp(temperature(pv), pressure(pv))
+call(cp::ConstantHeatCapacity, T::Real) = cp.value
+call(cp::ConstantHeatCapacity, T::Real, P::Real) = cp.value
+call(cp::THeatCapacity, T::Real) = cp.func(T)
+call(cp::THeatCapacity, T::Real, P::Real) = cp.func(T)
+call(cp::TPHeatCapacity, T::Real, P::Real) = cp.func(T, P)
 
 function HeatCapacity(filename::String)
     data = readdlm(filename)
@@ -20,8 +39,7 @@ function HeatCapacity(filename::String)
     P = Vector{Float64}(vec(data[1, 2:end]))
     Cₚs = Matrix{Float64}(data[2:end, 2:end]) .* 1000
 
-    Cₚ = Cₚs[:, 6] # 1: low temp, 6: hi-temp
-    heatcap_f = lininterp(T, Cₚ)
+    heatcap_f = semiloginterpy(T, P, Cₚs)
 
-    HeatCapacity(heatcap_f)
+    HeatCapacity(WithTempPressure, heatcap_f)
 end

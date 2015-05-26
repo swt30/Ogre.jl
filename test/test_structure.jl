@@ -56,8 +56,7 @@ facts("Structure equations") do
             # T to mean decreasing ρ
 
             # arbitrary heat capacity
-            heatcap(args...) = 100
-            Cₚ = Ogre.HeatCapacity(heatcap)
+            Cₚ = Ogre.HeatCapacity(100)
 
             masscontinuity = Ogre.MassContinuity(eos)
             pressurebalance = Ogre.PressureBalance()
@@ -166,7 +165,7 @@ facts("Planetary structure types") do
             eos_f(P, T) = 4100. + 0.00161*(P^0.541)*(T^-0.054)
             eos = Ogre.SimpleEOS(Ogre.WithTemp, eos_f, "")
             Cₚ_f(T) = T
-            Cₚ = Ogre.HeatCapacity(Cₚ_f)
+            Cₚ = Ogre.HeatCapacity(Ogre.WithTemp, Cₚ_f)
             masscontinuity = Ogre.MassContinuity(eos)
             temperaturegradient = Ogre.TemperatureGradient(eos, Cₚ)
             structure = Ogre.EquationSet([masscontinuity,

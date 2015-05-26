@@ -72,7 +72,7 @@ function Base.call(tg::TemperatureGradient, pv::PhysicalValues)
         r = radius(pv)
         m = mass(pv)
         T = temperature(pv)
-        α = 5e-4
+        α = thermal_expansivity(pv, tg.eos)
 
         dT_dm = -(G * m * α * T) / (4pi * r^4 * ρ * cₚ)
     end
@@ -120,6 +120,24 @@ immutable TempDepPlanet{T<:Real, V<:AbstractVector} <: PlanetSystem{WithTemp}
     boundary_values::BoundaryValues{WithTemp}
     solution_grid::V
     radius_search_bracket::Vector{T}
+end
+
+function Base.show(io::IO, p::PlanetSystem)
+    indepprefix = isa(p, TempIndepPlanet) ? "in" : ""
+    dependent = indepprefix * "dependent"
+    mass = p.M / M_earth
+    g = p.solution_grid
+    npoints = length(g)
+    g1 = g[1] / M_earth
+    gn = g[end] / M_earth
+    rbracket = p.radius_search_bracket ./ R_earth
+    
+    println(io, "Temperature $dependent planet system with")
+    println(io, "  mass: $mass M⊕")
+    print(io, "  surface: ")
+    show(io, p.boundary_values)
+    println(io, "  $npoints mass points in $g1:$gn M⊕")
+    println(io, "  radius bracket: $rbracket R⊕")
 end
 
 function PlanetSystem(M, eos::EOS{NoTemp}, bvs::BoundaryValues{NoTemp}, 

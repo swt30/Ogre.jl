@@ -1,7 +1,7 @@
 # PLOT.JL
 # Plotting functions
 
-export plot, plt, ticker
+export plot, phaseplot, plt, ticker
 
 # Python plot setup
 #------------------------------------------------------------------------------
@@ -23,6 +23,8 @@ function plot(soln::PlanetStructure{NoTemp})
     # the use of vec() is because these functions return array views
     # (SubArrays) which are apparently not popular with PyPlot
 
+    figure()
+
     ax1 = subplot(211)
     ylabel("Pressure / GPa")
     setp(ax1[:get_xticklabels](), visible=false)
@@ -41,10 +43,12 @@ function plot(soln::PlanetStructure{NoTemp})
 end
 
 function plot(soln::PlanetStructure{WithTemp})
-    x = vec(mass(soln)) ./ M_earth
-    r = vec(radius(soln)) ./ R_earth
-    P = vec(pressure(soln)) ./ 1e9
+    x = vec(mass(soln)) / M_earth
+    r = vec(radius(soln)) / R_earth
+    P = vec(pressure(soln)) / 1e9
     T = vec(temperature(soln))
+
+    figure()
 
     ax1 = subplot(311)
     ylabel("Temperature / K")
@@ -68,4 +72,28 @@ function plot(soln::PlanetStructure{WithTemp})
     tight_layout()
 end
 
+function phaseplot(soln::PlanetStructure{WithTemp})
+    P = vec(pressure(soln)) / 1e9
+    T = vec(temperature(soln))
+
+    figure()
+
+    ax1 = subplot(111)
+    xlabel("Pressure / GPa")
+    ylabel("Temperature / K")
+    # xscale("log")
+    # yscale("log")
+
+    @show P[1], P[end]
+    @show T[1], T[end]
+
+    plot_phases()
+    plot(P, T, linewidth=2)
+
+    tight_layout()
+end
+
+function plot_phases()
+    warn("No phase information yet")
+end
 

@@ -22,6 +22,7 @@ length(es::EquationSet) = length(es.equations)
 abstract ModelComplexity
 immutable NoTemp <: ModelComplexity; end
 immutable WithTemp <: ModelComplexity; end
+immutable WithTempPressure <: ModelComplexity; end
 
 @doc "Number of physical variables used" ->
 nvars(::Type{NoTemp}) = 3
@@ -43,6 +44,13 @@ function PhysicalValues(m, r, P, T)
 end
 ValueSet(m, r, P, T) = PhysicalValues(m, r, P, T)
 
+function Base.show(io::IO, pv::PhysicalValues)
+    m, r, P, T = pv.m, pv.r, pv.P, pv.T
+    m = m / M_earth
+    r = r / R_earth
+    println("$m M⊕, $r R⊕, $P Pa, $T K")
+end
+
 
 @doc "Holds physical values of mass, radius, and pressure" ->
 immutable MassRadiusPressure{R<:Real} <: ValueSet{NoTemp}
@@ -54,6 +62,13 @@ function MassRadiusPressure(m, r, P)
     MassRadiusPressure(promote(m, r, P)...)
 end
 ValueSet(m, r, P) = MassRadiusPressure(m, r, P)
+
+function Base.show(io::IO, mrp::MassRadiusPressure)
+    m, r, P = pv.m, pv.r, pv.P
+    m = m / M_earth
+    r = r / R_earth
+    println("$m M⊕, $r R⊕, $P Pa")
+end
 
 # Properties
 @doc "Get independent physical coordinate (mass)" ->
@@ -166,4 +181,12 @@ function loginterp(xs::Vector, ys::Vector, zs::Matrix; kwargs...)
 
     lin_interp_func = lininterp(logxs, logys, zs; kwargs...)
     interp_func(x, y) = lin_interp_func(log10(x), log10(y))
+end
+
+@doc "Create a semilog interpolating function from a 2D grid" ->
+function semiloginterpy(xs::Vector, ys::Vector, zs::Matrix; kwargs...)
+    logys = log10(ys)
+
+    lin_interp_func = lininterp(xs, logys, zs; kwargs...)
+    interp_func(x, y) = lin_interp_func(x, log10(y))
 end

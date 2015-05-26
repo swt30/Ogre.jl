@@ -11,7 +11,9 @@ module heatcap
     import Ogre
     func = exp
     exponential = Ogre.HeatCapacity(Ogre.WithTemp, func)
-end
+    func2d(x, y) = exp(x) * exp(y)
+    exponential2d = Ogre.HeatCapacity(Ogre.WithTempPressure, func2d)
+end # module heatcap
 
 # Simple ODEs
 # dy/dt = 6  -->  y = 6t (y0=0)
@@ -130,8 +132,7 @@ module planet
     module withtemp
         using ..shared
         R_bracket = [0, 2] * R_earth
-        heatcap_f(T::Real) = 4200 # J kg⁻¹ K⁻¹ # simple water
-        heatcap = Ogre.HeatCapacity(heatcap_f)
+        heatcap = Ogre.HeatCapacity(4200) # J K⁻¹ kg⁻¹
         eos = Ogre.SimpleEOS(WithTemp, (P, T) -> 1000, "Test EOS")
         earth_surface_values = Ogre.BoundaryValues(M_earth, R_earth, 
                                                    atmospheric_pressure, surface_temperature)

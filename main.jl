@@ -1,14 +1,10 @@
-using Ogre, LaTeXStrings
-import Iterators: repeated
+using Ogre, PyPlot
 
-using Dierckx
-using PyPlot
-
-function main()
+function mr_diagrams()
     ms = linspace(0.5, 10, 30) * M_earth
 
-    Cₚ_const = Ogre.HeatCapacity(T -> 4200)  # constant heat capacity for liquid water
-    Cₚ_inf = Ogre.HeatCapacity(T -> Inf)  # infinite heat capacity
+    Cₚ_const = Ogre.HeatCapacity(4200)  # constant heat capacity for liquid water
+    Cₚ_inf = Ogre.HeatCapacity(Inf)  # infinite heat capacity
     Cₚ = Ogre.HeatCapacity("data/tabulated/heatcap-h2o.dat")  # realistic h.c.
 
     eoses = [Ogre.h2o_seager,
@@ -51,4 +47,23 @@ function main()
     tight_layout()
 end
 
-main()
+function phaseplots()
+    close(:all)
+
+    eos = Ogre.my_h2o_full
+    heatcap = Ogre.HeatCapacity("data/tabulated/heatcap-h2o.dat")
+    Psurf = 1e6
+    Tsurf = 300
+    npoints = 100
+    grid = linspace(M_earth, 0, npoints)
+    bcs = Ogre.ValueSet(M_earth, R_earth, Psurf, Tsurf)
+    sys = Ogre.PlanetSystem(M_earth, eos, heatcap, bcs, grid)
+
+    sys = Ogre.converge(sys)
+    show(sys)
+    soln = Ogre.solve(sys)
+    plot(soln)
+    Ogre.phaseplot(soln)
+end
+
+phaseplots()
