@@ -1,47 +1,51 @@
 # COMMON.JL
-# Common functionality across all of Ogre
+# Common functionality across all of Ogre.jl
 
 # Callable and equation types
+#-------------------------------------------------------------------------------
 
+"Can be called using the standard call syntax"
 abstract Callable
+"Represents a physical equation"
 abstract Equation <: Callable
-
-@doc """A set of equations which can be evaluated all at once.
-
-    `equations`: Vector of `Equation` """ ->
+"Represents a set of equations which can be evaluated all at once"
 immutable EquationSet <: Callable
     equations::Vector{Equation}
 end
 
-import Base.length
-length(es::EquationSet) = length(es.equations)
+Base.length(es::EquationSet) = length(es.equations)
+Base.getindex(es::EquationSet, i...) = es.equations[i...]
 
-# Type for passing around physical parameters
+# Types for passing around physical parameters
 #------------------------------------------------------------------------------
 
+"Define the complexity of a physical system"
 abstract ModelComplexity
+"This system excludes temperature details"
 immutable NoTemp <: ModelComplexity; end
+"This system explicitly includes temperature details"
 immutable WithTemp <: ModelComplexity; end
+"This system explicitly includes both temperature and pressure details"
 immutable WithTempPressure <: ModelComplexity; end
 
-@doc "Number of physical variables used" ->
+"Number of physical variables (mass, radius, pressure...) used"; :nvars
 nvars(::Type{NoTemp}) = 3
 nvars(::Type{WithTemp}) = 4
-@doc "Number of independent physical variables used" ->
+
+"Number of independent physical variables (radius, pressure...) used"
 ndeps{mc<:ModelComplexity}(::Type{mc}) = nvars(mc) - 1
 
+"Holds a set of planetary physical values (mass, radius, etc)"
 abstract ValueSet{mc<:ModelComplexity}
 
-@doc "Holds physical values of mass, radius, pressure, and temperature." ->
+"Holds physical values of mass, radius, pressure, and temperature."
 immutable PhysicalValues{R<:Real} <: ValueSet{WithTemp}
     m::R
     r::R
     P::R
     T::R
 end
-function PhysicalValues(m, r, P, T)
-    PhysicalValues(promote(m, r, P, T)...)
-end
+PhysicalValues(m, r, P, T) = PhysicalValues(promote(m, r, P, T)...)
 ValueSet(m, r, P, T) = PhysicalValues(m, r, P, T)
 
 function Base.show(io::IO, pv::PhysicalValues)
@@ -51,16 +55,13 @@ function Base.show(io::IO, pv::PhysicalValues)
     println("$m M⊕, $r R⊕, $P Pa, $T K")
 end
 
-
-@doc "Holds physical values of mass, radius, and pressure" ->
+"Holds physical values of mass, radius, and pressure"
 immutable MassRadiusPressure{R<:Real} <: ValueSet{NoTemp}
     m::R
     r::R
     P::R
 end
-function MassRadiusPressure(m, r, P)
-    MassRadiusPressure(promote(m, r, P)...)
-end
+MassRadiusPressure(m, r, P) = MassRadiusPressure(promote(m, r, P)...)
 ValueSet(m, r, P) = MassRadiusPressure(m, r, P)
 
 function Base.show(io::IO, mrp::MassRadiusPressure)
@@ -70,20 +71,16 @@ function Base.show(io::IO, mrp::MassRadiusPressure)
     println("$m M⊕, $r R⊕, $P Pa")
 end
 
-# Properties
-@doc "Get independent physical coordinate (mass)" ->
+# Properties of ValueSets
 mass(vs::ValueSet) = vs.m
-@doc "Get radius coordinate" ->
 radius(vs::ValueSet) = vs.r
-@doc "Get the pressure" ->
 pressure(vs::ValueSet) = vs.P
-@doc "Get the temperature" ->
 temperature(vs::PhysicalValues) = vs.T
-@doc "Get dependent physical values (radius, pressure, [temperature])" ->
+"Get dependent physical values (radius, pressure, [temperature])"; :nonmass
 nonmass(pv::PhysicalValues) = [radius(pv), pressure(pv), temperature(pv)]
 nonmass(mrp::MassRadiusPressure) = [radius(mrp), pressure(mrp)]
 
-@doc "Is a given `ValueSet` physical (all positive?)"
+"Is a given `ValueSet` physical (all positive)?"; :isphysical
 function isphysical(vs::PhysicalValues)
     mass(vs) > 0 && radius(vs) > 0 && pressure(vs) > 0 && temperature(vs) > 0
 end
@@ -103,10 +100,10 @@ call(es::EquationSet, vs::ValueSet) =  map(eq -> eq(vs), es.equations)
 call(cl::Callable, t::Real, y::Vector) = cl(ValueSet(t, y...))
 
 # Useful common definitions
-@doc "Location of the data files in this package" ->
+"Location of the data files in this package"
 const DATADIR = Pkg.dir("Ogre", "data")
 
-@doc "Copy a type, modifying certain fields" ->
+"Copy a type, modifying specified fields"
 function cpmod{T}(pp::T, di)
     di = !isa(di, Associative) ? Dict(di) : di
     ns = fieldnames(pp)
@@ -127,7 +124,7 @@ include("constants.jl")
 # Interpolation
 #-------------------------------------------------------------------------------
 
-@doc "Create an interpolating function in linear space" ->
+"Create an interpolating function on a linear grid"
 function lininterp(xs::Vector, ys::Vector)
     spline = Spline1D(xs, ys, k=2)
 
@@ -140,7 +137,7 @@ function lininterp{S, T}(xs::AbstractVector{S}, ys::AbstractVector{T})
     lininterp(Vector{S}(xs), Vector{T}(ys))
 end
 
-@doc "Create an interpolating function using a log-spaced coordinate grid." ->
+"Create an interpolating function using a log-spaced coordinate grid."
 function loginterp(xs::Vector, ys::Vector)
     # first transform the grid to be linear
     logxs = log10(xs)
@@ -153,14 +150,9 @@ function loginterp{S, T}(xs::AbstractVector{S}, ys::AbstractVector{T})
     loginterp(Vector{S}(xs), Vector{T}(ys))
 end
 
-@doc "Create a linear interpolating function from a 2D grid" ->
-function lininterp(xs::Vector, ys::Vector, zs::Matrix; suppress_warnings=false)
-    if hasnan(zs)
-        if !suppress_warnings
-            warn("2D data contains NaNs: setting to sentinel value of -1e99")
-        end
-        zs[isnan(zs)] = -1e99
-    end
+"Create an interpolating function from a 2D linear grid"
+function lininterp(xs::Vector, ys::Vector, zs::Matrix)
+    hasnan(zs) ? error("2D data contains NaNs") :
     spline = Spline2D(xs, ys, zs, kx=1, ky=1)
 
     interp_func(x::Real, y::Real) = evaluate(spline, Float64(x), Float64(y))
@@ -174,7 +166,7 @@ function lininterp{S, T}(xs::AbstractVector{S}, ys::AbstractVector{T}, zs; kwarg
     lininterp(Vector{S}(xs), Vector{T}(ys), zs; kwargs...)
 end
 
-@doc "Create a log-spaced interpolating function from a 2D grid" ->
+"Create an interpolating function from a 2D log-log grid"
 function loginterp(xs::Vector, ys::Vector, zs::Matrix; kwargs...)
     logxs = log10(xs)
     logys = log10(ys)
@@ -183,15 +175,25 @@ function loginterp(xs::Vector, ys::Vector, zs::Matrix; kwargs...)
     interp_func(x, y) = lin_interp_func(log10(x), log10(y))
 end
 
-@doc "Create a semilog interpolating function from a 2D grid" ->
-function semiloginterpy(xs::Vector, ys::Vector, zs::Matrix; kwargs...)
-    logys = log10(ys)
+"Create an interpolating function from a 2D log-linear grid"
+function semiloginterpx(xs::Vector, ys::Vector, zs::Matrix; kwargs...)
+    logxs = log10(xs)
 
-    lin_interp_func = lininterp(xs, logys, zs; kwargs...)
-    interp_func(x, y) = lin_interp_func(x, log10(y))
+    lin_interp_func = lininterp(logxs, ys, zs; kwargs...)
+    interp_func(x, y) = lin_interp_func(log10(x), y)
 end
 
 # Miscellaneous utility funcs
 #-------------------------------------------------------------------------------
 
-maprows(f, m::Matrix) = mapslices(f, m, 2) 
+"Map a function across rows of a 2D array"
+maprows(f, m::Matrix) = mapslices(f, m, 2)
+"Does this contain any NaN values?"
+hasnan(x) = any(isnan(x))
+notnan(x) = !isnan(x)
+
+"Wait for ENTER to be pressed before continuing"
+function wait_for_enter()
+    println("Press ENTER to continue...")
+    readline(STDIN)
+end

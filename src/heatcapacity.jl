@@ -4,42 +4,46 @@
 
 using Dierckx
 
-@doc "An isobaric heat capacity (Cₚ)" ->
+"An isobaric heat capacity (cₚ)"
 abstract HeatCapacity
 
+"A constant heat capacity (no variation with T or P)"
 type ConstantHeatCapacity{T<:Real} <: HeatCapacity
     value::T
 end
 
+"A heat capacity that's not constant"
 abstract VaryingHeatCapacity <: HeatCapacity
 
+"A heat capacity that varies with temperature"
 type THeatCapacity <: VaryingHeatCapacity
     func
 end
 
-type TPHeatCapacity <: VaryingHeatCapacity
+"A heat capacity that varies with pressure and temperature"
+type PTHeatCapacity <: VaryingHeatCapacity
     func
 end
 
 HeatCapacity(::Type{WithTemp}, f::Function) = THeatCapacity(f)
-HeatCapacity(::Type{WithTempPressure}, f::Function) = TPHeatCapacity(f)
+HeatCapacity(::Type{WithTempPressure}, f::Function) = PTHeatCapacity(f)
 HeatCapacity(n::Number) = ConstantHeatCapacity(n)
-
-import Base.call
-call(cp::HeatCapacity, pv::PhysicalValues) = cp(temperature(pv), pressure(pv))
-call(cp::ConstantHeatCapacity, T::Real) = cp.value
-call(cp::ConstantHeatCapacity, T::Real, P::Real) = cp.value
-call(cp::THeatCapacity, T::Real) = cp.func(T)
-call(cp::THeatCapacity, T::Real, P::Real) = cp.func(T)
-call(cp::TPHeatCapacity, T::Real, P::Real) = cp.func(T, P)
-
+"Generate a `HeatCapacity` from a tabular file"
 function HeatCapacity(filename::String)
     data = readdlm(filename)
     T = Vector{Float64}(data[2:end, 1])
     P = Vector{Float64}(vec(data[1, 2:end]))
     Cₚs = Matrix{Float64}(data[2:end, 2:end]) .* 1000
 
-    heatcap_f = semiloginterpy(T, P, Cₚs)
+    heatcap_f = semiloginterpx(P, T, Cₚs')
 
     HeatCapacity(WithTempPressure, heatcap_f)
 end
+
+import Base.call
+call(cp::HeatCapacity, pv::PhysicalValues) = cp(pressure(pv), temperature(pv))
+call(cp::ConstantHeatCapacity, T::Real) = cp.value
+call(cp::ConstantHeatCapacity, P::Real, T::Real) = cp.value
+call(cp::THeatCapacity, T::Real) = cp.func(T)
+call(cp::THeatCapacity, P::Real, T::Real) = cp.func(T)
+call(cp::PTHeatCapacity, P::Real, T::Real) = cp.func(P, T)

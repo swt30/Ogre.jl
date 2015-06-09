@@ -1,29 +1,42 @@
 include("header.jl")
 
 facts("Heat capacity handling") do
-    context("Construction") do
-        Cₚ1 = Ogre.HeatCapacity(4200)
-        Cₚ2 = Ogre.HeatCapacity(Ogre.WithTemp, T -> 4200)
-        @fact Cₚ1(300) => Cₚ2(300)
-        @fact_throws Ogre.HeatCapacity(Ogre.NoTemp, res.heat_capacity_function)
-    end
-
     context("Values are as expected") do
-        Cₚ = res.heatcap.exponential
-        Cₚ2 = res.heatcap.exponential2d
+        cₚ_exp = res.heatcap.exponential
+        cₚ_exp2 = res.heatcap.exponential2d
+        cₚ_const = res.heatcap.constant
+
         context("called directly") do
-            @fact Cₚ(1) => roughly(e)
-            @fact Cₚ(0) => 1
-            @fact Cₚ2(0, 0) => 1
-            @fact Cₚ2(1, 1) => roughly(e^2)
-            @fact Cₚ(1,2) => roughly(e)
-            @fact Cₚ(2,1) => roughly(e^2)
-            @fact_throws Cₚ2(1)
+            # constant values are always equal
+            @fact cₚ_const(0) => cₚ_const(10)
+            @fact cₚ_const(0, 10) => 1
+
+            # calling a single-input heat capacity
+            @fact cₚ_exp(1) => e^1
+            @fact cₚ_exp(0) => e^0
+            @fact cₚ_exp(1, 2) => e^2
+
+            # calling a temp- and pressure-dependent heat capacity
+            @fact cₚ_exp2(0, 1) => e^0 + 2e^1
+            @fact cₚ_exp2(1, 1) => e^1 + 2e^1
+            @fact cₚ_exp2(1, 3) => e^1 + 2e^3
+            @fact cₚ_exp2(2, 1) => e^2 + 2e^1
+
+            # needs both temperature and pressure
+            @fact_throws MethodError cₚ_exp2(1)
         end
 
         context("called through a ValueSet") do
-            @fact_throws Cₚ(res.value_set_no_temp)
-            @fact Cₚ(res.value_set_full) => exp(4)
+            # accessing temperature and pressure
+            @fact_throws MethodError cₚ_exp(res.value_set_no_temp)
+            @fact Ogre.temperature(res.value_set_full) => 4
+            @fact Ogre.pressure(res.value_set_full) => 3
+
+            # uses just temperature
+            @fact cₚ_exp(res.value_set_full) => e^4
+
+            # uses temperature and pressure
+            @fact cₚ_exp2(res.value_set_full) => e^3 + 2e^4
         end
     end
 end

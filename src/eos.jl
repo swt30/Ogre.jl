@@ -7,19 +7,19 @@ using Dierckx, Roots
 # EOS types
 #------------------------------------------------------------------------------
 
-@doc "Equation of State" ->
+"Equation of State type"
 abstract EOS{mc<:ModelComplexity} <: Equation
-@doc "EOS that consists of just one function" ->
+"Equation of state consisting of just one function"
 abstract SingleEOS{mc<:ModelComplexity} <: EOS{mc}
-@doc "EOS that is subdivided into multiple pieces" ->
+"Equation of state that is subdivided into multiple pieces"
 abstract PiecewiseEOS{mc<:ModelComplexity} <: EOS{mc}
-@doc "Simple equation of state calculated directly." ->
+"Equation of state that can be calculated directly."
 abstract SimpleEOS{mc<:ModelComplexity} <: SingleEOS{mc}
 
-@doc """An EOS depending solely on pressure.
-
+""" An EOS depending solely on pressure.
+    
     * `equation`: Function ρ=f(P)
-    * `fullname`: Name of the EOS (for printing and plots) """ ->
+    * `fullname`: Name of the EOS (for printing and plots) """
 immutable PressureEOS <: SimpleEOS{NoTemp}
     equation::Function
     fullname::String
@@ -27,10 +27,10 @@ end
 SimpleEOS(::Type{NoTemp}, f::Function, name::String) = PressureEOS(f, name)
 
 
-@doc """An EOS depending on both pressure and temperature.
+""" An EOS depending on both pressure and temperature
 
     * `equation`: Function ρ=f(P, T)
-    * `fullname`: Name of the EOS (for printing and plots) """ ->
+    * `fullname`: Name of the EOS (for printing and plots) """
 immutable PressureTempEOS <: SimpleEOS{WithTemp}
     equation::Function
     fullname::String
@@ -38,11 +38,11 @@ end
 SimpleEOS(::Type{WithTemp}, f::Function, name::String) = PressureTempEOS(f, name)
 
 
-@doc """Equation of state which inverts some function over a density range.
+""" Equation of state which inverts some function over a density range
 
     * `equation`: Function P=f(ρ)
     * `a`, `b`: Density range to invert over
-    * `fullname`: Name of the EOS (for printing and plots) """ ->
+    * `fullname`: Name of the EOS (for printing and plots) """
 immutable InvPressureEOS{T<:Real} <: SingleEOS{NoTemp}
     equation::Function
     a::T
@@ -50,13 +50,12 @@ immutable InvPressureEOS{T<:Real} <: SingleEOS{NoTemp}
     fullname::String
 end
 
-@doc """Type for equations of state which are piecewise in the mass coordinate.
+""" Equation of state which is piecewise in the mass coordinate
 
     * `equations`: Vector of `SingleEOS` for each piece.
     * `transition_values`: Vector defining the edge of each piece. Evaluating
       past the ends of this vector will just evaluate the nearest EOS.
-    * `fullname`: Name of the EOS (for printing and plotting)
-    """ ->
+    * `fullname`: Name of the EOS (for printing and plotting) """
 immutable MassPiecewiseEOS{T<:Real, E<:SingleEOS{NoTemp}} <: PiecewiseEOS{NoTemp}
     equations::Vector{E}
     transition_values::Vector{T}
@@ -71,14 +70,12 @@ function MassPiecewiseEOS(equations, M, mass_fractions)
     MassPiecewiseEOS(equations, layer_edges)
 end
 
-@doc """Type for equations of state which are piecewise in the pressure
-    coordinate.
+""" Equation of state which is piecewise in the pressure coordinate
 
     * `equations`: Vector of `SingleEOS` for each piece.
     * `transition_values`: Vector defining the edge of each piece. Evaluating
       past the ends of this vector will just evaluate the nearest EOS.
-    * `fullname`: Name of the EOS (for printing and plotting)
-    """ ->
+    * `fullname`: Name of the EOS (for printing and plotting) """
 immutable PressurePiecewiseEOS{T<:Real, E<:SingleEOS} <: PiecewiseEOS
     equations::Vector{E}
     transition_values::Vector{T}
@@ -89,14 +86,12 @@ function PressurePiecewiseEOS(equations, transition_values)
     PressurePiecewiseEOS(equations, transition_values, fullname)
 end
 
-@doc """Get the appropriate individual EOS from a `PiecewiseEOS`, whether mass-
-    piecewise or pressure-piecewise.
+""" Choose the appropriate individual EOS from a `PiecewiseEOS`
 
     * `eos`: `PiecewiseEOS` to evaluate
-    * `x`: Value to evaluate at
+    * `x`: Value to evaluate at (mass or pressure, as appropriate)
 
-    Returns a `SingleEOS`.
-    """ ->
+    Returns a `SingleEOS`. """
 function get_layer_eos(eos::PiecewiseEOS, x)
     # get layer number
     layer_edges = eos.transition_values
@@ -120,7 +115,7 @@ length(::SingleEOS) = 1
 # Individual EOSes
 #------------------------------------------------------------------------------
 
-# Analytic EOS
+# Analytic EOSes
 mgsio3_func(P) = 4100. + 0.00161*(P^0.541)
 fe_func(P) = 8300. + 0.00349*(P^0.528)
 h2o_func(P) = 1460. + 0.00311*(P^0.513)
@@ -133,7 +128,7 @@ const h2o = SimpleEOS(NoTemp, h2o_func, "H2O")
 const graphite = SimpleEOS(NoTemp, graphite_func, "Graphite")
 const sic = SimpleEOS(NoTemp, sic_func, "SiC")
 
-@doc """The Birch-Murnaghan EOS function, in SI units
+""" The Birch-Murnaghan EOS function, in SI units
 
     * `ρ`: Density
     * `ρ₀`: Reference density
@@ -142,8 +137,8 @@ const sic = SimpleEOS(NoTemp, sic_func, "SiC")
 
     Optional parameters
     -------------------
-    * `d2K₀`: Second derivative of the bulk modulus for 4th order BME
-    """ ->
+    * `d2K₀`: Second derivative of the bulk modulus, for 4th order BME
+    """; :BME
 function BME(ρ, ρ₀, K₀, dK₀)
     eta = ρ/ρ₀
 
@@ -164,13 +159,12 @@ function BME(ρ, ρ₀, K₀, dK₀, d2K₀)
     P4
 end
 
-@doc """The Vinet EOS function in SI units
+""" The Vinet EOS function in SI units
 
     * `ρ`: Density
     * `ρ₀`: Reference density
     * `K₀`: Bulk modulus
-    * `dK₀`: First derivative of the bulk modulus (dimensionless)
-    """ ->
+    * `dK₀`: First derivative of the bulk modulus (dimensionless) """
 function Vinet(ρ, ρ₀, K0, dK₀)
     eta = ρ/ρ₀
 
@@ -180,7 +174,7 @@ function Vinet(ρ, ρ₀, K0, dK₀)
     P
 end
 
-@doc """Thomas-Fermi-Dirac EOS with energy correction in SI units.
+""" Thomas-Fermi-Dirac EOS with energy correction in SI units.
 
     * `P`: Pressure
     * `Z`: Atomic number
@@ -189,8 +183,8 @@ end
     To calculate the TFD for multi-atom molecules, supply `Z` and `A` as
     vectors. You may also supply `n`, the numbers of each atom, as a final
     parameter. If you do not supply `n` it will be assumed to be [1, 1, ...]
-    (equal numbers of all atoms). The length of `n` must match `Z` and `A`.
-    """ ->
+    (that is, equal numbers of all atoms). The length of `n` must match `Z` and
+    `A`. """
 function TFD{N<:Integer}(P, Z::Vector{N}, A::Vector, n::Vector)
 
     # inputs should be the same size
@@ -260,7 +254,7 @@ function Base.write(eos::EOS, pressures::Vector{Float64})
     end
 end
 
-@doc "Put a number of interpolated EOSes into data files for later use" ->
+"Put a number of interpolated EOSes into data files for later use"
 function write_eoses_to_files()
     # Seager's versions of the BME
     fe_eps_seager_func(ρ) = Vinet(ρ, 8300., 156.2, 6.08) * 1e9
@@ -299,12 +293,10 @@ function write_eoses_to_files()
     end
 end
 
-@doc """
-    Read a previously-written temperature-independent EOS into a `SimpleEOS`
+""" Read a previously-written temperature-independent EOS
 
     If `linear`=`true`, the EOS is assumed to be on a linear grid.
-    However, the grid does not have to be regular.
-    """ ->
+    (However, the grid does not have to be regular.) """
 function load_interpolated_eos(file::String; linear=false)
     data = readdlm(file, Float64; skipstart=1)
     P, rho = data[:, 1], data[:, 2]
@@ -319,25 +311,20 @@ function load_interpolated_eos(file::String; linear=false)
     SimpleEOS(NoTemp, interp_func, name)
 end
 
-hasnan(x) = any(isnan(x))
-notnan(x) = !isnan(x)
-
-@doc """
-    Read a previously-written 2D temperature-independent EOS into a `SimpleEOS`
+""" Read a previously-written 2D temperature-independent EOS
 
     If `linear`=`true`, the EOS is assumed to be on a linear grid.
-    However, the grid does not have to be regular.
-    """ ->
-function load_2D_eos(file::String; linear=false, suppress_warnings=false)
+    However, the grid does not have to be regular. """
+function load_2D_eos(file::String; linear::Bool=false)
     data = readdlm(file, Float64)
     P = vec(data[2:end, 1]) # dimension 1 (columns)
     T = vec(data[1, 2:end]) # dimension 2 (rows)
     rho = data[2:end, 2:end]
 
     if linear
-        interp_func = lininterp(P, T, rho; suppress_warnings=suppress_warnings)
+        interp_func = lininterp(P, T, rho)
     else
-        interp_func = loginterp(P, T, rho; suppress_warnings=suppress_warnings)
+        interp_func = loginterp(P, T, rho)
     end
 
     _, filename = splitdir(file)
@@ -377,12 +364,16 @@ const my_h2o_500 = load_interpolated_eos("$DATADIR/tabulated/h2o-500K.dat")
 const my_h2o_800 = load_interpolated_eos("$DATADIR/tabulated/h2o-800K.dat")
 const my_h2o_1200 = load_interpolated_eos("$DATADIR/tabulated/h2o-1200K.dat")
 
-const my_h2o_full = load_2D_eos("$DATADIR/tabulated/my_h2o_100x100.dat", suppress_warnings=true)
+const my_h2o_full = load_2D_eos("$DATADIR/tabulated/my_h2o_100x100.dat")
 
 # Phase boundaries
 # ------------------------------------------------------------------------------
 
-@doc "A dictionary mapping phase names to short codes, like 'L' for liquid" ->
+# the 'let' bindings in this section allow us to avoid polluting the module
+# scope with intermediate values, like below: we won't see 'keys', 'shortkeys',
+# and so on once they've ben used to generate the phase dictionary
+
+"A dictionary mapping phase names to short codes, like 'L' for liquid"
 const phase_mappings = let
     keys = ["liquid", "ice I", "ice II", "ice III",
             "ice V", "ice VI", "ice VII", "ice VIII", "ice X"]
@@ -394,12 +385,12 @@ const phase_mappings = let
     phase_mappings = merge!(phasemap, shortmap)
 end
 
-@doc "Dunaeva phase boundary parameter table" -> 
+"Phase boundary parameter table from Dunaeva et al"
 const dunaeva_phase_boundary_table = let 
     readdlm("data/tabulated/Dunaeva-phase-boundaries.dat")
 end
 
-@doc "Describes the T/P extent and shape parameters of a phase boundary"
+"Describes the T/P extent and shape parameters of a phase boundary"
 immutable PhaseBoundaryPars
     phase1::ASCIIString
     phase2::ASCIIString
@@ -413,7 +404,7 @@ immutable PhaseBoundaryPars
     d::Float64
     e::Float64
 end
-
+"Generate `PhaseBoundaryPars` for two given phases"
 function PhaseBoundaryPars(phase1::String, phase2::String)
     table = dunaeva_phase_boundary_table
 
@@ -431,28 +422,31 @@ function PhaseBoundaryPars(phase1::String, phase2::String)
     PhaseBoundaryPars(row...)
 end
 
-@doc "Holds details about the boundary between two phases" ->
+"Holds details about the boundary between two phases"
 abstract PhaseBoundary
 
+"A phase boundary following the formulation of Dunaeva et al"
 immutable DunaevaPhaseBoundary <: PhaseBoundary
     P::Vector{Float64}
     T::Vector{Float64}
     pars::PhaseBoundaryPars
 end
+PhaseBoundary(P::AbstractVector, T, pars) = DunaevaPhaseBoundary(collect(P), T, pars)
 
+"Minimum pressure of the phase boundary (padded to avoid problems at P=0)"; :Pmin
 Pmin(pbp::PhaseBoundaryPars) = pbp.Pmin + 1e-9
-Pmax(pbp::PhaseBoundaryPars) = pbp.Pmax
 Pmin(dpb::DunaevaPhaseBoundary) = Pmin(dpb.pars)
+"Maximum pressure of the phase boundary"; :Pmax
+Pmax(pbp::PhaseBoundaryPars) = pbp.Pmax
 Pmax(dpb::DunaevaPhaseBoundary) = Pmax(dpb.pars)
 
+"A phase boundary that doesn't follow the Dunaeva formulation"
 immutable OtherPhaseBoundary <: PhaseBoundary
     P::Vector{Float64}
     T::Vector{Float64}
 end
 
-PhaseBoundary(P::AbstractVector, T, pars) = DunaevaPhaseBoundary(collect(P), T, pars)
-
-@doc "Get the boundary between two phases" 
+"Get the boundary between two phases"; :PhaseBoundary
 function PhaseBoundary(phase1::String, phase2::String)
     pars = PhaseBoundaryPars(phase1, phase2)
     P = linspace(Pmin(pars), Pmax(pars))
@@ -461,24 +455,21 @@ function PhaseBoundary(phase1::String, phase2::String)
 
     PhaseBoundary(P, T, pars)
 end
-
 function PhaseBoundary(phase1::Symbol, phase2::Symbol)
     p1 = phase_mappings[string(phase1)]
     p2 = phase_mappings[string(phase2)]
     PhaseBoundary(p1, p2)
 end
-
 function PhaseBoundary(phase1::Symbol, phase2::String)
     p1 = phase_mappings[string(phase1)]
     PhaseBoundary(p1, phase2)
 end
-
 function PhaseBoundary(phase1::String, phase2::Symbol)
     p2 = phase_mappings[string(phase2)]
     PhaseBoundary(phase1, p2)
 end
 
-@doc "Calculate the temperature along a phase boundary"
+"Calculate the temperature along a phase boundary"
 function phase_boundary_temp(P, pars::PhaseBoundaryPars)
     # P in Pa; this function is in bar
     Pa_to_bar(P) = P / 100000
@@ -487,7 +478,7 @@ function phase_boundary_temp(P, pars::PhaseBoundaryPars)
     T = pars.a + pars.b*P + pars.c*log(P) + pars.d/P + pars.e*sqrt(P)
 end
 
-@doc "All relevant phase boundaries" ->
+"All relevant phase boundaries"
 const phase_boundaries = let
     dunaeva_boundaries = maprows(dunaeva_phase_boundary_table) do row
         p1, p2 = row[1:2]

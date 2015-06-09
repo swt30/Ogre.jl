@@ -4,13 +4,22 @@
 # CONSTANTS
 #------------------------------------------------------------------------------
 
-# default values for integrator
-# TODO: remove the hard coding on these
-const P_surf = 1.0e5
-const T_surf = 300
-const mass_fractions = [1.]
-const total_points = 100
-const R_bracket = [0., 10.] .* R_earth
+"Default values for the integrator"
+module defaults
+    import Ogre: R_earth
+
+    # TODO: remove the hard coding on these
+    "Surface pressure"
+    const P_surf = 1.0e5
+    "Surface temperature"
+    const T_surf = 300
+    "Mass fractions of the different layers"
+    const mass_fractions = [1.]
+    "Total number of points to use in the integration"
+    const total_points = 100
+    "Radius search bracket"
+    const R_bracket = [0., 10.] .* R_earth
+end
 
 # STRUCTURAL EQUATIONS
 #------------------------------------------------------------------------------
@@ -72,7 +81,7 @@ function Base.call(tg::TemperatureGradient, pv::PhysicalValues)
         r = radius(pv)
         m = mass(pv)
         T = temperature(pv)
-        α = 5e-4  # thermal_expansivity(pv, tg.eos)
+        α = thermal_expansivity(pv, tg.eos)  # thermal_expansivity(pv, tg.eos)
 
         dT_dm = -(G * m * α * T) / (4pi * r^4 * ρ * cₚ)
     end
@@ -81,14 +90,21 @@ function Base.call(tg::TemperatureGradient, pv::PhysicalValues)
 end
 
 @doc "Thermal expansivity αᵥ = -1/ρ (∂ρ/∂T)ₚ"
-function thermal_expansivity(pv::PhysicalValues, eos::EOS)
-    T1 = temperature(pv)     
-    T2 = temperature(pv) + 1
-    P = pressure(pv)
+function thermal_expansivity(P, T, eos::EOS)
+    T1 = T
+    T2 = T1 + 1
     ρ = eos(P, T1)
     dρ = eos(P, T2) - ρ
 
     alpha = -1/ρ * dρ
+
+    return alpha
+end
+
+function thermal_expansivity(pv::PhysicalValues, eos::EOS)
+    T = temperature(pv)
+    P = pressure(pv)
+    thermal_expansivity(P, T, eos)
 end
 
 # PLANETARY STRUCTURE #
@@ -141,7 +157,7 @@ function Base.show(io::IO, p::PlanetSystem)
 end
 
 function PlanetSystem(M, eos::EOS{NoTemp}, bvs::BoundaryValues{NoTemp}, 
-    grid=linspace(M, 0, total_points), r_bracket=R_bracket)
+    grid=linspace(M, 0, defaults.total_points), r_bracket=defaults.R_bracket)
 
     masscontinuity = MassContinuity(eos)
     structure = EquationSet([masscontinuity, pressurebalance])
@@ -149,8 +165,8 @@ function PlanetSystem(M, eos::EOS{NoTemp}, bvs::BoundaryValues{NoTemp},
     TempIndepPlanet(M, structure, bvs, grid, r_bracket)
 end
 function PlanetSystem(M, eos::EOS{WithTemp}, Cₚ::HeatCapacity, 
-    bvs::BoundaryValues{WithTemp}, grid=linspace(M, 0, total_points),
-    r_bracket=R_bracket)
+    bvs::BoundaryValues{WithTemp}, grid=linspace(M, 0, defaults.total_points),
+    r_bracket=defaults.R_bracket)
 
     masscontinuity = MassContinuity(eos)
     temperaturegradient = TemperatureGradient(eos, Cₚ)
@@ -160,11 +176,11 @@ function PlanetSystem(M, eos::EOS{WithTemp}, Cₚ::HeatCapacity,
 end
 
 function DefaultPlanetSystem(M, eos::EOS{NoTemp})
-    bvs = BoundaryValues(M, mean(R_bracket), P_surf)
+    bvs = BoundaryValues(M, mean(defaults.R_bracket), defaults.P_surf)
     PlanetSystem(M, eos, bvs)
 end
 function DefaultPlanetSystem(M, eos::EOS{WithTemp}, Cₚ::HeatCapacity)
-    bvs = BoundaryValues(M, mean(R_bracket), P_surf, T_surf)
+    bvs = BoundaryValues(M, mean(defaults.R_bracket), defaults.P_surf, defaults.T_surf)
     PlanetSystem(M, eos, Cₚ, bvs)
 end
 

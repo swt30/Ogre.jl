@@ -1,16 +1,12 @@
 # INTEGRATOR.JL
-# Numerical routines and solutions of planetary structral models
+# Numerical routines for solutions of planetary structure models
 
 using Compat
 
 # Solutions
 #------------------------------------------------------------------------------
 
-@doc """Solve a `PlanetSystem`, writing the solution to a given
-    `PlanetStructure`.
-
-    * `sys`: A `PlanetSystem` to solve
-    * `soln`: A `PlanetStructure` to write the solution to""" ->
+"Solve a `PlanetSystem`, writing the solution to a given `PlanetStructure`."
 function solve!(sys::PlanetSystem, soln::PlanetStructure)
     # initial values
     x0 = nonmass(sys.boundary_values)
@@ -28,7 +24,7 @@ function solve!(sys::PlanetSystem, soln::PlanetStructure)
     soln
 end
 
-@doc "Generate a new `PlanetStructure` object and solve a `PlanetSystem`" ->
+"Generate a new `PlanetStructure` object and solve a `PlanetSystem`"
 function solve(sys::PlanetSystem)
     soln = blank_structure(sys)
     solve!(sys, soln)
@@ -38,15 +34,19 @@ end
 #------------------------------------------------------------------------------
 
 # helper functions
-notnan(value) = ~isnan(value)
+"Has the radius passed the central point?"; :hit_the_centre
 hit_the_centre(R::Real) = R < 0
-not_far_enough(R::Real) = R > 100
 hit_the_centre(ps::PlanetStructure) = hit_the_centre(radius(centre(ps)))
+"Is the radius not yet close enough to the centre?"; :not_far_enough
+not_far_enough(R::Real) = R > 100
 not_far_enough(ps::PlanetStructure) = not_far_enough(radius(centre(ps)))
+"Is the structural solution acceptable?"
 acceptable(ps::PlanetStructure) = !hit_the_centre(ps) && !not_far_enough(ps)
 
-@doc """Reproduce a `PlanetSystem`, but change the radius guess to be at the
-    centre of its radius search bracket""" ->
+""" Clone a `PlanetSystem`, updating the radius guess appropriately
+
+    The new system will have R_guess at the centre of its radius search
+    bracket. """
 function update_boundary_r(system::PlanetSystem)
     R_guess = mean(system.radius_search_bracket)
     updated_boundary_values = cpmod(system.boundary_values, r=R_guess)
@@ -55,15 +55,17 @@ function update_boundary_r(system::PlanetSystem)
     updated_system
 end
 
-@doc "Reproduce a `PlanetSystem`, altering its radius search bracket" ->
+"Clone a `PlanetSystem`, updating its radius search bracket"
 function update_R_search_bracket(system::PlanetSystem,
     r_low::Real, r_high::Real)
 
     cpmod(system, radius_search_bracket=[r_low, r_high])
 end
 
-@doc """Based on a `PlanetStructure` solution for a given `PlanetSystem`,
-    update the system with an adjusted radius search bracket""" ->
+""" Update a `PlanetSystem` with an appropriate search radius 
+
+    The radius is determined based on the previous `PlanetStructure` solution
+    """
 function adapt_search_radius(system::PlanetSystem, result::PlanetStructure)
     if hit_the_centre(result)
         new_min_R = R_guess(system)
@@ -76,11 +78,13 @@ function adapt_search_radius(system::PlanetSystem, result::PlanetStructure)
     end
 end
 
-@doc """Recursively search the radius search bracket of a `PlanetSystem` to
+""" Repeatedly solve a `PlanetSystem` until its radius is suitable
+
+    Recursively search the radius search bracket of a `PlanetSystem` to
     get a result that has an acceptable error at the centre. Returns a
-    `PlanetSystem` with the appropriate radius.""" ->
+    `PlanetSystem` with the appropriate radius. """
 function converge(system::PlanetSystem)
-    if R_guess(system) != system.boundary_values.r
+    if R_guess(system) ≠ system.boundary_values.r
         system = update_boundary_r(system)
     end
     result = solve(system)
@@ -93,12 +97,12 @@ function converge(system::PlanetSystem)
 end
 
 # basic functions for geting radii and structures
-@doc "Get the correct internal structure for a `PlanetSystem`" ->
+"Get the correct internal structure for a `PlanetSystem`"
 find_structure(system::PlanetSystem) = solve(converge(system))
-@doc "Find the radius of a `PlanetSystem` by solving the system" ->
+"Find the radius of a `PlanetSystem` by solving the system"
 find_radius(system::PlanetSystem) = radius(surface(find_structure(system)))
 
-@doc "Solve a `PlanetSystem` and give both the total radius and the structure" ->
+"Solve a `PlanetSystem` and give both the total radius and the structure"
 function find_structure_and_radius(system::PlanetSystem)
     struct = find_structure(system)
     r = radius(surface(struct))
@@ -107,7 +111,7 @@ function find_structure_and_radius(system::PlanetSystem)
 end
 
 # higher level functions for doing MR diagrams
-@doc "Create and solve for a `PlanetSystem`'s radius'" ->
+"Create and solve for a `PlanetSystem`'s radius'"
 function find_radius{T<:Real}(M::T, structure::EquationSet, P_surface::T,
     solution_grid::Vector{T}, R_bracket::Vector{T})
 
@@ -117,7 +121,7 @@ function find_radius{T<:Real}(M::T, structure::EquationSet, P_surface::T,
     R::T = find_radius(system)
 end
 
-@doc "Find the radius of a solid sphere of mass `M` using an given `EOS`." ->
+"Find the radius of a solid sphere of mass `M` using an given `EOS`."
 function R(M::Real, eos::EOS{NoTemp}; in_earth_units=false)
     Mscale = in_earth_units ? M_earth : 1.
     Rscale = in_earth_units ? 1/R_earth : 1.
@@ -128,6 +132,7 @@ function R(M::Real, eos::EOS{NoTemp}; in_earth_units=false)
     r::Float64
 end
 
+# temperature-dependent version
 function R(M::Real, eos::EOS{WithTemp}, Cₚ::HeatCapacity; in_earth_units=false)
     Mscale = in_earth_units ? M_earth : 1.
     Rscale = in_earth_units ? 1/R_earth : 1.
@@ -150,7 +155,7 @@ end
 # accept either single or multi-valued starting conditions
 typealias NumOrVec{T<:Real} Union(T, Vector{T})
 
-@doc "RK4 step of function `F`, initial conds `x`, from `tstart` to `tend`" ->
+"Do a RK4 step of function `F`, initial conds `x`, from `tstart` to `tend`"
 function ode4_step(F, x, tstart, tend)
     h = tend - tstart
     k = zeros(eltype(x), (length(x), 4))
@@ -175,14 +180,14 @@ abstract IntegratorMethod
 abstract FixedStepIntegrator <: IntegratorMethod
 abstract RK4Integrator <: FixedStepIntegrator
 
-@doc "Type for general RK4 solving" ->
+"General RK4 solver"
 immutable GenericRK4{T<:Real, V<:AbstractVector{Float64}} <: RK4Integrator
     func
     x0::NumOrVec{T}
     tgrid::V
 end
 
-@doc "Type for more specifically solving planetary structures" ->
+"Planetary structure RK4 solver"
 immutable PlanetRK4{T<:Real, V<:AbstractVector{Float64}} <: RK4Integrator
     func
     x0::NumOrVec{T}
@@ -240,18 +245,19 @@ Base.length(solver::FixedStepIntegrator) = length(solver.tgrid)
 # Dense solvers
 #------------------------------------------------------------------------------
 
-@doc """ Solve the ODE defined by function `F`, initial conds `x`, and fixed
-    time steps `tgrid`. Returns dense output (an array of solutions at each
-    point in `tgrid`) """ ->
-function ode4_dense(F, x, tgrid)
-    solver = GenericRK4(F, x, tgrid)
+""" Solve the ODE dx/dt = `F` with initial conds `x0` on time grid `tgrid`.
+    
+    Returns dense output (an array of solutions at each point in `tgrid`) """#
+function ode4_dense(F, x0, tgrid)
+    solver = GenericRK4(F, x0, tgrid)
 
     # return a 1D array
     # the x[1] is to flatten any 1x1 arrays into single values
     [x[1] for x in solver]
 end
-function ode4_dense(F, x::Vector, tgrid)
-    solver = GenericRK4(F, x, tgrid)
+# version for multi-valued functions
+function ode4_dense(F, x0::Vector, tgrid)
+    solver = GenericRK4(F, x0, tgrid)
 
     # return a 2D array
     hcat([x for x in solver]...)'

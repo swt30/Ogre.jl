@@ -136,16 +136,11 @@ facts("Equation of state (EOS) handling") do
                     @fact (loginterp2d(P_to_check, T_to_check) => 
                            roughly(expected_results, rtol=0.01))
 
-                    context("with NaN values") do
+                    context("NaN values error out") do
                         rnan = copy(res.eos.rholin_2D)
-                        # set a value near the edge = NaN and check if the rest
-                        # of the points are okay
+                        # set a value near the edge = NaN 
                         rnan[2] = NaN
-                        interp2dnan = Ogre.lininterp(res.eos.Plin, res.eos.Tlin, rnan, 
-                                                     suppress_warnings=true)
-                        @fact (interp2dnan(P_to_check, T_to_check) => 
-                               roughly(expected_results, rtol=0.01))
-                        @fact interp2dnan(1.1, 10.) => less_than(0)
+                        @fact_throws Ogre.lininterp(res.eos.Plin, res.eos.Tlin, rnan)
                     end
                 end
             end

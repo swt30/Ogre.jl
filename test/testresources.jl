@@ -11,7 +11,7 @@ module heatcap
     import Ogre
     func = exp
     exponential = Ogre.HeatCapacity(Ogre.WithTemp, func)
-    func2d(x, y) = exp(x) * exp(y)
+    func2d(x, y) = exp(x) + 2*exp(y)
     exponential2d = Ogre.HeatCapacity(Ogre.WithTempPressure, func2d)
     constant = Ogre.HeatCapacity(1)
 end # module heatcap
@@ -88,8 +88,6 @@ module eos
     interp_1D_log = Ogre.loginterp(Plog, rholog_1D)
     interp_2D_lin = Ogre.lininterp(Plin, Tlin, rholin_2D)
     interp_2D_log = Ogre.loginterp(Plog, Tlog, rholog_2D)
-    interp_2D_lin_withnans = Ogre.lininterp(Plin, Tlin, rholin_2D_withnans; 
-                                            suppress_warnings=true)
 end # module eos
 
 module planet
@@ -134,7 +132,7 @@ module planet
         using ..shared
         R_bracket = [0, 2] * R_earth
         heatcap = Ogre.HeatCapacity(4200) # J K⁻¹ kg⁻¹
-        eos = Ogre.SimpleEOS(WithTemp, (P, T) -> 1000 - 0.001T, "Test EOS")
+        eos = Ogre.SimpleEOS(WithTemp, (P, T) -> 1000 + 1/T, "Test EOS")
         earth_surface_values = Ogre.BoundaryValues(M_earth, R_earth, 
                                                    atmospheric_pressure, surface_temperature)
         system = Ogre.PlanetSystem(M_earth, eos, heatcap, earth_surface_values, 
