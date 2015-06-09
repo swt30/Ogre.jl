@@ -190,3 +190,8 @@ function semiloginterpy(xs::Vector, ys::Vector, zs::Matrix; kwargs...)
     lin_interp_func = lininterp(xs, logys, zs; kwargs...)
     interp_func(x, y) = lin_interp_func(x, log10(y))
 end
+
+# Miscellaneous utility funcs
+#-------------------------------------------------------------------------------
+
+maprows(f, m::Matrix) = mapslices(f, m, 2) 

@@ -139,7 +139,7 @@ function R(M::Real, eos::EOS{WithTemp}, Cₚ::HeatCapacity; in_earth_units=false
 end
 
 # vectorized form of the above
-function R{T<:Real}(ms::Vector{T}, args...; in_earth_units=false)
+function R{T<:Real}(ms::AbstractVector{T}, args...; in_earth_units=false)
     R_withEOS(M) = R(M, args...; in_earth_units=in_earth_units)
     map(R_withEOS, ms)
 end

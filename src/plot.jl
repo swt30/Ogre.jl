@@ -16,7 +16,7 @@ plotstyle.use("fivethirtyeight")
 #------------------------------------------------------------------------------
 
 import PyPlot.plot
-function plot(soln::PlanetStructure{NoTemp})
+function plot(soln::PlanetStructure{NoTemp}; kwargs...)
     x = vec(mass(soln)) ./ M_earth
     r = vec(radius(soln)) ./ R_earth
     P = vec(pressure(soln)) ./ 1e9
@@ -37,12 +37,12 @@ function plot(soln::PlanetStructure{NoTemp})
         ax[:yaxis][:get_major_formatter]()[:set_powerlimits]((0, 4))
     end
 
-    ax1[:plot](x, P, linewidth=2)
-    ax2[:plot](x, r, linewidth=2)
+    ax1[:plot](x, P, linewidth=2, kwargs...)
+    ax2[:plot](x, r, linewidth=2, kwargs...)
     tight_layout()
 end
 
-function plot(soln::PlanetStructure{WithTemp})
+function plot(soln::PlanetStructure{WithTemp}; kwargs...)
     x = vec(mass(soln)) / M_earth
     r = vec(radius(soln)) / R_earth
     P = vec(pressure(soln)) / 1e9
@@ -66,13 +66,17 @@ function plot(soln::PlanetStructure{WithTemp})
         ax[:yaxis][:get_major_formatter]()[:set_powerlimits]((0, 4))
     end
 
-    ax1[:plot](x, T, linewidth=2)
-    ax2[:plot](x, P, linewidth=2)
-    ax3[:plot](x, r, linewidth=2)
+    ax1[:plot](x, T, linewidth=2; kwargs...)
+    ax2[:plot](x, P, linewidth=2; kwargs...)
+    ax3[:plot](x, r, linewidth=2; kwargs...)
     tight_layout()
 end
 
-function phaseplot(soln::PlanetStructure{WithTemp})
+function plot(pb::PhaseBoundary; kwargs...)
+    plot(pb.P, pb.T; kwargs...)
+end
+
+function phaseplot(soln::PlanetStructure{WithTemp}; kwargs...)
     P = vec(pressure(soln)) / 1e9
     T = vec(temperature(soln))
 
@@ -81,19 +85,24 @@ function phaseplot(soln::PlanetStructure{WithTemp})
     ax1 = subplot(111)
     xlabel("Pressure / GPa")
     ylabel("Temperature / K")
-    # xscale("log")
-    # yscale("log")
-
-    @show P[1], P[end]
-    @show T[1], T[end]
+    xscale("log")
+    yscale("log")
 
     plot_phases()
-    plot(P, T, linewidth=2)
+    plot(P, T, linewidth=2; kwargs...)
+
+    xlim(xmin=1e-5, xmax=100)
+    ylim(ymin=200, ymax=2000)
 
     tight_layout()
 end
 
 function plot_phases()
-    warn("No phase information yet")
+    for pb in Ogre.phase_boundaries
+        new_pressure = pb.P/1e9
+        adjusted_P = cpmod(pb, P=new_pressure)
+        c = isa(pb, OtherPhaseBoundary) ? "Red" : "Black" 
+        plot(adjusted_P, linewidth=1, color=c)
+    end
 end
 

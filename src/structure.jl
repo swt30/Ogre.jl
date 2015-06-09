@@ -72,7 +72,7 @@ function Base.call(tg::TemperatureGradient, pv::PhysicalValues)
         r = radius(pv)
         m = mass(pv)
         T = temperature(pv)
-        α = thermal_expansivity(pv, tg.eos)
+        α = 5e-4  # thermal_expansivity(pv, tg.eos)
 
         dT_dm = -(G * m * α * T) / (4pi * r^4 * ρ * cₚ)
     end
@@ -224,6 +224,14 @@ mass(ps::PlanetStructure) = sub(ps.data, 1, :)
 radius(ps::PlanetStructure) = sub(ps.data, 2, :)
 pressure(ps::PlanetStructure) = sub(ps.data, 3, :)
 temperature(ps::PlanetStructure{WithTemp}) = sub(ps.data, 4, :)
+function density(ps::PlanetStructure{NoTemp}, T, sys::PlanetSystem)
+    eos = sys.structure_equations[1].eos
+    map(P -> eos(P, T), pressure(ps))
+end
+function density(ps::PlanetStructure{WithTemp}, sys::PlanetSystem)
+    eos = sys.structure_equations[1].eos
+    map(eos, pressure(ps), temperature(ps))
+end
 
 npoints(ps::PlanetStructure) = length(mass(ps))
 ndeps{MC<:ModelComplexity}(::PlanetStructure{MC}) = ndeps(MC)

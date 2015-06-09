@@ -48,16 +48,17 @@ function mr_diagrams()
 end
 
 function phaseplots()
-    close(:all)
+    M = M_earth
+    R = R_earth
 
     eos = Ogre.my_h2o_full
     heatcap = Ogre.HeatCapacity("data/tabulated/heatcap-h2o.dat")
-    Psurf = 1e6
+    Psurf = 1e5
     Tsurf = 300
-    npoints = 100
-    grid = linspace(M_earth, 0, npoints)
-    bcs = Ogre.ValueSet(M_earth, R_earth, Psurf, Tsurf)
-    sys = Ogre.PlanetSystem(M_earth, eos, heatcap, bcs, grid)
+    npoints = 200
+    grid = linspace(M, 0, npoints)
+    bcs = Ogre.ValueSet(M, R, Psurf, Tsurf)
+    sys = Ogre.PlanetSystem(M, eos, heatcap, bcs, grid)
 
     sys = Ogre.converge(sys)
     show(sys)
@@ -66,4 +67,7 @@ function phaseplots()
     Ogre.phaseplot(soln)
 end
 
+close(:all)
+
 phaseplots()
+# mr_diagrams()

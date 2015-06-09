@@ -127,11 +127,11 @@ h2o_func(P) = 1460. + 0.00311*(P^0.513)
 graphite_func(P) = 2250. + 0.00350*(P^0.514)
 sic_func(P) = 3220. + 0.00172*(P^0.537)
 
-mgsio3 = SimpleEOS(NoTemp, mgsio3_func, "MgSiO3")
-fe = SimpleEOS(NoTemp, fe_func, "Fe")
-h2o = SimpleEOS(NoTemp, h2o_func, "H2O")
-graphite = SimpleEOS(NoTemp, graphite_func, "Graphite")
-sic = SimpleEOS(NoTemp, sic_func, "SiC")
+const mgsio3 = SimpleEOS(NoTemp, mgsio3_func, "MgSiO3")
+const fe = SimpleEOS(NoTemp, fe_func, "Fe")
+const h2o = SimpleEOS(NoTemp, h2o_func, "H2O")
+const graphite = SimpleEOS(NoTemp, graphite_func, "Graphite")
+const sic = SimpleEOS(NoTemp, sic_func, "SiC")
 
 @doc """The Birch-Murnaghan EOS function, in SI units
 
@@ -367,14 +367,139 @@ call(eos::EOS, P::Real) = eos.equation(P)
 call(eos::EOS{WithTemp}, P::Real, T::Real) = eos.equation(P, T)
 
 # Load interpolated EOS from file
-fe_seager = load_interpolated_eos("$DATADIR/Fe (Vinet) (Seager 2007) & Fe TFD.eos")
-h2o_seager = load_interpolated_eos("$DATADIR/H2O (BME3) (Seager 2007) & H2O (DFT) & H2O TFD.eos")
-h2o_seager_simple = load_interpolated_eos("$DATADIR/H2O (BME3) (Seager 2007) & H2O TFD.eos")
-mgsio3_seager = load_interpolated_eos("$DATADIR/MgSiO3 (BME4) (Seager 2007) & MgSiO3 TFD.eos")
+const fe_seager = load_interpolated_eos("$DATADIR/Fe (Vinet) (Seager 2007) & Fe TFD.eos")
+const h2o_seager = load_interpolated_eos("$DATADIR/H2O (BME3) (Seager 2007) & H2O (DFT) & H2O TFD.eos")
+const h2o_seager_simple = load_interpolated_eos("$DATADIR/H2O (BME3) (Seager 2007) & H2O TFD.eos")
+const mgsio3_seager = load_interpolated_eos("$DATADIR/MgSiO3 (BME4) (Seager 2007) & MgSiO3 TFD.eos")
 
-my_h2o_300 = load_interpolated_eos("$DATADIR/tabulated/h2o-300K.dat")
-my_h2o_500 = load_interpolated_eos("$DATADIR/tabulated/h2o-500K.dat")
-my_h2o_800 = load_interpolated_eos("$DATADIR/tabulated/h2o-800K.dat")
-my_h2o_1200 = load_interpolated_eos("$DATADIR/tabulated/h2o-1200K.dat")
+const my_h2o_300 = load_interpolated_eos("$DATADIR/tabulated/h2o-300K.dat")
+const my_h2o_500 = load_interpolated_eos("$DATADIR/tabulated/h2o-500K.dat")
+const my_h2o_800 = load_interpolated_eos("$DATADIR/tabulated/h2o-800K.dat")
+const my_h2o_1200 = load_interpolated_eos("$DATADIR/tabulated/h2o-1200K.dat")
 
-my_h2o_full = load_2D_eos("$DATADIR/tabulated/my_h2o_100x100.dat", suppress_warnings=true)
+const my_h2o_full = load_2D_eos("$DATADIR/tabulated/my_h2o_100x100.dat", suppress_warnings=true)
+
+# Phase boundaries
+# ------------------------------------------------------------------------------
+
+@doc "A dictionary mapping phase names to short codes, like 'L' for liquid" ->
+const phase_mappings = let
+    keys = ["liquid", "ice I", "ice II", "ice III",
+            "ice V", "ice VI", "ice VII", "ice VIII", "ice X"]
+    shortkeys = split("L I II III V VI VII VIII X")
+
+    phasemap = Dict(zip(keys, shortkeys))
+    shortmap = Dict(zip(shortkeys, shortkeys))
+
+    phase_mappings = merge!(phasemap, shortmap)
+end
+
+@doc "Dunaeva phase boundary parameter table" -> 
+const dunaeva_phase_boundary_table = let 
+    readdlm("data/tabulated/Dunaeva-phase-boundaries.dat")
+end
+
+@doc "Describes the T/P extent and shape parameters of a phase boundary"
+immutable PhaseBoundaryPars
+    phase1::ASCIIString
+    phase2::ASCIIString
+    Tmin::Float64
+    Tmax::Float64
+    Pmin::Float64
+    Pmax::Float64
+    a::Float64
+    b::Float64
+    c::Float64
+    d::Float64
+    e::Float64
+end
+
+function PhaseBoundaryPars(phase1::String, phase2::String)
+    table = dunaeva_phase_boundary_table
+
+    match11 = (table[:, 1] .== phase1)
+    match22 = (table[:, 2] .== phase2)
+    match21 = (table[:, 2] .== phase1)
+    match12 = (table[:, 1] .== phase2)
+    matches_normal = match11 & match22
+    matches_reversed = match12 & match21
+    matches = matches_normal | matches_reversed
+
+    row = table[matches, :]
+    row[5:6] *= 1e5 # convert from bar to Pa
+
+    PhaseBoundaryPars(row...)
+end
+
+@doc "Holds details about the boundary between two phases" ->
+abstract PhaseBoundary
+
+immutable DunaevaPhaseBoundary <: PhaseBoundary
+    P::Vector{Float64}
+    T::Vector{Float64}
+    pars::PhaseBoundaryPars
+end
+
+Pmin(pbp::PhaseBoundaryPars) = pbp.Pmin + 1e-9
+Pmax(pbp::PhaseBoundaryPars) = pbp.Pmax
+Pmin(dpb::DunaevaPhaseBoundary) = Pmin(dpb.pars)
+Pmax(dpb::DunaevaPhaseBoundary) = Pmax(dpb.pars)
+
+immutable OtherPhaseBoundary <: PhaseBoundary
+    P::Vector{Float64}
+    T::Vector{Float64}
+end
+
+PhaseBoundary(P::AbstractVector, T, pars) = DunaevaPhaseBoundary(collect(P), T, pars)
+
+@doc "Get the boundary between two phases" 
+function PhaseBoundary(phase1::String, phase2::String)
+    pars = PhaseBoundaryPars(phase1, phase2)
+    P = linspace(Pmin(pars), Pmax(pars))
+    f = P -> phase_boundary_temp(P, pars)
+    T = map(f, P)
+
+    PhaseBoundary(P, T, pars)
+end
+
+function PhaseBoundary(phase1::Symbol, phase2::Symbol)
+    p1 = phase_mappings[string(phase1)]
+    p2 = phase_mappings[string(phase2)]
+    PhaseBoundary(p1, p2)
+end
+
+function PhaseBoundary(phase1::Symbol, phase2::String)
+    p1 = phase_mappings[string(phase1)]
+    PhaseBoundary(p1, phase2)
+end
+
+function PhaseBoundary(phase1::String, phase2::Symbol)
+    p2 = phase_mappings[string(phase2)]
+    PhaseBoundary(phase1, p2)
+end
+
+@doc "Calculate the temperature along a phase boundary"
+function phase_boundary_temp(P, pars::PhaseBoundaryPars)
+    # P in Pa; this function is in bar
+    Pa_to_bar(P) = P / 100000
+    
+    P = Pa_to_bar(P)
+    T = pars.a + pars.b*P + pars.c*log(P) + pars.d/P + pars.e*sqrt(P)
+end
+
+@doc "All relevant phase boundaries" ->
+const phase_boundaries = let
+    dunaeva_boundaries = maprows(dunaeva_phase_boundary_table) do row
+        p1, p2 = row[1:2]
+        PhaseBoundary(p1, p2)
+    end
+
+    iapws_boundary = let
+        table = readdlm("data/tabulated/iapws-phase-boundary.dat")
+        P = table[:, 1] * 1e6 # MPa -> Pa
+        T = table[:, 2]
+        OtherPhaseBoundary(P, T)
+    end
+
+    vcat(dunaeva_boundaries, iapws_boundary)
+end

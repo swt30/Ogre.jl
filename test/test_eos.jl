@@ -164,5 +164,42 @@ facts("Equation of state (EOS) handling") do
             @fact_throws teos(res.value_set_no_temp)
         end
     end
+
+    context("Phase boundaries") do
+        context("have correct long-short code mappings") do
+            iskeyof(dict) = k -> k in keys(dict)
+            isvaluein(dict) = v -> v in values(dict)
+            phasedict = Ogre.phase_mappings
+
+            @fact "liquid" => iskeyof(phasedict)
+            @fact "L" => isvaluein(phasedict)
+            @fact "L" => iskeyof(phasedict)
+            @fact "ice VII" => iskeyof(phasedict)
+            @fact "VII" => iskeyof(phasedict)
+            @fact "VII" => isvaluein(phasedict)
+            @fact phasedict["liquid"] => "L"
+            @fact phasedict["ice VII"] => "VII"
+        end
+
+        context("Have correct end values on the boundaries") do
+            pb = Ogre.PhaseBoundary
+
+            maxtemp(pb) = maximum(pb.T)
+            mintemp(pb) = minimum(pb.T)
+            maxpress(pb) = maximum(pb.P)
+            minpress(pb) = minimum(pb.P)
+
+            @fact_throws pb(:L, :II)
+            @fact_throws pb("L", "II")
+
+            @fact mintemp(pb(:L, :VII)) => roughly(355.0, rtol=0.01)
+            @fact maxpress(pb(:L, :VII)) => roughly(400000e5, rtol=0.01)
+            @fact mintemp(pb("L", :VII)) => roughly(355.0, rtol=0.01)
+            @fact minpress(pb("L", :VII)) => roughly(22160e5, rtol=0.01)
+            @fact mintemp(pb(:L, "VII")) => roughly(355.0, rtol=0.01)
+            @fact mintemp(pb("L", "VII")) => roughly(355.0, rtol=0.01)
+            @fact maxtemp(pb(:VII, :X)) => roughly(1500, rtol=0.01)
+        end
+    end
 end
 
