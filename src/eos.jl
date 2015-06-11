@@ -387,7 +387,7 @@ end
 
 "Phase boundary parameter table from Dunaeva et al"
 const dunaeva_phase_boundary_table = let 
-    readdlm("data/tabulated/Dunaeva-phase-boundaries.dat")
+    readdlm("$DATADIR/tabulated/Dunaeva-phase-boundaries.dat")
 end
 
 "Describes the T/P extent and shape parameters of a phase boundary"
@@ -486,7 +486,7 @@ const phase_boundaries = let
     end
 
     iapws_boundary = let
-        table = readdlm("data/tabulated/iapws-phase-boundary.dat")
+        table = readdlm("$DATADIR/tabulated/iapws-phase-boundary.dat")
         P = table[:, 1] * 1e6 # MPa -> Pa
         T = table[:, 2]
         OtherPhaseBoundary(P, T)
