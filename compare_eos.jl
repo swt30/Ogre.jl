@@ -1,8 +1,5 @@
 using Ogre, PyPlot
 
-PyPlot.plot(a::Matrix, args...; kwargs...) = plot(a[:, 1], a[:, 2],
-                                                  args...; kwargs...)
-
 function main()
     graph_h2o    = readcsv("data/seager-graphs/H2O.csv")
     graph_mgsio3 = readcsv("data/seager-graphs/MgSiO3.csv")
@@ -13,10 +10,10 @@ function main()
     h2o          = map(Ogre.h2o_seager, pressures)
     mgsio3       = map(Ogre.mgsio3_seager, pressures)
     fe           = map(Ogre.fe_seager, pressures)
-    my_h2o_300   = map(Ogre.my_h2o_300, pressures)
-    my_h2o_500   = map(Ogre.my_h2o_500, pressures)
-    my_h2o_800   = map(Ogre.my_h2o_800, pressures)
-    my_h2o_1200  = map(Ogre.my_h2o_1200, pressures)
+    my_h2o_300   = map(P -> Ogre.my_h2o_full(P, 300), pressures)
+    my_h2o_500   = map(P -> Ogre.my_h2o_full(P, 500), pressures)
+    my_h2o_800   = map(P -> Ogre.my_h2o_full(P, 800), pressures)
+    my_h2o_1200  = map(P -> Ogre.my_h2o_full(P, 1200), pressures)
 
     fig = figure()
     ax = subplot(111)
