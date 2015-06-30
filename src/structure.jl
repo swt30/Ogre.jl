@@ -4,7 +4,8 @@
 # CONSTANTS
 #------------------------------------------------------------------------------
 
-"Default values for the integrator"
+# Default values for the integrator
+# TODO: re-document this module once permitted
 module defaults
     import Ogre: R_earth
 
@@ -24,10 +25,10 @@ end
 # STRUCTURAL EQUATIONS
 #------------------------------------------------------------------------------
 
-@doc "Type for a planetary structure equation that is not an EOS" ->
+"A planetary structure equation that is not an EOS"
 abstract StructureEquation{mc<:ModelComplexity} <: Equation
 
-@doc "Mass continuity: dr/dm = 1/4πr²ρ" ->
+"Mass continuity: dr/dm = 1/4πr²ρ"
 immutable MassContinuity{mc<:ModelComplexity, E<:EOS} <: StructureEquation{mc}
     eos::E
 end
@@ -47,11 +48,10 @@ function Base.call(mce::MassContinuity, vs::ValueSet)
     dr_dm
 end
 
-@doc "Pressure balance: dP/dm = -Gm/4πr⁴" ->
+"Pressure balance: dP/dm = -Gm/4πr⁴"
 immutable PressureBalance <: StructureEquation{NoTemp} 
     # this equation does not change with composition
 end
-
 const pressurebalance = PressureBalance()
 
 function Base.call(pbe::PressureBalance, vs::ValueSet)
@@ -66,7 +66,7 @@ function Base.call(pbe::PressureBalance, vs::ValueSet)
     dP_dm
 end
 
-@doc "Adiabatic temperature gradient: dT/dm = -Gm/4πr⁴Cₚ"
+"Adiabatic temperature gradient: dT/dm = -Gm/4πr⁴Cₚ"
 immutable TemperatureGradient{E<:EOS, HC<:HeatCapacity} <: StructureEquation{WithTemp}
     eos::E
     heatcap::HC
@@ -81,7 +81,7 @@ function Base.call(tg::TemperatureGradient, pv::PhysicalValues)
         r = radius(pv)
         m = mass(pv)
         T = temperature(pv)
-        α = thermal_expansivity(pv, tg.eos)  # thermal_expansivity(pv, tg.eos)
+        α = thermal_expansivity(pv, tg.eos)
 
         dT_dm = -(G * m * α * T) / (4pi * r^4 * ρ * cₚ)
     end
@@ -89,22 +89,25 @@ function Base.call(tg::TemperatureGradient, pv::PhysicalValues)
     dT_dm
 end
 
-@doc "Thermal expansivity αᵥ = -1/ρ (∂ρ/∂T)ₚ"
+using Calculus: derivative
+partialx(F, x, y) = derivative(dx -> F(x + dx, y), 0.0)::Float64
+partialy(F, x, y) = derivative(dy -> F(x, y + dy), 0.0)::Float64
+
+"Thermal expansivity: αᵥ = -1/ρ (∂ρ/∂T)ₚ"
 function thermal_expansivity(P, T, eos::EOS)
-    T1 = T
-    T2 = T1 + 1
-    ρ = eos(P, T1)
-    dρ = eos(P, T2) - ρ
+    dρdT = partialy(eos, P, T)
+    ρ = eos(P, T)
+    α = -1/ρ * dρdT
 
-    alpha = -1/ρ * dρ
-
-    return alpha
+    α::Float64
 end
 
 function thermal_expansivity(pv::PhysicalValues, eos::EOS)
     T = temperature(pv)
     P = pressure(pv)
-    thermal_expansivity(P, T, eos)
+    α = thermal_expansivity(P, T, eos)
+
+    α::Float64
 end
 
 # PLANETARY STRUCTURE #
@@ -112,17 +115,17 @@ end
 
 typealias BoundaryValues ValueSet
 
-@doc """Describes planetary parameters to be solved for an interior structure.
+"""Describes planetary parameters to be solved for an interior structure.
 
     * `M`: total mass
     * `structure_equations`: set of structural equations which incorporate the
       equation of state
     * `boundary_values`: a set of values specifying the external boundary
     * `solution_grid`: a grid of mass coordinates for the output
-    * `radius_search_bracket`: the radius range to search when solving for R
-    """ ->
+    * `radius_search_bracket`: the radius range to search when solving for R"""
 abstract PlanetSystem{mc<:ModelComplexity}
 
+"A planet with no temperature dependence"
 immutable TempIndepPlanet{T<:Real, V<:AbstractVector} <: PlanetSystem{NoTemp}
     M::T
     structure_equations::EquationSet
@@ -130,6 +133,8 @@ immutable TempIndepPlanet{T<:Real, V<:AbstractVector} <: PlanetSystem{NoTemp}
     solution_grid::V
     radius_search_bracket::Vector{T}
 end
+
+"A planet with temperature dependence"
 immutable TempDepPlanet{T<:Real, V<:AbstractVector} <: PlanetSystem{WithTemp}
     M::T
     structure_equations::EquationSet
@@ -175,6 +180,8 @@ function PlanetSystem(M, eos::EOS{WithTemp}, Cₚ::HeatCapacity,
     TempDepPlanet(M, structure, bvs, grid, r_bracket)
 end
 
+"Default planet system (using values from module `defaults`)"
+function DefaultPlanetSystem end
 function DefaultPlanetSystem(M, eos::EOS{NoTemp})
     bvs = BoundaryValues(M, mean(defaults.R_bracket), defaults.P_surf)
     PlanetSystem(M, eos, bvs)
@@ -187,10 +194,10 @@ end
 n_depvars{mc<:ModelComplexity}(sys::PlanetSystem{mc}) = n_depvars(mc)
 npoints(sys::PlanetSystem) = length(sys.solution_grid)
 
-@doc """A planetary structure, containing mass grid `m` and internal physical
-    values `y` """ ->
+"A planetary structure, containing mass grid `m` and internal physical values `y`"
 abstract PlanetStructure{mc<:ModelComplexity}
 
+"Planetary structure that holds only mass, radius, pressure"
 type MassRadiusPressureStructure{T<:Real} <: PlanetStructure{NoTemp}
     data::Matrix{T}
 
@@ -207,6 +214,7 @@ function MassRadiusPressureStructure{T<:Real}(data::Matrix{T})
 end
 PlanetStructure(m, r, P) = MassRadiusPressureStructure(hcat(m, r, P)')
 
+"Planetary structure that holds temperature too"
 type FullPlanetStructure{T<:Real} <: PlanetStructure{WithTemp}
     data::Matrix{T}
 
@@ -223,7 +231,8 @@ function FullPlanetStructure{T<:Real}(data::Matrix{T})
 end
 PlanetStructure(m, r, P, T) = FullPlanetStructure(hcat(m, r, P, T)')
 
-@doc "Generate a blank solution structure for a given planet system" ->
+"Generate a blank solution structure for a given planet system"
+function blank_structure end
 function blank_structure(sys::PlanetSystem{NoTemp})
     n = npoints(sys)
     MassRadiusPressureStructure(fill(NaN, 3, n))
@@ -233,13 +242,14 @@ function blank_structure(sys::PlanetSystem{WithTemp})
     FullPlanetStructure(fill(NaN, 4, n))
 end
 
-@doc "Current guess for planet radius, based on the search bracket" ->
+"Current guess for planet radius, based on the search bracket"
 R_guess(system::PlanetSystem) = mean(system.radius_search_bracket)
 
 mass(ps::PlanetStructure) = sub(ps.data, 1, :)
 radius(ps::PlanetStructure) = sub(ps.data, 2, :)
 pressure(ps::PlanetStructure) = sub(ps.data, 3, :)
 temperature(ps::PlanetStructure{WithTemp}) = sub(ps.data, 4, :)
+nonmass(ps::PlanetStructure) = sub(ps.data, 2:nvars(ps), :)
 function density(ps::PlanetStructure{NoTemp}, T, sys::PlanetSystem)
     eos = sys.structure_equations[1].eos
     map(P -> eos(P, T), pressure(ps))
@@ -262,6 +272,3 @@ function surface(ps::PlanetStructure)
     surfcoords = (:, 1)
     ValueSet(sub(ps.data, surfcoords)...)
 end
-
-# some convenience functions
-nonmass(ps::PlanetStructure) = sub(ps.data, 2:nvars(ps), :)

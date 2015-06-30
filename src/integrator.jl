@@ -34,10 +34,12 @@ end
 #------------------------------------------------------------------------------
 
 # helper functions
-"Has the radius passed the central point?"; :hit_the_centre
+"Has the radius passed the central point?"
+function hit_the_centre end
 hit_the_centre(R::Real) = R < 0
 hit_the_centre(ps::PlanetStructure) = hit_the_centre(radius(centre(ps)))
-"Is the radius not yet close enough to the centre?"; :not_far_enough
+"Is the radius not yet close enough to the centre?"
+function not_far_enough end
 not_far_enough(R::Real) = R > 100
 not_far_enough(ps::PlanetStructure) = not_far_enough(radius(centre(ps)))
 "Is the structural solution acceptable?"
@@ -248,17 +250,16 @@ Base.length(solver::FixedStepIntegrator) = length(solver.tgrid)
 """ Solve the ODE dx/dt = `F` with initial conds `x0` on time grid `tgrid`.
     
     Returns dense output (an array of solutions at each point in `tgrid`) """#
-function ode4_dense(F, x0, tgrid)
+function ode4_dense(F, x0::Number, tgrid)
     solver = GenericRK4(F, x0, tgrid)
 
     # return a 1D array
-    # the x[1] is to flatten any 1x1 arrays into single values
-    [x[1] for x in solver]
+    vcat(collect(solver)...)
 end
 # version for multi-valued functions
 function ode4_dense(F, x0::Vector, tgrid)
     solver = GenericRK4(F, x0, tgrid)
 
     # return a 2D array
-    hcat([x for x in solver]...)'
+    hcat(collect(solver)...)'
 end

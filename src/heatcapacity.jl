@@ -28,8 +28,9 @@ end
 HeatCapacity(::Type{WithTemp}, f::Function) = THeatCapacity(f)
 HeatCapacity(::Type{WithTempPressure}, f::Function) = PTHeatCapacity(f)
 HeatCapacity(n::Number) = ConstantHeatCapacity(n)
-"Generate a `HeatCapacity` from a tabular file"
 function HeatCapacity(filename::String)
+    # generate heat capacity from file
+    # TODO: document this constructor once permitted
     data = readdlm(filename)
     T = Vector{Float64}(data[2:end, 1])
     P = Vector{Float64}(vec(data[1, 2:end]))

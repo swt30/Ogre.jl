@@ -28,7 +28,8 @@ immutable WithTemp <: ModelComplexity; end
 "This system explicitly includes both temperature and pressure details"
 immutable WithTempPressure <: ModelComplexity; end
 
-"Number of physical variables (mass, radius, pressure...) used"; :nvars
+"Number of physical variables (mass, radius, pressure...) used"
+function nvars end
 nvars(::Type{NoTemp}) = 3
 nvars(::Type{WithTemp}) = 4
 
@@ -76,11 +77,13 @@ mass(vs::ValueSet) = vs.m
 radius(vs::ValueSet) = vs.r
 pressure(vs::ValueSet) = vs.P
 temperature(vs::PhysicalValues) = vs.T
-"Get dependent physical values (radius, pressure, [temperature])"; :nonmass
+"Get dependent physical values (radius, pressure, [temperature])"
+function nonmass end
 nonmass(pv::PhysicalValues) = [radius(pv), pressure(pv), temperature(pv)]
 nonmass(mrp::MassRadiusPressure) = [radius(mrp), pressure(mrp)]
 
-"Is a given `ValueSet` physical (all positive)?"; :isphysical
+"Is a given `ValueSet` physical (all positive)?"
+function isphysical end
 function isphysical(vs::PhysicalValues)
     mass(vs) > 0 && radius(vs) > 0 && pressure(vs) > 0 && temperature(vs) > 0
 end

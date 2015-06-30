@@ -138,7 +138,8 @@ const sic = SimpleEOS(NoTemp, sic_func, "SiC")
     Optional parameters
     -------------------
     * `d2K₀`: Second derivative of the bulk modulus, for 4th order BME
-    """; :BME
+    """
+function BME end
 function BME(ρ, ρ₀, K₀, dK₀)
     eta = ρ/ρ₀
 
@@ -390,7 +391,7 @@ const dunaeva_phase_boundary_table = let
     readdlm("$DATADIR/tabulated/Dunaeva-phase-boundaries.dat")
 end
 
-"Describes the T/P extent and shape parameters of a phase boundary"
+"""Describes the T/P extent and shape parameters of a phase boundary"""
 immutable PhaseBoundaryPars
     phase1::ASCIIString
     phase2::ASCIIString
@@ -404,8 +405,9 @@ immutable PhaseBoundaryPars
     d::Float64
     e::Float64
 end
-"Generate `PhaseBoundaryPars` for two given phases"
 function PhaseBoundaryPars(phase1::String, phase2::String)
+    # Read a phase boundary from file
+    # TODO: re-document this constructor once permitted
     table = dunaeva_phase_boundary_table
 
     match11 = (table[:, 1] .== phase1)
@@ -433,10 +435,12 @@ immutable DunaevaPhaseBoundary <: PhaseBoundary
 end
 PhaseBoundary(P::AbstractVector, T, pars) = DunaevaPhaseBoundary(collect(P), T, pars)
 
-"Minimum pressure of the phase boundary (padded to avoid problems at P=0)"; :Pmin
+"Minimum pressure of the phase boundary (padded to avoid problems at P=0)"
+function Pmin end
 Pmin(pbp::PhaseBoundaryPars) = pbp.Pmin + 1e-9
 Pmin(dpb::DunaevaPhaseBoundary) = Pmin(dpb.pars)
-"Maximum pressure of the phase boundary"; :Pmax
+"Maximum pressure of the phase boundary"
+function Pmax end
 Pmax(pbp::PhaseBoundaryPars) = pbp.Pmax
 Pmax(dpb::DunaevaPhaseBoundary) = Pmax(dpb.pars)
 
@@ -446,8 +450,9 @@ immutable OtherPhaseBoundary <: PhaseBoundary
     T::Vector{Float64}
 end
 
-"Get the boundary between two phases"; :PhaseBoundary
 function PhaseBoundary(phase1::String, phase2::String)
+    # Get the boundary between two phases
+    # TODO: re-document this constructor once permitted
     pars = PhaseBoundaryPars(phase1, phase2)
     P = linspace(Pmin(pars), Pmax(pars))
     f = P -> phase_boundary_temp(P, pars)
