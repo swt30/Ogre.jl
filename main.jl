@@ -47,27 +47,29 @@ function mr_diagrams()
     tight_layout()
 end
 
-function phaseplots()
+function phaseplots(Tsurf)
     M = M_earth
     R = R_earth
 
     eos = Ogre.my_h2o_full
     heatcap = Ogre.HeatCapacity("data/tabulated/heatcap-h2o.dat")
     Psurf = 1e5
-    Tsurf = 300
     npoints = 200
     grid = linspace(M, 0, npoints)
     bcs = Ogre.ValueSet(M, R, Psurf, Tsurf)
     sys = Ogre.PlanetSystem(M, eos, heatcap, bcs, grid)
 
     sys = Ogre.converge(sys)
-    show(sys)
     soln = Ogre.solve(sys)
-    plot(soln)
+    close(:all)
+    plot(soln, sys)
+    tight_layout()
+    transparent = (0,0,0,0)
+    savefig("profiles-$(Tsurf)K.png", dpi=300, facecolor=transparent, edgecolor=nothing)
     Ogre.phaseplot(soln)
+    savefig("phases-$(Tsurf)K.png", dpi=300, facecolor=transparent, edgecolor=nothing)
 end
 
 close(:all)
-
-phaseplots()
+phaseplots(300)
 # mr_diagrams()
