@@ -95,9 +95,16 @@ partialy(F, x, y) = derivative(dy -> F(x, y + dy), 0.0)::Float64
 
 "Thermal expansivity: αᵥ = -1/ρ (∂ρ/∂T)ₚ"
 function thermal_expansivity(P, T, eos::EOS)
-    dρdT = partialy(eos, P, T)
-    ρ = eos(P, T)
-    α = -1/ρ * dρdT
+    FIX_THERMAL_EXPANSIVITY = true
+    # TODO: remove this once exploratory data stuff is done
+
+    if FIX_THERMAL_EXPANSIVITY
+        α = 4e-4
+    else
+        dρdT = partialy(eos, P, T)
+        ρ = eos(P, T)
+        α = -1/ρ * dρdT
+    end
 
     α::Float64
 end
@@ -249,6 +256,7 @@ mass(ps::PlanetStructure) = sub(ps.data, 1, :)
 radius(ps::PlanetStructure) = sub(ps.data, 2, :)
 pressure(ps::PlanetStructure) = sub(ps.data, 3, :)
 temperature(ps::PlanetStructure{WithTemp}) = sub(ps.data, 4, :)
+gravity(ps::PlanetStructure) = G * mass(ps) ./ (radius(ps).^2)
 nonmass(ps::PlanetStructure) = sub(ps.data, 2:nvars(ps), :)
 function density(ps::PlanetStructure{NoTemp}, T, sys::PlanetSystem)
     eos = sys.structure_equations[1].eos

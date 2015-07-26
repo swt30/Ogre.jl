@@ -1,8 +1,6 @@
 # INTEGRATOR.JL
 # Numerical routines for solutions of planetary structure models
 
-using Compat
-
 # Solutions
 #------------------------------------------------------------------------------
 
@@ -14,7 +12,7 @@ function solve!(sys::PlanetSystem, soln::PlanetStructure)
     tgrid = sys.solution_grid
 
     # solve and write to solution array
-    solver = PlanetRK4(sys.structure_equations, x0, tgrid)
+    solver = RK4(sys.structure_equations, x0, tgrid)
     for (i, x) in enumerate(solver)
         # mass and nonmass are array views, so we can assign to them 
         mass(soln)[i] = tgrid[i]
@@ -154,83 +152,95 @@ end
 # Numerical methods
 #------------------------------------------------------------------------------
 
-# accept either single or multi-valued starting conditions
-typealias NumOrVec{T<:Real} Union(T, Vector{T})
-
-"Do a RK4 step of function `F`, initial conds `x`, from `tstart` to `tend`"
-function ode4_step(F, x, tstart, tend)
-    h = tend - tstart
-    k = zeros(eltype(x), (length(x), 4))
+"Do a RK4 step of function `F`, initial conds `x`, step size `dt`"
+function ode4_step(F, x::Real, tstart, tend)
+    k = Array(eltype(x), 4)
+    dt = tend - tstart
 
     # Beginning derivative
-    k[:,1] = h*F(tstart,        x)
+    k[1] = dt*F(tstart,        x)
     # Midstep derivatives
-    k[:,2] = h*F(tstart + h./2, x + k[:,1]./2)
-    k[:,3] = h*F(tstart + h./2, x + k[:,2]./2)
+    k[2] = dt*F(tstart + dt/2, x + k[1]/2)
+    k[3] = dt*F(tstart + dt/2, x + k[2]/2)
     # Ending derivative
-    k[:,4] = h*F(tstart + h,    x + k[:,3])
+    k[4] = dt*F(tstart + dt,   x + k[3])
 
     # Integrate
-    (x + k[:,1]/6 
-       + k[:,2]/3 
-       + k[:,3]/3 
-       + k[:,4]/6)
+    +(x, k[1]/6, k[2]/3, k[3]/3, k[4]/6)
 end
+function ode4_step{R<:Real}(F, x::Vector{R}, tstart, tend)
+    k = Array(eltype(x), (length(x), 4))
+    dt = tend - tstart
+    
+    # Beginning derivative
+    k[:,1] = dt*F(tstart,        x)
+    # Midstep derivatives
+    k[:,2] = dt*F(tstart + dt/2, x + k[:,1]/2)
+    k[:,3] = dt*F(tstart + dt/2, x + k[:,2]/2)
+    # Ending derivative
+    k[:,4] = dt*F(tstart + dt,   x + k[:,3])
+
+    # Integrate
+    +(x, k[:,1]/6, k[:,2]/3, k[:,3]/3, k[:,4]/6)
+end
+
 
 # types to handle solving
 abstract IntegratorMethod
 abstract FixedStepIntegrator <: IntegratorMethod
+"RK4 solver"
 abstract RK4Integrator <: FixedStepIntegrator
 
-"General RK4 solver"
-immutable GenericRK4{T<:Real, V<:AbstractVector{Float64}} <: RK4Integrator
-    func
-    x0::NumOrVec{T}
-    tgrid::V
+abstract IntegratorState
+immutable RK4IntegratorState{T} <: IntegratorState
+    tindex::Int
+    x::T
 end
 
-"Planetary structure RK4 solver"
-immutable PlanetRK4{T<:Real, V<:AbstractVector{Float64}} <: RK4Integrator
-    func
-    x0::NumOrVec{T}
-    tgrid::V
+timeindex(s::IntegratorState) = s.tindex
+nextindex(s::IntegratorState) = timeindex(s) + 1
+x(s::IntegratorState) = s.x
+function nextx(s::RK4IntegratorState, solver)
+    if timeindex(s) == length(solver.tgrid)
+        # can't integrate past the end so leave the x as it is
+        x(s)
+    else
+        # do an integration step
+        t = solver.tgrid[timeindex(s)]
+        tn = solver.tgrid[nextindex(s)]
+        ode4_step(solver.func, x(s), t, tn)
+    end
 end
 
-# This section uses the iterator protocol by defining start, next, and done for
-# the integrator. 
+"RK4 solver for scalar functions"
+immutable ScalarRK4{T<:Real, V<:AbstractVector{Float64}} <: RK4Integrator
+    func
+    x0::T
+    tgrid::V
+end
+Base.eltype(::Type{ScalarRK4}) = Float64
+RK4(func, x0::Real, tgrid) = ScalarRK4(func, Float64(x0), tgrid)
+
+"RK4 solver for vector-valued functions"
+immutable VectorRK4{V1<:Vector{Float64}, V2<:AbstractVector{Float64}} <: RK4Integrator
+    func
+    x0::V1
+    tgrid::V2
+end
+Base.eltype(::Type{VectorRK4}) = Vector{Float64}
+RK4(func, x0::AbstractVector, tgrid) = VectorRK4(func, Float64[x0...], tgrid)
 
 # iterator setup
-function Base.start(solver::FixedStepIntegrator)
-    (1, solver.x0)
-end
+Base.start(solver::IntegratorMethod) = RK4IntegratorState(1, solver.x0)
 
 # step function
 function Base.next(solver::RK4Integrator, state)
-    tindex, x = state
-    tnext = tindex + 1
-
-    # can't integrate past the end so just increment the t index instead if we
-    # hit the end of the solution grid
-    if tindex == length(solver.tgrid)
-        return x, (tnext, x)
-    end
-
-    # do a RK step to get the next values 
-    tstart = solver.tgrid[tindex]
-    tend = solver.tgrid[tnext]
-    xnext = ode4_step(solver.func, x, tstart, tend)
-
-    # the new state is the incremented index and the new values 
-    newstate = (tnext, xnext)
-
-    x, newstate
+    (state.x, RK4IntegratorState(nextindex(state), nextx(state, solver)))
 end
 
 # termination condition
 function Base.done(solver::FixedStepIntegrator, state)
-    tindex, x = state
-    # we're done once we step off the end of the solution grid
-    tindex > length(solver.tgrid) 
+    timeindex(state) > length(solver.tgrid)
 end
 
 # for planets, if a value becomes unphysical (such as r<0 or P<0) then the
@@ -249,16 +259,16 @@ Base.length(solver::FixedStepIntegrator) = length(solver.tgrid)
 
 """ Solve the ODE dx/dt = `F` with initial conds `x0` on time grid `tgrid`.
     
-    Returns dense output (an array of solutions at each point in `tgrid`) """#
-function ode4_dense(F, x0::Number, tgrid)
-    solver = GenericRK4(F, x0, tgrid)
+    Returns dense output (an array of solutions at each point in `tgrid`) """
+function ode4_dense(F, x0::Real, tgrid)
+    solver = RK4(F, x0, tgrid)
 
     # return a 1D array
-    vcat(collect(solver)...)
+    collect(solver)
 end
 # version for multi-valued functions
 function ode4_dense(F, x0::Vector, tgrid)
-    solver = GenericRK4(F, x0, tgrid)
+    solver = RK4(F, x0, tgrid)
 
     # return a 2D array
     hcat(collect(solver)...)'

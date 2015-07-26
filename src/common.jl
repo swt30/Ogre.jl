@@ -77,6 +77,11 @@ mass(vs::ValueSet) = vs.m
 radius(vs::ValueSet) = vs.r
 pressure(vs::ValueSet) = vs.P
 temperature(vs::PhysicalValues) = vs.T
+function gravity(vs::ValueSet)
+    m = mass(vs)
+    r = radius(vs)
+    @show G * m ./ (r.^2)
+end
 "Get dependent physical values (radius, pressure, [temperature])"
 function nonmass end
 nonmass(pv::PhysicalValues) = [radius(pv), pressure(pv), temperature(pv)]

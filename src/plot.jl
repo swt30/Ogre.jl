@@ -9,7 +9,6 @@ export plot, phaseplot, plt, ticker
 using PyCall, PyPlot
 @pyimport matplotlib.style as plotstyle
 plotstyle.use("fivethirtyeight")
-@pyimport matplotlib.pyplot as plt
 @pyimport matplotlib.ticker as ticker
 
 module conf

@@ -18,13 +18,16 @@ facts("Integrator tests") do
         solns = map(f -> f(t), soln_funcs)
 
         context("The integrator initialises properly") do
-            integrator = Ogre.GenericRK4
+            integrator = Ogre.RK4
             s0 = integrator(odes[1], 0., t)
             s1 = integrator(odes[1], [0.], t)
             s2 = integrator(odes[4], [1., 2.], t)
-            @fact start(s0) => (1, 0.0)
-            @fact start(s1) => (1, [0.0])
-            @fact start(s2) => (1, [1., 2.])
+            @fact start(s0).x => 0.0
+            @fact start(s0).tindex => 1
+            @fact start(s1).x => [0.0]
+            @fact start(s1).tindex => 1
+            @fact start(s2).x => [1., 2.]
+            @fact start(s2).tindex => 1
         end
 
         context("The dense solutions are as expected") do
