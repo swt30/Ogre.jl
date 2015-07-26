@@ -6,4 +6,3 @@ Roots             # root-finding for numerical inversion
 # Additional packages used in scripts
 PyCall
 PyPlot
-Iterators
