@@ -5,37 +5,37 @@ facts("Equation of state (EOS) handling") do
         eos_linear, eos_squared, eos_log = res.eos.simples
 
         context("Calling a simple EOS") do
-            @fact eos_linear(42) => 42
-            @fact eos_squared(42) => 42^2
+            @fact eos_linear(42) --> 42
+            @fact eos_squared(42) --> 42^2
         end
 
         context("Calling using ValueSets") do
             vs = res.value_set_no_temp
-            @fact eos_linear(vs) => 3
-            @fact eos_squared(vs) => 3^2
+            @fact eos_linear(vs) --> 3
+            @fact eos_squared(vs) --> 3^2
         end
 
         context("Piecewise EOS") do
             context("Get number of equations in each EOS") do
-                @fact length(eos_linear) => 1
-                @fact length(res.eos.P_piecewise) => 3
+                @fact length(eos_linear) --> 1
+                @fact length(res.eos.P_piecewise) --> 3
             end
 
             context("The PiecewiseEOS returns correct individual EOS") do
                 peos = res.eos.piecewise
-                @fact Ogre.get_layer_eos(peos, -1)  => eos_linear
-                @fact Ogre.get_layer_eos(peos, 0.5) => eos_linear
-                @fact Ogre.get_layer_eos(peos, 1.5) => eos_squared
-                @fact Ogre.get_layer_eos(peos, 2.5) => eos_log
-                @fact Ogre.get_layer_eos(peos, 5)   => eos_log
+                @fact Ogre.get_layer_eos(peos, -1)  --> eos_linear
+                @fact Ogre.get_layer_eos(peos, 0.5) --> eos_linear
+                @fact Ogre.get_layer_eos(peos, 1.5) --> eos_squared
+                @fact Ogre.get_layer_eos(peos, 2.5) --> eos_log
+                @fact Ogre.get_layer_eos(peos, 5)   --> eos_log
             end
 
             context("Pressure-piecewise EOS calls match the individual EOS") do
                 context("A really simple piecewise EOS") do
                     peos = res.eos.P_piecewise
-                    @fact peos(0.5) => eos_linear(0.5)
-                    @fact peos(1.5) => eos_squared(1.5)
-                    @fact peos(2.5) => eos_log(2.5)
+                    @fact peos(0.5) --> eos_linear(0.5)
+                    @fact peos(1.5) --> eos_squared(1.5)
+                    @fact peos(2.5) --> eos_log(2.5)
                 end
 
                 context("A more complicated pressure-piecewise EOS") do
@@ -48,7 +48,7 @@ facts("Equation of state (EOS) handling") do
                     piecewise = res.eos.h2o_VII_seager
 
                     for (eos, P) in zip(eoses, test_pressures)
-                        @fact piecewise(P) => eos(P)
+                        @fact piecewise(P) --> eos(P)
                     end
                 end
             end
@@ -62,13 +62,13 @@ facts("Equation of state (EOS) handling") do
             function test_TFD(A, Z, n, anticipated_densities)
                 TFD(P) = Ogre.TFD(P, Z, A, n)
                 @vectorize_1arg Real TFD
-                @fact TFD(pressures) => roughly(anticipated_densities, rtol=0.01)
+                @fact TFD(pressures) --> roughly(anticipated_densities, rtol=0.01)
             end
 
             function test_TFD(A, Z, anticipated_densities)
                 TFD(P) = Ogre.TFD(P, Z, A)
                 @vectorize_1arg Real TFD
-                @fact TFD(pressures) => roughly(anticipated_densities, rtol=0.01)
+                @fact TFD(pressures) --> roughly(anticipated_densities, rtol=0.01)
             end
 
             context("with a single element") do
@@ -98,7 +98,7 @@ facts("Equation of state (EOS) handling") do
                 pressures = map(f -> f(sample_density), testfuncs)
 
                 map(eoses, pressures) do eos, P
-                    @fact eos(P) => roughly(sample_density)
+                    @fact eos(P) --> roughly(sample_density)
                 end
             end
 
@@ -119,8 +119,8 @@ facts("Equation of state (EOS) handling") do
                     values_to_check = [1, 2, 4.7, 7.5, 8]
                     expected_results = [P^2 for P in values_to_check]
 
-                    @fact loginterp(values_to_check) => roughly(expected_results)
-                    @fact lininterp(values_to_check) => roughly(expected_results)
+                    @fact loginterp(values_to_check) --> roughly(expected_results, rtol=0.01)
+                    @fact lininterp(values_to_check) --> roughly(expected_results, rtol=0.01)
                 end
 
                 context("for a 2D EOS") do
@@ -131,9 +131,9 @@ facts("Equation of state (EOS) handling") do
                     T_to_check = [10, 25, 40.3, 64.3, 94]
                     expected_results = [P^2 + T^2 for (P, T) in zip(P_to_check, T_to_check)]
 
-                    @fact (lininterp2d(P_to_check, T_to_check) => 
+                    @fact (lininterp2d(P_to_check, T_to_check) --> 
                            roughly(expected_results, rtol=0.01))
-                    @fact (loginterp2d(P_to_check, T_to_check) => 
+                    @fact (loginterp2d(P_to_check, T_to_check) --> 
                            roughly(expected_results, rtol=0.01))
 
                     context("NaN values error out") do
@@ -150,12 +150,12 @@ facts("Equation of state (EOS) handling") do
     context("with temperature dependence") do
         teos = res.eos.Tdeps[1]
         context("Calling a simple EOS") do
-            @fact teos(12, 3) => 36
+            @fact teos(12, 3) --> 36
             @fact_throws teos[1](12)
         end
 
         context("Calling using ValueSets") do
-            @fact teos(res.value_set_full) => 12
+            @fact teos(res.value_set_full) --> 12
             @fact_throws teos(res.value_set_no_temp)
         end
     end
@@ -166,14 +166,14 @@ facts("Equation of state (EOS) handling") do
             isvaluein(dict) = v -> v in values(dict)
             phasedict = Ogre.phase_mappings
 
-            @fact "liquid" => iskeyof(phasedict)
-            @fact "L" => isvaluein(phasedict)
-            @fact "L" => iskeyof(phasedict)
-            @fact "ice VII" => iskeyof(phasedict)
-            @fact "VII" => iskeyof(phasedict)
-            @fact "VII" => isvaluein(phasedict)
-            @fact phasedict["liquid"] => "L"
-            @fact phasedict["ice VII"] => "VII"
+            @fact "liquid" --> iskeyof(phasedict)
+            @fact "L" --> isvaluein(phasedict)
+            @fact "L" --> iskeyof(phasedict)
+            @fact "ice VII" --> iskeyof(phasedict)
+            @fact "VII" --> iskeyof(phasedict)
+            @fact "VII" --> isvaluein(phasedict)
+            @fact phasedict["liquid"] --> "L"
+            @fact phasedict["ice VII"] --> "VII"
         end
 
         context("Have correct end values on the boundaries") do
@@ -187,13 +187,13 @@ facts("Equation of state (EOS) handling") do
             @fact_throws pb(:L, :II)
             @fact_throws pb("L", "II")
 
-            @fact mintemp(pb(:L, :VII)) => roughly(355.0, rtol=0.01)
-            @fact maxpress(pb(:L, :VII)) => roughly(400000e5, rtol=0.01)
-            @fact mintemp(pb("L", :VII)) => roughly(355.0, rtol=0.01)
-            @fact minpress(pb("L", :VII)) => roughly(22160e5, rtol=0.01)
-            @fact mintemp(pb(:L, "VII")) => roughly(355.0, rtol=0.01)
-            @fact mintemp(pb("L", "VII")) => roughly(355.0, rtol=0.01)
-            @fact maxtemp(pb(:VII, :X)) => roughly(1500, rtol=0.01)
+            @fact mintemp(pb(:L, :VII)) --> roughly(355.0, rtol=0.01)
+            @fact maxpress(pb(:L, :VII)) --> roughly(400000e5, rtol=0.01)
+            @fact mintemp(pb("L", :VII)) --> roughly(355.0, rtol=0.01)
+            @fact minpress(pb("L", :VII)) --> roughly(22160e5, rtol=0.01)
+            @fact mintemp(pb(:L, "VII")) --> roughly(355.0, rtol=0.01)
+            @fact mintemp(pb("L", "VII")) --> roughly(355.0, rtol=0.01)
+            @fact maxtemp(pb(:VII, :X)) --> roughly(1500, rtol=0.01)
         end
     end
 end
