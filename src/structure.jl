@@ -95,7 +95,7 @@ partialy(F, x, y) = derivative(dy -> F(x, y + dy), 0.0)::Float64
 
 "Thermal expansivity: αᵥ = -1/ρ (∂ρ/∂T)ₚ"
 function thermal_expansivity(P, T, eos::EOS)
-    FIX_THERMAL_EXPANSIVITY = true
+    FIX_THERMAL_EXPANSIVITY = false
     # TODO: remove this once exploratory data stuff is done
 
     if FIX_THERMAL_EXPANSIVITY

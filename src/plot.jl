@@ -1,20 +1,18 @@
 # PLOT.JL
 # Plotting functions
 
-export plot, phaseplot, plt, ticker
-
 # Python plot setup
 #------------------------------------------------------------------------------
 
+export plot, phaseplot
+
 using PyCall, PyPlot
 @pyimport matplotlib.style as plotstyle
-plotstyle.use("fivethirtyeight")
-@pyimport matplotlib.ticker as ticker
+    plotstyle.use("fivethirtyeight")
 
-module conf
-    "Common plotting configuration for structural plots"
-    const kws = Dict(:linewidth=>2)
-end
+@pyimport matplotlib as mpl
+    mpl.rcParams["linewidth"] = 0
+    mpl.rcParams["marker"] = "."
 
 # Planet structure plotting
 #------------------------------------------------------------------------------
@@ -80,7 +78,7 @@ function plot_expansivity_profile(soln::PlanetStructure{WithTemp},
     heatcap = thermal_gradient.heatcap
 
     αᵥ = map((P, T) -> thermal_expansivity(P, T, eos), P, T)
-    plot(x, αᵥ; conf.kws..., kws...)
+    plot(x, αᵥ; kws...)
     label_x_as_mass()
     ylabel(L"Thermal expansivity, $\alpha$ / K$^{-1}$")
 end
@@ -96,7 +94,7 @@ function plot_density_profile(soln::PlanetStructure{WithTemp},
     heatcap = thermal_gradient.heatcap
 
     ρ = map(eos, P, T)
-    plot(x, ρ; conf.kws..., kws...)
+    plot(x, ρ; kws...)
     label_x_as_mass()
     ylabel(L"Density, $\rho$ / kg m$^{-3}$")
 end
@@ -174,12 +172,12 @@ function plot(soln::PlanetStructure{WithTemp}, sys::PlanetSystem{WithTemp}; kws.
     end
 end
 
-function plot(pb::PhaseBoundary; kws...)
-    plot(pb.P, pb.T; kws...)
+function plot(pb::PhaseBoundary; kwargs...)
+    plot(pb.P, pb.T; kwargs...)
 end
 
 "Plot the P-T profile of a planet overlaid on the phase boundaries of water"
-function phaseplot(soln::PlanetStructure{WithTemp}; kws...)
+function phaseplot(soln::PlanetStructure{WithTemp}; kwargs...)
     P = vec(pressure(soln)) / 1e9
     T = vec(temperature(soln))
 
@@ -192,7 +190,7 @@ function phaseplot(soln::PlanetStructure{WithTemp}; kws...)
     yscale("log")
 
     plot_phases()
-    plot(P, T, linewidth=2; kws...)
+    plot(P, T, linewidth=2; kwargs...)
 
     xlim(xmin=1e-5, xmax=100)
     ylim(ymin=200, ymax=2000)

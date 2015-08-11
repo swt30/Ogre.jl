@@ -321,7 +321,6 @@ function load_2D_eos(file::String; linear::Bool=false)
     P = vec(data[2:end, 1]) # dimension 1 (columns)
     T = vec(data[1, 2:end]) # dimension 2 (rows)
     rho = data[2:end, 2:end]
-
     if linear
         interp_func = lininterp(P, T, rho)
     else
@@ -365,7 +364,7 @@ const my_h2o_500 = load_interpolated_eos("$DATADIR/tabulated/h2o-500K.dat")
 const my_h2o_800 = load_interpolated_eos("$DATADIR/tabulated/h2o-800K.dat")
 const my_h2o_1200 = load_interpolated_eos("$DATADIR/tabulated/h2o-1200K.dat")
 
-const my_h2o_full = load_2D_eos("$DATADIR/tabulated/my_h2o_100x100.dat")
+const my_h2o_full = load_2D_eos("$DATADIR/tabulated/my_h2o_1000x1000.dat")
 
 # Phase boundaries
 # ------------------------------------------------------------------------------

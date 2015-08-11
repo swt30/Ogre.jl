@@ -40,8 +40,9 @@ hit_the_centre(ps::PlanetStructure) = hit_the_centre(radius(centre(ps)))
 function not_far_enough end
 not_far_enough(R::Real) = R > 100
 not_far_enough(ps::PlanetStructure) = not_far_enough(radius(centre(ps)))
+unacceptable(ps::PlanetStructure) = hit_the_centre(ps) || not_far_enough(ps)
 "Is the structural solution acceptable?"
-acceptable(ps::PlanetStructure) = !hit_the_centre(ps) && !not_far_enough(ps)
+acceptable(ps::PlanetStructure) = !unacceptable(ps)
 
 """ Clone a `PlanetSystem`, updating the radius guess appropriately
 
@@ -51,8 +52,6 @@ function update_boundary_r(system::PlanetSystem)
     R_guess = mean(system.radius_search_bracket)
     updated_boundary_values = cpmod(system.boundary_values, r=R_guess)
     updated_system = cpmod(system, boundary_values=updated_boundary_values)
-
-    updated_system
 end
 
 "Clone a `PlanetSystem`, updating its radius search bracket"
@@ -84,6 +83,13 @@ end
     get a result that has an acceptable error at the centre. Returns a
     `PlanetSystem` with the appropriate radius. """
 function converge(system::PlanetSystem)
+    r_old = system.boundary_values.r
+    r_new = R_guess(system)
+
+    # TODO: remove this condition after we have more robust convergence
+    if isapprox(r_old, r_new, rtol=1e-3)
+        return system
+    end
     if R_guess(system) ≠ system.boundary_values.r
         system = update_boundary_r(system)
     end
