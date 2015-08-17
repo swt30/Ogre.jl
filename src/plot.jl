@@ -28,7 +28,7 @@ end
 function plot_temperature_profile(soln::PlanetStructure{WithTemp}; kws...)
     x = vec(mass(soln)) / M_earth
     T = vec(temperature(soln))
-    plot(x, T; conf.kws..., kws...)
+    plot(x, T; kws...)
     label_x_as_mass()
     ylabel("Temperature / K")
 end
@@ -37,7 +37,7 @@ end
 function plot_radius_profile(soln::PlanetStructure; kws...)
     x = vec(mass(soln)) / M_earth
     r = vec(radius(soln)) / R_earth
-    plot(x, r; conf.kws..., kws...)
+    plot(x, r; kws...)
     label_x_as_mass()
     ylabel(L"Radius / R$_\oplus$")
 end
@@ -46,7 +46,7 @@ end
 function plot_pressure_profile(soln::PlanetStructure; kws...)
     x = vec(mass(soln)) / M_earth
     P = vec(pressure(soln)) / 1e9
-    plot(x, P; conf.kws..., kws...)
+    plot(x, P; kws...)
     label_x_as_mass()
     ylabel("Pressure / GPa")
 end
@@ -62,7 +62,7 @@ function plot_heat_capacity_profile(soln::PlanetStructure{WithTemp},
     heatcap = thermal_gradient.heatcap
 
     cₚ = map(heatcap, P, T)
-    plot(x, cₚ; conf.kws..., kws...)
+    plot(x, cₚ; kws...)
     label_x_as_mass()
     ylabel(L"Heat capacity, c$_p$ / J kg$^{-1}$ K$^{-1}$")
 end
