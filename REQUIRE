@@ -1,8 +1,1 @@
-# Core packages required for ogre.jl
-julia 0.4-
-Dierckx           # interpolation
-Roots             # root-finding for numerical inversion
-
-# Additional packages used in scripts
-PyCall
-PyPlot
+# TODO: Update REQUIRE with needed packages once v0.4 is out
