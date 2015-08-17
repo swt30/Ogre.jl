@@ -8,43 +8,54 @@ using Dierckx
 abstract HeatCapacity
 
 "A constant heat capacity (no variation with T or P)"
-type ConstantHeatCapacity{T<:Real} <: HeatCapacity
+immutable ConstantHeatCapacity{T<:Real} <: HeatCapacity
     value::T
 end
 
 "A heat capacity that's not constant"
 abstract VaryingHeatCapacity <: HeatCapacity
+abstract FunctionalHeatCapacity <: VaryingHeatCapacity
 
 "A heat capacity that varies with temperature"
-type THeatCapacity <: VaryingHeatCapacity
-    func
+immutable TFuncHeatCapacity{F} <: FunctionalHeatCapacity
+    func::F
 end
 
 "A heat capacity that varies with pressure and temperature"
-type PTHeatCapacity <: VaryingHeatCapacity
-    func
+immutable PTFuncHeatCapacity{F} <: FunctionalHeatCapacity
+    func::F
 end
 
-HeatCapacity(::Type{WithTemp}, f::Function) = THeatCapacity(f)
-HeatCapacity(::Type{WithTempPressure}, f::Function) = PTHeatCapacity(f)
+"A heat capacity interpolated from a log-linear grid"
+immutable PTGridHeatCapacity <: HeatCapacity
+    logP::Vector{Float64}
+    T::Vector{Float64}
+    spline::Spline2D
+
+    function PTGridHeatCapacity(P, T, Cₚ)
+        new(log10(P), T, Spline2D(log10(P), T, Cₚ, kx=1, ky=1))
+    end
+end
+Base.call(cp::PTGridHeatCapacity, P, T) = evaluate(cp.spline, log10(P), T)
+
+HeatCapacity(::Type{WithTemp}, func) = TFuncHeatCapacity(func)
+HeatCapacity(::Type{WithTempPressure}, func) = PTFuncHeatCapacity(func)
 HeatCapacity(n::Number) = ConstantHeatCapacity(n)
 function HeatCapacity(filename::String)
     # generate heat capacity from file
     # TODO: document this constructor once permitted
-    data = readdlm(filename)
-    T = Vector{Float64}(data[2:end, 1])
-    P = Vector{Float64}(vec(data[1, 2:end]))
-    Cₚs = Matrix{Float64}(data[2:end, 2:end]) .* 1000
+    data = readdlm(filename, Float64)
+    T = vec(data[2:end, 1])
+    P = vec(data[1, 2:end])
+    Cₚ = Matrix{Float64}(data[2:end, 2:end])' .* 1000  # note the transpose
 
-    heatcap_f = semiloginterpx(P, T, Cₚs')
-
-    HeatCapacity(WithTempPressure, heatcap_f)
+    PTGridHeatCapacity(P, T, Cₚ)
 end
 
 import Base.call
 call(cp::HeatCapacity, pv::PhysicalValues) = cp(pressure(pv), temperature(pv))
 call(cp::ConstantHeatCapacity, T::Real) = cp.value
 call(cp::ConstantHeatCapacity, P::Real, T::Real) = cp.value
-call(cp::THeatCapacity, T::Real) = cp.func(T)
-call(cp::THeatCapacity, P::Real, T::Real) = cp.func(T)
-call(cp::PTHeatCapacity, P::Real, T::Real) = cp.func(P, T)
+call(cp::TFuncHeatCapacity, T::Real) = cp.func(T)
+call(cp::TFuncHeatCapacity, P::Real, T::Real) = cp.func(T)
+call(cp::PTFuncHeatCapacity, P::Real, T::Real) = cp.func(P, T)

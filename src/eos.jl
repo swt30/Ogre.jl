@@ -2,52 +2,110 @@
 # Equation of state handling
 
 # Required packages
-using Dierckx, Roots
+using Dierckx, Roots, JLD
+
+import Base.call
 
 # EOS types
 #------------------------------------------------------------------------------
 
+# Abstract types
+
 "Equation of State type"
-abstract EOS{mc<:ModelComplexity} <: Equation
+abstract EOS{mc<:ModelComplexity}
 "Equation of state consisting of just one function"
 abstract SingleEOS{mc<:ModelComplexity} <: EOS{mc}
 "Equation of state that is subdivided into multiple pieces"
 abstract PiecewiseEOS{mc<:ModelComplexity} <: EOS{mc}
 "Equation of state that can be calculated directly."
 abstract SimpleEOS{mc<:ModelComplexity} <: SingleEOS{mc}
+"Equation of state depending solely on pressure, ρ = ρ(P)"
+abstract PressureEOS <: SimpleEOS{NoTemp}
+"Equation of state depending on pressure and temperature, ρ = ρ(P,T)"
+abstract PressureTempEOS <: SimpleEOS{WithTemp}
 
-""" An EOS depending solely on pressure.
+# Functional EOSes
+
+""" Equation of state depending solely on pressure
     
-    * `equation`: Function ρ=f(P)
-    * `fullname`: Name of the EOS (for printing and plots) """
-immutable PressureEOS <: SimpleEOS{NoTemp}
+    * `equation`: Function f such that ρ = f(P)
+    * `name`: Name of the EOS (for printing and plots) """
+immutable PressureFunctionEOS <: PressureEOS
     equation::Function
-    fullname::String
+    name::String
 end
-SimpleEOS(::Type{NoTemp}, f::Function, name::String) = PressureEOS(f, name)
+SimpleEOS(::Type{NoTemp}, f::Function, name::String) = PressureFunctionEOS(f, name)
+PressureEOS(f::Function, name::String) = PressureFunctionEOS(f, name)
 
+""" Equation of state depending on both pressure and temperature
 
-""" An EOS depending on both pressure and temperature
-
-    * `equation`: Function ρ=f(P, T)
-    * `fullname`: Name of the EOS (for printing and plots) """
-immutable PressureTempEOS <: SimpleEOS{WithTemp}
+    * `equation`: Function f such that ρ = f(P, T)
+    * `name`: Name of the EOS (for printing and plots) """
+immutable PressureTempFunctionEOS <: PressureTempEOS
     equation::Function
-    fullname::String
+    name::String
 end
-SimpleEOS(::Type{WithTemp}, f::Function, name::String) = PressureTempEOS(f, name)
+SimpleEOS(::Type{WithTemp}, f::Function, name::String) = PressureTempFunctionEOS(f, name)
+PressureTempEOS(f::Function, name::String) = PressureTempFunctionEOS(f, name)
 
+# Interpolated EOSes
+
+""" Equation of state which is log-interpolated.
+    The grid does not have to be evenly spaced. """
+immutable LogPressureGridEOS <: PressureEOS
+    logP::Vector{Float64}
+    name::String
+    spline::Spline1D
+
+    LogPressureGridEOS(P, ρ, name) = new(log10(P), name, Spline1D(log10(P), ρ, k=1))
+end
+
+""" Equation of state which is interpolated linearly.
+    The grid does not have to be evenly spaced. """
+immutable LinPressureGridEOS <: PressureEOS
+    P::Vector{Float64}
+    name::String
+    spline::Spline1D
+
+    LinPressureGridEOS(P, ρ, name) = new(P, name, Spline1D(P, ρ, k=1))
+end
+
+""" Equation of state linearly interpolated over a pressure-temperature grid. """
+immutable LinPTGridEOS <: PressureTempEOS
+    P::Vector{Float64}
+    T::Vector{Float64}
+    name::String
+    spline::Spline2D
+
+    function LinPTGridEOS(P, T, ρ, name)
+        new(P, T, name, Spline2D(P, T, ρ, kx=1, ky=1))
+    end
+end
+
+""" Equation of state log-interpolated over a pressure-temperature grid. """
+immutable LogPTGridEOS <: PressureTempEOS
+    logP::Vector{Float64}
+    logT::Vector{Float64}
+    name::String
+    spline::Spline2D
+
+    function LogPTGridEOS(P, T, ρ, name)
+        new(log10(P), log10(T), name, Spline2D(log10(P), log10(T), ρ, kx=1, ky=1))
+    end
+end
+
+# Miscellaneous EOSes
 
 """ Equation of state which inverts some function over a density range
 
     * `equation`: Function P=f(ρ)
     * `a`, `b`: Density range to invert over
-    * `fullname`: Name of the EOS (for printing and plots) """
+    * `name`: Name of the EOS (for printing and plots) """
 immutable InvPressureEOS{T<:Real} <: SingleEOS{NoTemp}
     equation::Function
     a::T
     b::T
-    fullname::String
+    name::String
 end
 
 """ Equation of state which is piecewise in the mass coordinate
@@ -55,15 +113,15 @@ end
     * `equations`: Vector of `SingleEOS` for each piece.
     * `transition_values`: Vector defining the edge of each piece. Evaluating
       past the ends of this vector will just evaluate the nearest EOS.
-    * `fullname`: Name of the EOS (for printing and plotting) """
+    * `name`: Name of the EOS (for printing and plotting) """
 immutable MassPiecewiseEOS{T<:Real, E<:SingleEOS{NoTemp}} <: PiecewiseEOS{NoTemp}
     equations::Vector{E}
     transition_values::Vector{T}
-    fullname::String
+    name::String
 end
 function MassPiecewiseEOS(equations, transition_values)
-    fullname = join([n.fullname for n in equations], " & ")
-    MassPiecewiseEOS(equations, transition_values, fullname)
+    name = join([n.name for n in equations], " & ")
+    MassPiecewiseEOS(equations, transition_values, name)
 end
 function MassPiecewiseEOS(equations, M, mass_fractions)
     layer_edges = [0, cumsum(mass_fractions)] .* M
@@ -75,16 +133,43 @@ end
     * `equations`: Vector of `SingleEOS` for each piece.
     * `transition_values`: Vector defining the edge of each piece. Evaluating
       past the ends of this vector will just evaluate the nearest EOS.
-    * `fullname`: Name of the EOS (for printing and plotting) """
+    * `name`: Name of the EOS (for printing and plotting) """
 immutable PressurePiecewiseEOS{T<:Real, E<:SingleEOS} <: PiecewiseEOS
     equations::Vector{E}
     transition_values::Vector{T}
-    fullname::String
+    name::String
 end
 function PressurePiecewiseEOS(equations, transition_values)
-    fullname = join([n.fullname for n in equations], " & ")
-    PressurePiecewiseEOS(equations, transition_values, fullname)
+    name = join([n.name for n in equations], " & ")
+    PressurePiecewiseEOS(equations, transition_values, name)
 end
+
+# EOS evaluation and miscellaneous functions
+# -----------------------------------------------------------------------------
+
+# Calling EOSes with ValueSets
+call(eos::EOS, vs::ValueSet) = eos(pressure(vs))
+call(eos::EOS{WithTemp}, vs::PhysicalValues) = eos(pressure(vs), temperature(vs))
+call(eos::EOS, P::Real) = eos.equation(P)
+call(eos::EOS{WithTemp}, P::Real, T::Real) = eos.equation(P, T)
+
+# Call interpolated EOSes
+call(eos::LogPressureGridEOS, P::Real) = evaluate(eos.spline, log10(P))
+call(eos::LinPressureGridEOS, P::Real) = evaluate(eos.spline, P)
+call(eos::LogPTGridEOS, P::Real, T::Real) = evaluate(eos.spline, log10(P), log10(T))
+call(eos::LinPTGridEOS, P::Real, T::Real) = evaluate(eos.spline, P, T)
+
+# The 1D versions are automatically vectorised
+call(eos::LogPressureGridEOS, P::AbstractVector) = evaluate(eos.spline, log10(P))
+call(eos::LinPressureGridEOS, P::AbstractVector) = evaluate(eos.spline, P)
+
+# Inverting EOSes which are written as `P = f(ρ)` by solving `f(ρ) - P = 0`
+call(eos::InvPressureEOS, P::Real) = fzero(x -> eos.equation(x) - P, eos.a, eos.b)
+
+# Split piecewise EOSes appropriately
+call(eos::PressurePiecewiseEOS, vs::ValueSet) = get_layer_eos(eos, pressure(vs))(vs)
+call(eos::MassPiecewiseEOS, vs::ValueSet) = get_layer_eos(eos, mass(vs))(vs)
+call(eos::PressurePiecewiseEOS, P::Real) = eos(ValueSet(0, 0, P))
 
 """ Choose the appropriate individual EOS from a `PiecewiseEOS`
 
@@ -108,14 +193,14 @@ function get_layer_eos(eos::PiecewiseEOS, x)
     end
 end
 
-import Base.length
-length(eos::PiecewiseEOS) = length(eos.equations)
-length(::SingleEOS) = 1
-
-# Individual EOSes
-#------------------------------------------------------------------------------
+"Number of distinct EOSes in this instance"
+function n_eoses end
+n_eoses(eos::PiecewiseEOS) = length(eos.equations)
+n_eoses(::SingleEOS) = 1
 
 # Analytic EOSes
+#------------------------------------------------------------------------------
+
 mgsio3_func(P) = 4100. + 0.00161*(P^0.541)
 fe_func(P) = 8300. + 0.00349*(P^0.528)
 h2o_func(P) = 1460. + 0.00311*(P^0.513)
@@ -243,21 +328,12 @@ function TFD(P, Z::Integer, A)
     TFD(P, [Z], [A])
 end
 
-# Interpolation, storage and retrieval
+# Storage and retrieval
 # -----------------------------------------------------------------------------
-function Base.write(eos::EOS, pressures::Vector{Float64})
-    densities = map(eos, pressures)
-    fullname = eos.fullname
-    pathname = joinpath("data", "$(fullname).eos")
-    open(pathname, "w") do f
-        write(f, "# Pressure\tDensity\n")
-        writedlm(f, hcat(pressures, densities))
-    end
-end
 
 "Put a number of interpolated EOSes into data files for later use"
-function write_eoses_to_files()
-    # Seager's versions of the BME
+function save_eoses_to_files()
+    # Seager's versions of the BME at low pressure
     fe_eps_seager_func(ρ) = Vinet(ρ, 8300., 156.2, 6.08) * 1e9
     h2o_VII_seager_func(ρ) = BME(ρ, 1460., 23.7, 4.15) * 1e9
     mgsio3_pv_seager_func(ρ) = BME(ρ, 4100., 247., 3.97, -0.016) * 1e9
@@ -265,19 +341,22 @@ function write_eoses_to_files()
                                 "Fe (Vinet) (Seager 2007)")
     h2o_seager_low = InvPressureEOS(h2o_VII_seager_func, 1e3, 1e8,
                                  "H2O (BME3) (Seager 2007)")
-    h2o_seager_dft = load_interpolated_eos("data/tabulated/H2O (DFT).eos", linear=true)
     mgsio3_seager_low = InvPressureEOS(mgsio3_pv_seager_func, 1e3, 5e4,
                                      "MgSiO3 (BME4) (Seager 2007)")
 
+    # Seager's density functional theory for medium-pressure H2O
+    h2o_seager_dft = load_interpolated_eos("data/eos/raw/h2o-dft.eos", linear=false)
+
+    # Seager's versions of the TFD for high pressures
     fe_tfd_func(P) = TFD(P, 26, 55.845)
     h2o_tfd_func(P) = TFD(P, [1, 8], [1.00794, 15.9994], [2., 1.])
     mgsio3_tfd_func(P) = TFD(P, [12, 14, 8],
                                    [24.305, 28.0855, 15.9994], [1., 1., 3.])
+    fe_tfd = SimpleEOS(NoTemp, fe_tfd_func, "Fe TFD")
+    h2o_tfd = SimpleEOS(NoTemp, h2o_tfd_func, "H2O TFD")
+    mgsio3_tfd = SimpleEOS(NoTemp, mgsio3_tfd_func, "MgSiO3 TFD")
 
-    fe_tfd = SimpleEOS(notemp, fe_tfd_func, "Fe TFD")
-    h2o_tfd = SimpleEOS(notemp, h2o_tfd_func, "H2O TFD")
-    mgsio3_tfd = SimpleEOS(notemp, mgsio3_tfd_func, "MgSiO3 TFD")
-
+    # All together now...
     fe_seager = PressurePiecewiseEOS([fe_seager_low, fe_tfd],
                                      [1e4, 2.09e13, 1e20])
     h2o_seager = PressurePiecewiseEOS([h2o_seager_low,
@@ -289,30 +368,45 @@ function write_eoses_to_files()
     mgsio3_seager = PressurePiecewiseEOS([mgsio3_seager_low, mgsio3_tfd],
                                          [1e4, 1.35e13, 1e20])
 
-    for eos in [fe_seager, h2o_seager, mgsio3_seager]
-        write(eos, logspace(4,20,500))
-    end
+    # Grid them up
+    P = logspace(4, 14)  # from 1e4 to 1e14 Pa
+    ρ_fe = map(fe_seager, P)
+    ρ_h2o = map(h2o_seager, P)
+    ρ_mgsio3 = map(mgsio3_seager, P)
+    fe_grid = LinPressureGridEOS(P, ρ_fe, "Fe (Seager)")
+    h2o_grid = LinPressureGridEOS(P, ρ_h2o, "H2O (Seager)")
+    mgsio3_grid = LinPressureGridEOS(P, ρ_mgsio3, "MgSiO3 (Seager)")
+
+    # Save to file
+    seager_eoses = Dict(
+        "fe"=>fe_grid,
+        "h2o"=>h2o_grid,
+        "mgsio3"=>mgsio3_grid)
+
+    save("$DATADIR/eos/seager.jld", seager_eoses)
 end
 
-""" Read a previously-written temperature-independent EOS
+""" Read a temperature-independent EOS from a text file
 
-    If `linear`=`true`, the EOS is assumed to be on a linear grid.
-    (However, the grid does not have to be regular.) """
-function load_interpolated_eos(file::String; linear=false)
+    If `linear`=`true`, the EOS is assumed to be on a linear grid, 
+    otherwise on a log-spaced grid. """
+function load_interpolated_eos(file::String; linear::Bool=false)
+    # load in data
     data = readdlm(file, Float64; skipstart=1)
-    P, rho = data[:, 1], data[:, 2]
-    if linear
-        interp_func = lininterp(P, rho)
-    else
-        interp_func = loginterp(P, rho)
-    end
+    P, ρ = data[:, 1], data[:, 2]
+
+    # get EOS name
     _, filename = splitdir(file)
     name, _ = splitext(filename)
 
-    SimpleEOS(NoTemp, interp_func, name)
+    if linear
+        LinPressureGridEOS(P, ρ, name)
+    else
+        LogPressureGridEOS(P, ρ, name)
+    end
 end
 
-""" Read a previously-written 2D temperature-independent EOS
+""" Read a previously-written 2D EOS from a text file
 
     If `linear`=`true`, the EOS is assumed to be on a linear grid.
     However, the grid does not have to be regular. """
@@ -320,51 +414,32 @@ function load_2D_eos(file::String; linear::Bool=false)
     data = readdlm(file, Float64)
     P = vec(data[2:end, 1]) # dimension 1 (columns)
     T = vec(data[1, 2:end]) # dimension 2 (rows)
-    rho = data[2:end, 2:end]
-    if linear
-        interp_func = lininterp(P, T, rho)
-    else
-        interp_func = loginterp(P, T, rho)
-    end
+    ρ = data[2:end, 2:end]
 
     _, filename = splitdir(file)
     name, _ = splitext(filename)
 
-    SimpleEOS(WithTemp, interp_func, name)
+    if linear
+        LinPTGridEOS(P, T, ρ, name)
+    else
+        LogPTGridEOS(P, T, ρ, name)
+    end
 end
 
-# EOS evaluation
-# -----------------------------------------------------------------------------
-import Base.call
-
-# Inverting EOSes which are written as P(ρ)
-function call(eos::InvPressureEOS, P::Real)
-    fzero(x -> eos.equation(x) - P, eos.a, eos.b)
-end
-
-# Split piecewise EOSes appropriately
-call(eos::PressurePiecewiseEOS, vs::ValueSet) = get_layer_eos(eos, pressure(vs))(vs)
-call(eos::MassPiecewiseEOS, vs::ValueSet) = get_layer_eos(eos, mass(vs))(vs)
-call(eos::PressurePiecewiseEOS, P::Real) = eos(ValueSet(0, 0, P))
-
-# Calling EOSes with ValueSets
-call(eos::EOS, vs::ValueSet) = eos(pressure(vs))
-call(eos::EOS{WithTemp}, vs::PhysicalValues) = eos(pressure(vs), temperature(vs))
-call(eos::EOS, P::Real) = eos.equation(P)
-call(eos::EOS{WithTemp}, P::Real, T::Real) = eos.equation(P, T)
+EOSDIR = "$DATADIR/eos"
 
 # Load interpolated EOS from file
-const fe_seager = load_interpolated_eos("$DATADIR/Fe (Vinet) (Seager 2007) & Fe TFD.eos")
-const h2o_seager = load_interpolated_eos("$DATADIR/H2O (BME3) (Seager 2007) & H2O (DFT) & H2O TFD.eos")
-const h2o_seager_simple = load_interpolated_eos("$DATADIR/H2O (BME3) (Seager 2007) & H2O TFD.eos")
-const mgsio3_seager = load_interpolated_eos("$DATADIR/MgSiO3 (BME4) (Seager 2007) & MgSiO3 TFD.eos")
+const fe_seager = load_interpolated_eos("$EOSDIR/Fe (Vinet) (Seager 2007) & Fe TFD.eos")
+const h2o_seager = load_interpolated_eos("$EOSDIR/H2O (BME3) (Seager 2007) & H2O (DFT) & H2O TFD.eos")
+const h2o_seager_simple = load_interpolated_eos("$EOSDIR/H2O (BME3) (Seager 2007) & H2O TFD.eos")
+const mgsio3_seager = load_interpolated_eos("$EOSDIR/MgSiO3 (BME4) (Seager 2007) & MgSiO3 TFD.eos")
 
-const my_h2o_300 = load_interpolated_eos("$DATADIR/tabulated/h2o-300K.dat")
-const my_h2o_500 = load_interpolated_eos("$DATADIR/tabulated/h2o-500K.dat")
-const my_h2o_800 = load_interpolated_eos("$DATADIR/tabulated/h2o-800K.dat")
-const my_h2o_1200 = load_interpolated_eos("$DATADIR/tabulated/h2o-1200K.dat")
+const my_h2o_300 = load_interpolated_eos("$EOSDIR/raw/h2o-300K.dat")
+const my_h2o_500 = load_interpolated_eos("$EOSDIR/raw/h2o-500K.dat")
+const my_h2o_800 = load_interpolated_eos("$EOSDIR/raw/h2o-800K.dat")
+const my_h2o_1200 = load_interpolated_eos("$EOSDIR/raw/h2o-1200K.dat")
 
-const my_h2o_full = load_2D_eos("$DATADIR/tabulated/my_h2o_1000x1000.dat")
+const my_h2o_full = load_2D_eos("$EOSDIR/raw/my_h2o_1000x1000.dat")
 
 # Phase boundaries
 # ------------------------------------------------------------------------------

@@ -52,7 +52,7 @@ module eos
                                          1e3, 1e8,
                                          "H2O (BME3) (Seager 2007)")
     # TODO: this line is fragile as it relies on the data directory - add data to test dir
-    h2o_seager_dft = Ogre.load_interpolated_eos("$(Ogre.DATADIR)/tabulated/h2o-dft.eos")
+    h2o_seager_dft = Ogre.load_interpolated_eos("$(Ogre.DATADIR)/eos/raw/h2o-dft.eos", linear=true)
     h2o_tfd_f(P::Real) = Ogre.TFD(P, [1, 8], [1.00794, 15.9994], [2., 1.])
     h2o_tfd = Ogre.SimpleEOS(Ogre.NoTemp, h2o_tfd_f, "H2O TFD")
 
@@ -84,10 +84,10 @@ module eos
     rholin_2D_withnans = copy(rholin_2D)
     rholin_2D_withnans[2] = NaN
 
-    interp_1D_lin = Ogre.lininterp(Plin, rholin_1D)
-    interp_1D_log = Ogre.loginterp(Plog, rholog_1D)
-    interp_2D_lin = Ogre.lininterp(Plin, Tlin, rholin_2D)
-    interp_2D_log = Ogre.loginterp(Plog, Tlog, rholog_2D)
+    interp_1D_lin = Ogre.LinPressureGridEOS(Plin, rholin_1D, "lin1D")
+    interp_1D_log = Ogre.LogPressureGridEOS(Plog, rholog_1D, "log1D")
+    interp_2D_lin = Ogre.LinPTGridEOS(Plin, Tlin, rholin_2D, "lin2D")
+    interp_2D_log = Ogre.LogPTGridEOS(Plog, Tlog, rholog_2D, "log2D")
 end # module eos
 
 module planet

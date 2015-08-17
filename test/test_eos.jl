@@ -17,8 +17,8 @@ facts("Equation of state (EOS) handling") do
 
         context("Piecewise EOS") do
             context("Get number of equations in each EOS") do
-                @fact length(eos_linear) --> 1
-                @fact length(res.eos.P_piecewise) --> 3
+                @fact Ogre.n_eoses(eos_linear) --> 1
+                @fact Ogre.n_eoses(res.eos.P_piecewise) --> 3
             end
 
             context("The PiecewiseEOS returns correct individual EOS") do
@@ -131,10 +131,13 @@ facts("Equation of state (EOS) handling") do
                     T_to_check = [10, 25, 40.3, 64.3, 94]
                     expected_results = [P^2 + T^2 for (P, T) in zip(P_to_check, T_to_check)]
 
-                    @fact (lininterp2d(P_to_check, T_to_check) --> 
-                           roughly(expected_results, rtol=0.01))
-                    @fact (loginterp2d(P_to_check, T_to_check) --> 
-                           roughly(expected_results, rtol=0.01))
+                    actual_lin = [lininterp2d(P,T) 
+                                  for (P,T) in zip(P_to_check, T_to_check)]
+                    actual_log = [loginterp2d(P,T) 
+                                  for (P,T) in zip(P_to_check, T_to_check)]
+
+                    @fact actual_lin --> roughly(expected_results, rtol=0.01)
+                    @fact actual_log --> roughly(expected_results, rtol=0.01)
 
                     context("NaN values error out") do
                         rnan = copy(res.eos.rholin_2D)

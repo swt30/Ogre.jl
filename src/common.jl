@@ -129,68 +129,6 @@ cpmod{T}(pp::T; kws...) = cpmod(pp, kws)
 
 include("constants.jl")
 
-# Interpolation
-#-------------------------------------------------------------------------------
-
-"Create an interpolating function on a linear grid"
-function lininterp(xs::Vector, ys::Vector)
-    spline = Spline1D(xs, ys, k=2)
-
-    interp_func(x::Real) = evaluate(spline, Float64(x))
-    interp_func(x::AbstractVector) = evaluate(spline, Vector{Float64}(x))
-
-    interp_func
-end
-function lininterp{S, T}(xs::AbstractVector{S}, ys::AbstractVector{T})
-    lininterp(Vector{S}(xs), Vector{T}(ys))
-end
-
-"Create an interpolating function using a log-spaced coordinate grid."
-function loginterp(xs::Vector, ys::Vector)
-    # first transform the grid to be linear
-    logxs = log10(xs)
-    # then do the interpolation as if it were linear
-    lin_interp_func = lininterp(logxs, ys)
-
-    interp_func(x) = lin_interp_func(log10(x))
-end
-function loginterp{S, T}(xs::AbstractVector{S}, ys::AbstractVector{T})
-    loginterp(Vector{S}(xs), Vector{T}(ys))
-end
-
-"Create an interpolating function from a 2D linear grid"
-function lininterp(xs::Vector, ys::Vector, zs::Matrix)
-    hasnan(zs) ? error("2D data contains NaNs") :
-    spline = Spline2D(xs, ys, zs, kx=1, ky=1)
-
-    interp_func(x::Real, y::Real) = evaluate(spline, Float64(x), Float64(y))
-    function interp_func(x::AbstractVector, y::AbstractVector)
-        evaluate(spline, Vector{Float64}(x), Vector{Float64}(y))
-    end
-
-    interp_func
-end
-function lininterp{S, T}(xs::AbstractVector{S}, ys::AbstractVector{T}, zs; kwargs...)
-    lininterp(Vector{S}(xs), Vector{T}(ys), zs; kwargs...)
-end
-
-"Create an interpolating function from a 2D log-log grid"
-function loginterp(xs::Vector, ys::Vector, zs::Matrix; kwargs...)
-    logxs = log10(xs)
-    logys = log10(ys)
-
-    lin_interp_func = lininterp(logxs, logys, zs; kwargs...)
-    interp_func(x, y) = lin_interp_func(log10(x), log10(y))
-end
-
-"Create an interpolating function from a 2D log-linear grid"
-function semiloginterpx(xs::Vector, ys::Vector, zs::Matrix; kwargs...)
-    logxs = log10(xs)
-
-    lin_interp_func = lininterp(logxs, ys, zs; kwargs...)
-    interp_func(x, y) = lin_interp_func(log10(x), y)
-end
-
 # Miscellaneous utility funcs
 #-------------------------------------------------------------------------------
 
