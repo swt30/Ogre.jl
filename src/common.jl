@@ -80,7 +80,7 @@ temperature(vs::PhysicalValues) = vs.T
 function gravity(vs::ValueSet)
     m = mass(vs)
     r = radius(vs)
-    @show G * m ./ (r.^2)
+    G * m ./ (r.^2)
 end
 "Get dependent physical values (radius, pressure, [temperature])"
 function nonmass end

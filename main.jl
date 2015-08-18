@@ -38,11 +38,7 @@ function mr_diagrams()
     xax = ax[:get_xaxis]()
     yax = ax[:get_yaxis]()
 
-    legend(loc=0)
-
-    ScalarFormatter = ticker.ScalarFormatter
-    xax[:set_major_formatter](ScalarFormatter())
-    yax[:set_major_formatter](ScalarFormatter())
+    legend(loc="best")
 
     tight_layout()
 end
@@ -71,5 +67,5 @@ function phaseplots(Tsurf)
 end
 
 close(:all)
-phaseplots(300)
-# mr_diagrams()
+# phaseplots(300)
+mr_diagrams()

@@ -87,9 +87,10 @@ function converge(system::PlanetSystem)
     r_new = R_guess(system)
 
     # TODO: remove this condition after we have more robust convergence
-    if isapprox(r_old, r_new, rtol=1e-3)
-        return system
-    end
+    # Note that for some reason, it screws up our convergence on the MR diagrams
+    # if isapprox(r_old, r_new, rtol=1e-3)
+    #     return system
+    # end
     if R_guess(system) ≠ system.boundary_values.r
         system = update_boundary_r(system)
     end

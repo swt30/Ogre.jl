@@ -331,8 +331,10 @@ end
 # Storage and retrieval
 # -----------------------------------------------------------------------------
 
-"Put a number of interpolated EOSes into data files for later use"
-function save_eoses_to_files()
+const EOSDIR = "$DATADIR/eos"
+
+"Put Seager's EOSes into .jld files for later use"
+function save_seager_eoses_to_files()
     # Seager's versions of the BME at low pressure
     fe_eps_seager_func(ρ) = Vinet(ρ, 8300., 156.2, 6.08) * 1e9
     h2o_VII_seager_func(ρ) = BME(ρ, 1460., 23.7, 4.15) * 1e9
@@ -386,6 +388,12 @@ function save_eoses_to_files()
     save("$DATADIR/eos/seager.jld", seager_eoses)
 end
 
+"Put my EOSes into files for later use"
+function save_my_eoses_to_files()
+    my_h2o_1000x1000 = load_2D_eos("$EOSDIR/raw/my_h2o_1000x1000.dat")
+    save("$EOSDIR/h2o.jld", "1000x1000", my_h2o_1000x1000)
+end
+
 """ Read a temperature-independent EOS from a text file
 
     If `linear`=`true`, the EOS is assumed to be on a linear grid, 
@@ -426,9 +434,7 @@ function load_2D_eos(file::String; linear::Bool=false)
     end
 end
 
-EOSDIR = "$DATADIR/eos"
-
-# Load interpolated EOS from file
+# Load EOSes from files
 const fe_seager = load_interpolated_eos("$EOSDIR/Fe (Vinet) (Seager 2007) & Fe TFD.eos")
 const h2o_seager = load_interpolated_eos("$EOSDIR/H2O (BME3) (Seager 2007) & H2O (DFT) & H2O TFD.eos")
 const h2o_seager_simple = load_interpolated_eos("$EOSDIR/H2O (BME3) (Seager 2007) & H2O TFD.eos")
@@ -439,7 +445,7 @@ const my_h2o_500 = load_interpolated_eos("$EOSDIR/raw/h2o-500K.dat")
 const my_h2o_800 = load_interpolated_eos("$EOSDIR/raw/h2o-800K.dat")
 const my_h2o_1200 = load_interpolated_eos("$EOSDIR/raw/h2o-1200K.dat")
 
-const my_h2o_full = load_2D_eos("$EOSDIR/raw/my_h2o_1000x1000.dat")
+const my_h2o_full = load("$EOSDIR/h2o.jld")["1000x1000"]
 
 # Phase boundaries
 # ------------------------------------------------------------------------------
