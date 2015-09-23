@@ -1,8 +1,9 @@
-# HEATCAPACITY.JL
-# Types related to the heat capacity of materials, as required for the
-# adiabatic temperature gradient
+# The heat capacity of materials, as required for the adiabatic temperature gradient
 
 using Dierckx
+
+
+# Types for different heat capacity behaviours
 
 "An isobaric heat capacity (cₚ)"
 abstract HeatCapacity
@@ -16,46 +17,47 @@ end
 abstract VaryingHeatCapacity <: HeatCapacity
 abstract FunctionalHeatCapacity <: VaryingHeatCapacity
 
-"A heat capacity that varies with temperature"
+"A heat capacity which is a function of temperature"
 immutable TFuncHeatCapacity{F} <: FunctionalHeatCapacity
     func::F
 end
 
-"A heat capacity that varies with pressure and temperature"
+"A heat capacity which is a function of pressure and temperature"
 immutable PTFuncHeatCapacity{F} <: FunctionalHeatCapacity
     func::F
 end
 
 "A heat capacity interpolated from a log-linear grid"
-immutable PTGridHeatCapacity <: HeatCapacity
-    logP::Vector{Float64}
+immutable GridHeatCapacity <: HeatCapacity
+    P::Vector{Float64}
     T::Vector{Float64}
     spline::Spline2D
 
-    function PTGridHeatCapacity(P, T, Cₚ)
-        new(log10(P), T, Spline2D(log10(P), T, Cₚ, kx=1, ky=1))
+    function GridHeatCapacity(P, T, Cₚ)
+        new(P, T, Spline2D(P, T, Cₚ, kx=1, ky=1))
     end
 end
-Base.call(cp::PTGridHeatCapacity, P, T) = evaluate(cp.spline, log10(P), T)
 
-HeatCapacity(::Type{WithTemp}, func) = TFuncHeatCapacity(func)
-HeatCapacity(::Type{WithTempPressure}, func) = PTFuncHeatCapacity(func)
-HeatCapacity(n::Number) = ConstantHeatCapacity(n)
-function HeatCapacity(filename::String)
-    # generate heat capacity from file
-    # TODO: document this constructor once permitted
+
+# Making heat capacities from files
+
+"Generate a heat capacity from a file"
+function GridHeatCapacity(filename)
     data = readdlm(filename, Float64)
     T = vec(data[2:end, 1])
     P = vec(data[1, 2:end])
     Cₚ = Matrix{Float64}(data[2:end, 2:end])' .* 1000  # note the transpose
 
-    PTGridHeatCapacity(P, T, Cₚ)
+    GridHeatCapacity(P, T, Cₚ)
 end
 
-import Base.call
-call(cp::HeatCapacity, pv::PhysicalValues) = cp(pressure(pv), temperature(pv))
-call(cp::ConstantHeatCapacity, T::Real) = cp.value
-call(cp::ConstantHeatCapacity, P::Real, T::Real) = cp.value
-call(cp::TFuncHeatCapacity, T::Real) = cp.func(T)
-call(cp::TFuncHeatCapacity, P::Real, T::Real) = cp.func(T)
-call(cp::PTFuncHeatCapacity, P::Real, T::Real) = cp.func(P, T)
+
+# Evaluating heat capacities
+
+Base.call(cp::GridHeatCapacity, P::Number, T::Number) = evaluate(cp.spline, P, T)
+Base.call(cp::HeatCapacity, pv::PhysicalValues) = cp(pressure(pv), temperature(pv))
+Base.call(cp::ConstantHeatCapacity, P::Number) = cp.value
+Base.call(cp::ConstantHeatCapacity, P::Number, T::Number) = cp.value
+Base.call(cp::TFuncHeatCapacity, T::Number) = cp.func(T)
+Base.call(cp::TFuncHeatCapacity, P::Number, T::Number) = cp.func(T)
+Base.call(cp::PTFuncHeatCapacity, P::Number, T::Number) = cp.func(P, T)

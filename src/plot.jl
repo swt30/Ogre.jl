@@ -1,23 +1,17 @@
-# PLOT.JL
 # Plotting functions
 
-# Python plot setup
-#------------------------------------------------------------------------------
-
+using PyCall, PyPlot
+import PyPlot: plot
 export plot, phaseplot
 
-using PyCall, PyPlot
+
+# Python plot setup
+
 @pyimport matplotlib.style as plotstyle
-    plotstyle.use("fivethirtyeight")
+    plotstyle.use("ggplot")
 
-@pyimport matplotlib as mpl
-    mpl.rcParams["linewidth"] = 0
-    mpl.rcParams["marker"] = "."
 
-# Planet structure plotting
-#------------------------------------------------------------------------------
-
-import PyPlot.plot
+# Plotting planetary structures
 
 "Label the mass coordinate x-axis"
 function label_x_as_mass()
@@ -52,7 +46,7 @@ function plot_pressure_profile(soln::PlanetStructure; kws...)
 end
 
 "Plot the heat capacity profile of a planet"
-function plot_heat_capacity_profile(soln::PlanetStructure{WithTemp}, 
+function plot_heat_capacity_profile(soln::PlanetStructure{WithTemp},
     sys::PlanetSystem{WithTemp}; kws...)
     x = vec(mass(soln)) / M_earth
     P = vec(pressure(soln))
@@ -68,7 +62,7 @@ function plot_heat_capacity_profile(soln::PlanetStructure{WithTemp},
 end
 
 "Plot the thermal expansivity profile of a planet"
-function plot_expansivity_profile(soln::PlanetStructure{WithTemp}, 
+function plot_expansivity_profile(soln::PlanetStructure{WithTemp},
     sys::PlanetSystem{WithTemp}; kws...)
     x = vec(mass(soln)) / M_earth
     P = vec(pressure(soln))
@@ -84,7 +78,7 @@ function plot_expansivity_profile(soln::PlanetStructure{WithTemp},
 end
 
 "Plot the density profile of a planet"
-function plot_density_profile(soln::PlanetStructure{WithTemp}, 
+function plot_density_profile(soln::PlanetStructure{WithTemp},
     sys::PlanetSystem{WithTemp}; kws...)
     x = vec(mass(soln)) / M_earth
     P = vec(pressure(soln))
@@ -190,7 +184,7 @@ function phaseplot(soln::PlanetStructure{WithTemp}; kwargs...)
     yscale("log")
 
     plot_phases()
-    plot(P, T, linewidth=2; kwargs...)
+    plot(P, T, ".", kwargs...)
 
     xlim(xmin=1e-5, xmax=100)
     ylim(ymin=200, ymax=2000)
@@ -200,11 +194,11 @@ end
 
 "Plot the phase boundaries of water in P-T space"
 function plot_phases()
-    for pb in Ogre.phase_boundaries
+    boundaries = WaterData.load_phase_boundaries()
+    iapws = boundaries["iapws"]
+    plot(iapws.P / 1e9, iapws.T, linewidth=1, color="Red")
+    for pb in boundaries["dunaeva"]
         new_pressure = pb.P/1e9
-        adjusted_P = cpmod(pb, P=new_pressure)
-        c = isa(pb, OtherPhaseBoundary) ? "Red" : "Black" 
-        plot(adjusted_P, linewidth=1, color=c)
+        plot(pb.P / 1e9, pb.T, linewidth=1, color="Black")
     end
 end
-

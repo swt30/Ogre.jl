@@ -1,6 +1,28 @@
-include("header.jl")
+using FactCheck
+import Ogre
+
+
+module test_structure_resources
+    import Ogre
+    pressure = Ogre.pressure
+    temperature = Ogre.temperature
+
+    type PressureEOS <: Ogre.EOS end
+    Base.call(eos::PressureEOS, pv::Ogre.PhysicalValues) = eos(pressure(pv))
+    Base.call(eos::PressureEOS, pv::Ogre.MassRadiusPressure) = eos(pressure(pv))
+    Base.call(::PressureEOS, P) = 4100. + 0.00161*(P^0.541)
+
+    type PTEOS <: Ogre.EOS end
+    Base.call(eos::PTEOS, pv::Ogre.PhysicalValues) = eos(pressure(pv), temperature(pv))
+    Base.call(::PTEOS, P, T) = 4100. + 0.00161*(P^0.541)
+    # the effect of T on ρ here is arbitrary - we just want increasing
+    # T to mean decreasing ρ
+end
+
 
 facts("Structure equations") do
+    res = test_structure_resources
+
     # realistic values taken from PREM at r=1000 km from the centre
     mass = 5.4e22      # kg enclosed
     radius = 1e6       # m
@@ -10,8 +32,7 @@ facts("Structure equations") do
         realistic_values = Ogre.ValueSet(mass, radius, pressure)
 
         context("using an analytic EOS") do
-            eos_func(P::Real) = 4100. + 0.00161*(P^0.541)
-            eos = Ogre.PressureEOS(eos_func, "Analytic MgSiO3")
+            eos = res.PressureEOS()
 
             masscontinuity = Ogre.MassContinuity(eos)
             pressurebalance = Ogre.PressureBalance()
@@ -50,13 +71,10 @@ facts("Structure equations") do
         realistic_values = Ogre.ValueSet(mass, radius, pressure, temperature)
 
         context("using an analytic EOS") do
-            eos_func(P::Real, T::Real) = 4100. + 0.00161*(P^0.541)*(T^-0.054)
-            eos = Ogre.PressureTempEOS(eos_func, "Analytic MgSiO3 with temp")
-            # the effect of T on ρ here is arbitrary - we just want increasing
-            # T to mean decreasing ρ
+            eos = res.PTEOS()
 
             # arbitrary heat capacity
-            Cₚ = Ogre.HeatCapacity(100)
+            Cₚ = Ogre.ConstantHeatCapacity(100)
 
             masscontinuity = Ogre.MassContinuity(eos)
             pressurebalance = Ogre.PressureBalance()
@@ -94,7 +112,9 @@ facts("Structure equations") do
     end
 end
 
+
 facts("Planetary structure types") do
+    res = test_structure_resources
     context("Boundary values") do
         bvs = Ogre.BoundaryValues(1,2,3)
         bvsT = Ogre.BoundaryValues(1,2,3,4)
@@ -144,8 +164,7 @@ facts("Planetary structure types") do
 
         context("No temperature dependence") do
             bvs = Ogre.BoundaryValues(M, R, Psurf)
-            eos_f(P) = 4100. + 0.00161*(P^0.541)
-            eos = Ogre.SimpleEOS(Ogre.NoTemp, eos_f, "")
+            eos = res.PressureEOS()
             masscontinuity = Ogre.MassContinuity(eos)
             structure = Ogre.EquationSet([masscontinuity,
                                           pressurebalance])
@@ -162,10 +181,8 @@ facts("Planetary structure types") do
         context("Temperature dependence") do
             Tsurf = 300
             bvs = Ogre.BoundaryValues(M, R, Psurf, Tsurf)
-            eos_f(P, T) = 4100. + 0.00161*(P^0.541)*(T^-0.054)
-            eos = Ogre.SimpleEOS(Ogre.WithTemp, eos_f, "")
-            Cₚ_f(T) = T
-            Cₚ = Ogre.HeatCapacity(Ogre.WithTemp, Cₚ_f)
+            eos = res.PTEOS()
+            Cₚ = Ogre.ConstantHeatCapacity(1000)
             masscontinuity = Ogre.MassContinuity(eos)
             temperaturegradient = Ogre.TemperatureGradient(eos, Cₚ)
             structure = Ogre.EquationSet([masscontinuity,

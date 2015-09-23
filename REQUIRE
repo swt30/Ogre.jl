@@ -1,1 +1,10 @@
 # TODO: Update REQUIRE with needed packages once v0.4 is out
+julia v0.4-
+WaterData
+Iterators
+Dierckx
+Plots
+PyPlot
+PyCall
+VoronoiDelaunay
+GeometricalPredicates

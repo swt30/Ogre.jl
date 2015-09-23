@@ -1,7 +1,13 @@
+# Main module file
+
+"Planetary structure solver"
 module Ogre
 
-# module components
-include("common.jl") # includes physical constants
+include("common.jl")
+include("constants.jl")
+include("config.jl")
+include("util.jl")
+include("physicalvalues.jl")
 include("eos.jl")
 include("heatcapacity.jl")
 include("structure.jl")

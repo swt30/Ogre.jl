@@ -1,6 +1,6 @@
 using FactCheck
 
 
-facts("No common tests") do
+facts("No constant tests") do
     nothing
 end
