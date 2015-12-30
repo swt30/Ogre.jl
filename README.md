@@ -1,3 +1,3 @@
 # Ogre #
 
-`Ogre` is a package for interior structure calculations of exoplanets.
+`Ogre` is a package which does interior structure calculations for exoplanets.

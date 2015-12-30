@@ -2,13 +2,12 @@
 
 using PyCall, PyPlot
 import PyPlot: plot
-export plot, phaseplot
 
 
 # Python plot setup
 
 @pyimport matplotlib.style as plotstyle
-    plotstyle.use("ggplot")
+    plotstyle.use("fivethirtyeight")
 
 
 # Plotting planetary structures
@@ -64,14 +63,19 @@ end
 "Plot the thermal expansivity profile of a planet"
 function plot_expansivity_profile(soln::PlanetStructure{WithTemp},
     sys::PlanetSystem{WithTemp}; kws...)
-    x = vec(mass(soln)) / M_earth
+    m = vec(mass(soln))
+    x = m / M_earth
     P = vec(pressure(soln))
     T = vec(temperature(soln))
     thermal_gradient = sys.structure_equations[3]
     eos = thermal_gradient.eos
     heatcap = thermal_gradient.heatcap
 
-    αᵥ = map((P, T) -> thermal_expansivity(P, T, eos), P, T)
+    αᵥ = map(m, P, T) do m, P, T
+        vs = ValueSet(m, NaN, P, T)
+        Ogre.thermexp(eos, vs)
+    end
+
     plot(x, αᵥ; kws...)
     label_x_as_mass()
     ylabel(L"Thermal expansivity, $\alpha$ / K$^{-1}$")
@@ -80,14 +84,15 @@ end
 "Plot the density profile of a planet"
 function plot_density_profile(soln::PlanetStructure{WithTemp},
     sys::PlanetSystem{WithTemp}; kws...)
-    x = vec(mass(soln)) / M_earth
+    m = vec(mass(soln))
+    x = m / M_earth
     P = vec(pressure(soln))
     T = vec(temperature(soln))
     thermal_gradient = sys.structure_equations[3]
     eos = thermal_gradient.eos
     heatcap = thermal_gradient.heatcap
 
-    ρ = map(eos, P, T)
+    ρ = map((m, P, T) -> eos(Ogre.ValueSet(m, NaN, P, T)), m, P, T)
     plot(x, ρ; kws...)
     label_x_as_mass()
     ylabel(L"Density, $\rho$ / kg m$^{-3}$")
@@ -172,22 +177,22 @@ end
 
 "Plot the P-T profile of a planet overlaid on the phase boundaries of water"
 function phaseplot(soln::PlanetStructure{WithTemp}; kwargs...)
-    P = vec(pressure(soln)) / 1e9
+    P = vec(pressure(soln))
     T = vec(temperature(soln))
 
     figure()
 
     ax1 = subplot(111)
-    xlabel("Pressure / GPa")
+    xlabel("Pressure / Pa")
     ylabel("Temperature / K")
     xscale("log")
     yscale("log")
 
     plot_phases()
-    plot(P, T, ".", kwargs...)
+    plot(P, T, kwargs...)
 
-    xlim(xmin=1e-5, xmax=100)
-    ylim(ymin=200, ymax=2000)
+    xlim(xmin=1e4, xmax=1e12)
+    ylim(ymin=200, ymax=10000)
 
     tight_layout()
 end
@@ -196,9 +201,8 @@ end
 function plot_phases()
     boundaries = WaterData.load_phase_boundaries()
     iapws = boundaries["iapws"]
-    plot(iapws.P / 1e9, iapws.T, linewidth=1, color="Red")
+    plot(iapws.P, iapws.T, linewidth=1, color="Red")
     for pb in boundaries["dunaeva"]
-        new_pressure = pb.P/1e9
-        plot(pb.P / 1e9, pb.T, linewidth=1, color="Black")
+        plot(pb.P, pb.T, linewidth=1, color="Black")
     end
 end

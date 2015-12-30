@@ -4,7 +4,7 @@ type GraphValues
     P
     ρ
 end
-function GraphValues(filename::String)
+function GraphValues(filename::AbstractString)
     graph = readcsv(filename)
     P = graph[:, 1]
     ρ = graph[:, 2]

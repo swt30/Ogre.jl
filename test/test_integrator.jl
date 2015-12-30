@@ -47,12 +47,15 @@ module test_integrator_resources
     Base.call(eos::JustAPressureEOS, pv::PV) = eos(Ogre.pressure(pv))
     Base.call(eos::JustAPressureEOS, pv::MRP) = eos(Ogre.pressure(pv))
     Base.call(::JustAPressureEOS, P) = 1000 + P
+    Ogre.istempdependent(::JustAPressureEOS) = false
 
     type NotReallyATemperatureEOS <: Ogre.EOS end
     Base.call(::NotReallyATemperatureEOS, P, T) = 1000 + P
+    Ogre.istempdependent(::NotReallyATemperatureEOS) = true
 
     type ReallyATemperatureEOS <: Ogre.EOS end
     Base.call(::ReallyATemperatureEOS, P, T) = 1000 + 1/T
+    Ogre.istempdependent(::ReallyATemperatureEOS) = true
 
     # Planet structures
     M_earth = Ogre.M_earth

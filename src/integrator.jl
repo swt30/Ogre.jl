@@ -149,9 +149,9 @@ function solve!(sys::PlanetSystem, soln::PlanetStructure)
 
     # solve and write to solution array
     solver = RK4(sys.structure_equations, y0, tgrid)
-    for (i, x) in enumerate(solver)
+    for (i, y) in enumerate(solver)
         setmass!(soln, i, tgrid[i])
-        setnonmass!(soln, i, x)
+        setnonmass!(soln, i, y)
     end
 
     return soln
@@ -161,6 +161,8 @@ end
 function solve(sys::PlanetSystem)
     soln = blank_structure(sys)
     solve!(sys, soln)
+
+    return soln
 end
 
 # Radius searching
@@ -231,7 +233,7 @@ function find_structure_and_radius!(system::PlanetSystem)
     struct = find_structure!(system)
     r = radius(surface(struct))
 
-    return struct, r
+    struct, r
 end
 
 # higher level functions for doing MR diagrams
@@ -243,7 +245,7 @@ function R(M, structure_equations::EquationSet, P_surface,
     system = PlanetSystem(M, R_guess, P_surface, structure,
                           solution_grid, R_bracket)
 
-    find_radius!(system)
+    radius = find_radius!(system)
 end
 
 "Find the radius of a solid sphere of mass `M` using an given `EOS`."
@@ -252,9 +254,7 @@ function R(M, eos; in_earth_units=false)
     Rscale = in_earth_units ? 1/R_earth : 1.
 
     sys = DefaultPlanetSystem(M * Mscale, eos)
-    r = find_radius!(sys) * Rscale
-
-    r
+    radius = find_radius!(sys) * Rscale
 end
 
 # temperature-dependent version
@@ -263,13 +263,11 @@ function R(M, eos, Cₚ; in_earth_units=false)
     Rscale = in_earth_units ? 1/R_earth : 1.
 
     sys = DefaultPlanetSystem(M * Mscale, eos, Cₚ)
-    r = find_radius!(sys) * Rscale
-
-    r
+    radius = find_radius!(sys) * Rscale
 end
 
 # vectorized form of the above
 function R{T<:Real}(ms::AbstractVector{T}, args...; in_earth_units=false)
     R_withEOS(M) = R(M, args...; in_earth_units=in_earth_units)
-    map(R_withEOS, ms)
+    radii = map(R_withEOS, ms)
 end

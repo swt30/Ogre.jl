@@ -1,6 +1,7 @@
 # Equations of state
 
 using WaterData
+import WaterData: extracteos
 using Iterators: chain
 
 # The bulk of the EOSes are provided in the WaterData package.
@@ -15,26 +16,31 @@ immutable MassPiecewiseEOS{E<:EOS, T<:Real} <: WaterData.PiecewiseEOS
     edges::Vector{T}
 end
 function MassPiecewiseEOS(eoses, M, mass_fractions)
-    layer_edges = vcat([0], cumsum(mass_fractions)) .* M
+    layer_edges = vcat([-Inf], cumsum(mass_fractions)) .* M
+    layer_edges[end] = Inf
     MassPiecewiseEOS(eoses, layer_edges)
 end
-
 
 # EOS evaluation
 # (we loop through a bunch of EOSes to avoid ambiguity clashes)
 
 # Split piecewise EOSes appropriately
+function extracteos(eos::MassPiecewiseEOS, vs::ValueSet)
+    extracteos(eos, mass(vs))
+end
+function extracteos(eos::WaterData.PressurePiecewiseEOS, vs::ValueSet)
+    extracteos(eos, pressure(vs))
+end
 for T in (MassRadiusPressure, PhysicalValues)
-    Base.call(eos::MassPiecewiseEOS, vs::T) = WaterData.get_single_eos(eos, mass(vs))(vs)
+    Base.call(eos::MassPiecewiseEOS, vs::T) = extracteos(eos, vs)(vs)
 end
 
 # Calling EOSes with ValueSets
-let specific_eoses = (TFD, BME3, BME4, Vinet, PolytropicEOS),
+let specific_eoses = (TFD, BME3, BME4, Vinet, PolytropicEOS, WaterData.OutOfDomainEOS),
     modifier_eoses = (BoundedEOS, WaterData.InverseFunctionalEOS, PressurePiecewiseEOS),
-    special_eoses = (WaterData.OutOfDomainEOS, ),
-    general_eoses = (LineEOS, GridEOS, EOS)
+    general_eoses = (LineEOS, GridEOS, EOS, )
 
-    for T in chain(specific_eoses, special_eoses, modifier_eoses, general_eoses)
+    for T in chain(specific_eoses, modifier_eoses, general_eoses)
         Base.call(eos::T, vs::MassRadiusPressure) = eos(pressure(vs))
         Base.call(eos::T, vs::PhysicalValues) = eos(pressure(vs), temperature(vs))
     end

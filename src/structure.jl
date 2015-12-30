@@ -1,6 +1,7 @@
 # Structural equations and planetary models
 
 using WaterData
+import WaterData: istempdependent, extracteos
 import VoronoiDelaunay, GeometricalPredicates
 # TODO: check whether we can bundle these reqs into the .jld file instead
 
@@ -16,15 +17,9 @@ end
 
 Base.length(es::EquationSet) = length(es.equations)
 Base.getindex(es::EquationSet, i) = es.equations[i]
-
-
-# Evaluating equations
-
-Base.call(eq::Equation, x::Real) = getequation(eq)(x)
-Base.call(eq::Equation, vs::ValueSet) = eq.equation(vs)
-Base.call(es::Equation, x::Real, y::Vector) = es(ValueSet(x, y...))
 Base.call(es::EquationSet, x::Real, y::Vector) = map(eq -> eq(x, y), es.equations)
 Base.call(es::EquationSet, vs::ValueSet) = map(eq -> eq(vs), es.equations)
+
 
 # Structural equation types
 
@@ -42,66 +37,84 @@ immutable PressureBalance <: StructureEquation
 end
 const pressurebalance = PressureBalance()
 
-"Adiabatic temperature gradient: dT/dm = -Gm/4πr⁴Cₚ"
-immutable TemperatureGradient{E<:EOS, HC<:HeatCapacity} <: StructureEquation
-    eos::E
-    heatcap::HC
+"Adiabatic temperature gradient: dT/dm = -GmαT/4πr⁴Cₚ"
+immutable TemperatureGradient <: StructureEquation
+    eos::EOS
+    heatcap::HeatCapacity
 end
 
+"Thermal expansivity: αᵥ = -1/ρ (∂ρ/∂T)ₚ"
+abstract ThermalExpansivity <: StructureEquation
+
+immutable GridThermalExp <: ThermalExpansivity
+    alpha::EOS
+end
+immutable ConstantThermalExp <: ThermalExpansivity
+    alpha::Float64
+end
+immutable NoThermalExp <: ThermalExpansivity; end
+
+const water_thermexp = GridThermalExp(WaterData.load_full_eos()["thermexp"])
+_thermexp(::EOS) = water_thermexp
+_thermexp(::BME) = NoThermalExp()
+_thermexp(::Vinet) = NoThermalExp()
+function thermexp(eos::EOS, pv::PhysicalValues)
+    singleeos = extracteos(eos, pv)
+    _thermexp(singleeos)(pv)
+end
 
 # Evaluating structural equations
 
-function Base.call(mce::MassContinuity, vs::ValueSet)
-    dr_dm::Float64 = 0.0
+Base.call(e::StructureEquation, m, y::Vector) = e(m, y...)
+Base.call(e::StructureEquation, m, r, P) = e(MassRadiusPressure(m, r, P))
+Base.call(e::StructureEquation, m, r, P, T) = e(PhysicalValues(m, r, P, T))
+# TODO: I don't like this fake value stuff, maybe we should do it the other way
+# around i.e. define the calls in terms of the individual variables and then
+# split the ValueSet up and pass this
 
+function Base.call(mce::MassContinuity, vs::ValueSet)
     if isphysical(vs)
         r = radius(vs)
         ρ = mce.eos(vs)
-        dr_dm = 1 / (4pi * r^2 * ρ)
+        1 / (4pi * r^2 * ρ)
+    else
+        zero(Float64)
     end
-
-    dr_dm
 end
 
 function Base.call(::PressureBalance, vs::ValueSet)
-    dP_dm::Float64 = 0.0
-
     if isphysical(vs)
         m = mass(vs)
         r = radius(vs)
-        dP_dm = -(G * m) / (4pi * r^4)
+        -(G * m) / (4pi * r^4)
+    else
+        zero(Float64)
     end
-
-    dP_dm
 end
 
 function Base.call(tg::TemperatureGradient, pv::PhysicalValues)
-    dT_dm::Float64 = 0.0
-
     if isphysical(pv)
         ρ = tg.eos(pv)
         cₚ = tg.heatcap(pv)
         r = radius(pv)
         m = mass(pv)
         T = temperature(pv)
-        α = thermal_expansivity(pv, tg.eos)
-
-        dT_dm = -(G * m * α * T) / (4pi * r^4 * ρ * cₚ)
+        if istempdependent(extracteos(tg.eos, pv))
+            α = thermexp(tg.eos, pv)
+            return -(G * m * α * T) / (4π * r^4 * ρ * cₚ)
+        end
     end
 
-    dT_dm
+    return zero(Float64)
 end
 
-const α = WaterData.load_full_eos()["thermexp"]
-
-"Thermal expansivity: αᵥ = -1/ρ (∂ρ/∂T)ₚ"
-function thermal_expansivity(P, T, eos::EOS)
-    α(P, T)
+function Base.call(te::ThermalExpansivity, pv::PhysicalValues)
+    te.alpha(pressure(pv), temperature(pv))
 end
 
-function thermal_expansivity(pv::PhysicalValues, eos::EOS)
-    thermal_expansivity(pressure(pv), temperature(pv), eos)
-end
+Base.call(te::GridThermalExp, P::Real, T::Real) = te.alpha(P, T)
+Base.call(te::ConstantThermalExp, P::Real, T::Real) = te.alpha
+Base.call(::NoThermalExp, P::Real, T::Real) = zero(Float64)
 
 
 # Planetary parameter types

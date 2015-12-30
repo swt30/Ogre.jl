@@ -11,12 +11,14 @@ module test_structure_resources
     Base.call(eos::PressureEOS, pv::Ogre.PhysicalValues) = eos(pressure(pv))
     Base.call(eos::PressureEOS, pv::Ogre.MassRadiusPressure) = eos(pressure(pv))
     Base.call(::PressureEOS, P) = 4100. + 0.00161*(P^0.541)
+    Ogre.istempdependent(::PressureEOS) = false
 
     type PTEOS <: Ogre.EOS end
     Base.call(eos::PTEOS, pv::Ogre.PhysicalValues) = eos(pressure(pv), temperature(pv))
     Base.call(::PTEOS, P, T) = 4100. + 0.00161*(P^0.541)
     # the effect of T on ρ here is arbitrary - we just want increasing
     # T to mean decreasing ρ
+    Ogre.istempdependent(::PTEOS) = true
 end
 
 

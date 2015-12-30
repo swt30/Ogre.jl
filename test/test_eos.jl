@@ -28,6 +28,9 @@ module test_eos_resources
     Base.call(eos::ConstantEOS, P::Number) = eos.C
     Base.call(eos::ConstantEOS, P::Number, T::Number) = eos(P)
 
+    Ogre.istempdependent(::Union{SimpleEOS, ConstantEOS}) = false
+    Ogre.istempdependent(::ComplicatedEOS) = true 
+
     for T in (SimpleEOS, ConstantEOS)
         Base.call(eos::T, vs::Ogre.MassRadiusPressure) = eos(Ogre.pressure(vs))
     end

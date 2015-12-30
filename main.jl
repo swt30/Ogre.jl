@@ -1,71 +1,102 @@
-using Ogre, PyPlot
+using Ogre, PyPlot, DataStructures, Colors
 
 function mr_diagrams()
-    ms = linspace(0.5, 10, 30) * M_earth
+    ms = linspace(0.5M_earth, 10M_earth, 20)
 
-    Cₚ_const = Ogre.HeatCapacity(4200)  # constant heat capacity for liquid water
-    Cₚ_inf = Ogre.HeatCapacity(Inf)  # infinite heat capacity
-    Cₚ = Ogre.HeatCapacity("data/tabulated/heatcap-h2o.dat")  # realistic h.c.
+    h2o = WaterData.load_full_eos()["grid"]
+    funcs = WaterData.load_piecewise_eoses()
+    mgsio3 = funcs["mgsio3"]
+    fe = funcs["fe"]
 
-    eoses = [Ogre.h2o_seager,
-             Ogre.my_h2o_300,
-             Ogre.my_h2o_500,
-             Ogre.my_h2o_800]
-    linestyles = ["--", "-", "-", "-"]
-    colours = ["Black", "CornflowerBlue", "#fc4f30", "Gray"]
-    legendtexts = ["BME/TFD (isothermal ice VII)",
-                   "Realistic water EOS (isothermal 300K)",
-                   "Realistic water EOS (isothermal 500K)",
-                   "Realistic water EOS (isothermal 800K)"]
+    mass_fractions = [0.15, 0.30, 0.55]
+    total_points = 200
+    R_bracket = [0, 10] * R_earth
 
-    fig = figure()
-    ax = subplot(111)
-    map(eoses, linestyles, colours, legendtexts) do el, ls, c, lg
-        @time rs = Ogre.R(ms, el)
-        plot(ms ./ M_earth, rs ./ R_earth, label=lg, linestyle=ls, color=c)
+    Cₚ_const = Ogre.ConstantHeatCapacity(4200)  # constant heat capacity for liquid water
+    Cₚ_inf = Ogre.ConstantHeatCapacity(Inf)  # infinite heat capacity
+    Cₚ = Ogre.GridHeatCapacity("data/tabulated/heatcap-h2o.dat")  # realistic h.c.
+
+    isotherms = OrderedDict(
+        # 300 => WaterData.slice(h2o, 300),
+        400 => WaterData.slice(h2o, 400),
+        500 => WaterData.slice(h2o, 500),
+        600 => WaterData.slice(h2o, 600),
+        700 => WaterData.slice(h2o, 700),
+        800 => WaterData.slice(h2o, 800),
+        # 900 => WaterData.slice(h2o, 900),
+        # 1000 => WaterData.slice(h2o, 1000),
+    )
+
+    function R_adiabat(M, Tsurf, Psurf)
+        Me = M / M_earth
+        bvs = Ogre.ValueSet(M, R_earth, Psurf, Tsurf)
+        grid = linspace(M, 0, total_points)
+        planet = Ogre.PlanetSystem(M, h2o, Cₚ, bvs, grid, R_bracket)
+
+        Ogre.find_radius!(planet)
     end
 
-    @time rs = Ogre.R(ms, Ogre.my_h2o_full, Cₚ)
-    Ogre.plot(ms ./ M_earth, rs ./ R_earth, label="Realistic water EOS (adiabat)",
-              linestyle="--", color="Crimson")
+    function R_adiabat_cored(M, Tsurf, Psurf)
+        Me = M / M_earth
+        bvs = Ogre.ValueSet(M, R_earth, Psurf, Tsurf)
+        grid = linspace(M, 0, total_points)
+        coredeos = Ogre.MassPiecewiseEOS(eoses, M, mass_fractions)
+        planet = Ogre.PlanetSystem(M, coredeos, Cₚ, bvs, grid, R_bracket)
 
-    xlabel(L"Mass / M$_\oplus$")
-    ylabel(L"Radius / R$_\oplus$")
-    xlim(0, 10)
-    ylim(0, 5)
-    xscale("linear")
-    yscale("linear")
-    xax = ax[:get_xaxis]()
-    yax = ax[:get_yaxis]()
+        Ogre.find_radius!(planet)
+    end
 
-    legend(loc="best")
+    function R_isotherm(M, Tsurf, Psurf)
+        bvs = Ogre.ValueSet(M, R_earth, Psurf)
+        grid = linspace(M, 0, total_points)
+        planet = Ogre.PlanetSystem(M, isotherms[Tsurf], bvs, grid, R_bracket)
 
-    tight_layout()
+        Ogre.find_radius!(planet)
+    end
+
+    temps = keys(isotherms)
+    dropfirst(x) = drop(x, 1)
+
+    for f in [R_isotherm, R_adiabat, R_adiabat_cored], Psurf in [1e5, 1e6, 1e7]
+        cmap = Colors.colormap("Reds", length(temps) + 1) |> dropfirst
+        figure()
+        for (T, color) in zip(temps, cmap)
+            c = map(f -> f(color), [red, green, blue])
+            @time rs = map(M -> f(M, T, Psurf), ms)
+            plot(ms ./ M_earth, rs ./ R_earth, color=c, label="$T K")
+        end
+
+        method = string(f)[3:end]
+        log10P = floor(Int, log10(Psurf))
+        title("Psurf=1e$log10P Pa; $method")
+        xlabel(L"Mass / M$_⊕$")
+        ylabel(L"Radius / R$_⊕$")
+        legend(loc="best")
+        xlim((0, 10))
+        ylim((1, 5))
+        tight_layout()
+        savefig("$(method)_$(log10P)Pa.png")
+        close()
+    end
 end
 
-function phaseplots(Tsurf)
-    M = M_earth
-    R = R_earth
-
-    eos = Ogre.my_h2o_full
-    heatcap = Ogre.HeatCapacity("data/tabulated/heatcap-h2o.dat")
-    Psurf = 1e5
+function phaseplots(M, Psurf, Tsurf)
+    M = M * M_earth
+    R = cbrt(M)
     npoints = 200
     grid = linspace(M, 0, npoints)
+    eos = WaterData.load_full_eos()["grid"]
+    heatcap = Ogre.GridHeatCapacity("data/tabulated/heatcap-h2o.dat")
+
     bcs = Ogre.ValueSet(M, R, Psurf, Tsurf)
     sys = Ogre.PlanetSystem(M, eos, heatcap, bcs, grid)
 
-    sys = Ogre.converge(sys)
-    soln = Ogre.solve(sys)
-    close(:all)
+    soln = Ogre.find_structure!(sys)
     plot(soln, sys)
-    tight_layout()
-    transparent = (0,0,0,0)
-    savefig("profiles-$(Tsurf)K.png", dpi=300, facecolor=transparent, edgecolor=nothing)
+    # tight_layout()
     Ogre.phaseplot(soln)
-    savefig("phases-$(Tsurf)K.png", dpi=300, facecolor=transparent, edgecolor=nothing)
 end
 
 close(:all)
-# phaseplots(300)
+# phaseplots(1, 1e6, 400)
 mr_diagrams()
