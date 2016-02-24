@@ -1,4 +1,7 @@
-using Ogre, PyPlot, DataStructures, Colors
+using Ogre
+using PyPlot
+using Colors
+using DataStructures: OrderedDict
 
 function mr_diagrams()
     ms = linspace(0.5M_earth, 10M_earth, 20)
