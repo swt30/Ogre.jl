@@ -199,7 +199,7 @@ end
 
 "Plot the phase boundaries of water in P-T space"
 function plot_phases()
-    boundaries = WaterData.load_phase_boundaries()
+    boundaries = WaterData.load_phase_boundaries()["boundaries"]
     iapws = boundaries["iapws"]
     plot(iapws.P, iapws.T, linewidth=1, color="Red")
     for pb in boundaries["dunaeva"]

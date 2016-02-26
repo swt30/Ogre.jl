@@ -1,34 +1,35 @@
 using Ogre
+using WaterData
 using PyPlot
 using Colors
 using DataStructures: OrderedDict
 
 function mr_diagrams()
-    ms = linspace(0.5M_earth, 10M_earth, 20)
+    ms = linspace(0.5M_earth, 10M_earth, 3)
 
     h2o = WaterData.load_full_eos()["grid"]
     funcs = WaterData.load_piecewise_eoses()
     mgsio3 = funcs["mgsio3"]
     fe = funcs["fe"]
 
+    eoses = [fe, mgsio3, h2o]
     mass_fractions = [0.15, 0.30, 0.55]
     total_points = 200
     R_bracket = [0, 10] * R_earth
 
-    Cₚ_const = Ogre.ConstantHeatCapacity(4200)  # constant heat capacity for liquid water
-    Cₚ_inf = Ogre.ConstantHeatCapacity(Inf)  # infinite heat capacity
-    Cₚ = Ogre.GridHeatCapacity("data/tabulated/heatcap-h2o.dat")  # realistic h.c.
+    # Cₚ_const = WaterData.ConstantHeatCapacity(4200)  # constant heat capacity for liquid water
+    # Cₚ_inf = WaterData.ConstantHeatCapacity(Inf)  # infinite heat capacity
+    Cₚ = WaterData.load_heat_capacity()["heatcap_h2o"] # realistic h.c.
 
-    isotherms = OrderedDict(
-        # 300 => WaterData.slice(h2o, 300),
-        400 => WaterData.slice(h2o, 400),
-        500 => WaterData.slice(h2o, 500),
-        600 => WaterData.slice(h2o, 600),
-        700 => WaterData.slice(h2o, 700),
-        800 => WaterData.slice(h2o, 800),
-        # 900 => WaterData.slice(h2o, 900),
-        # 1000 => WaterData.slice(h2o, 1000),
-    )
+    isotherms = OrderedDict(# 300 => WaterData.slice(h2o, 300),
+                            400 => WaterData.slice(h2o, 400),
+                            500 => WaterData.slice(h2o, 500),
+                            600 => WaterData.slice(h2o, 600),
+                            700 => WaterData.slice(h2o, 700),
+                            800 => WaterData.slice(h2o, 800),
+                            # 900 => WaterData.slice(h2o, 900),
+                            # 1000 => WaterData.slice(h2o, 1000)
+                            )
 
     function R_adiabat(M, Tsurf, Psurf)
         Me = M / M_earth
@@ -89,7 +90,7 @@ function phaseplots(M, Psurf, Tsurf)
     npoints = 200
     grid = linspace(M, 0, npoints)
     eos = WaterData.load_full_eos()["grid"]
-    heatcap = Ogre.GridHeatCapacity("data/tabulated/heatcap-h2o.dat")
+    heatcap = WaterData.load_heat_capacity()["heatcap_h2o"]
 
     bcs = Ogre.ValueSet(M, R, Psurf, Tsurf)
     sys = Ogre.PlanetSystem(M, eos, heatcap, bcs, grid)
@@ -101,5 +102,5 @@ function phaseplots(M, Psurf, Tsurf)
 end
 
 close(:all)
-# phaseplots(1, 1e6, 400)
-mr_diagrams()
+phaseplots(1, 1e6, 400)
+# mr_diagrams()

@@ -1,9 +1,8 @@
 # Structural equations and planetary models
 
 using WaterData
+import JLD, Dierckx, VoronoiDelaunay, GeometricalPredicates
 import WaterData: istempdependent, extracteos
-import VoronoiDelaunay, GeometricalPredicates
-# TODO: check whether we can bundle these reqs into the .jld file instead
 
 
 # General equation types
@@ -150,7 +149,7 @@ type TempDepPlanet <: PlanetSystem{WithTemp}
 end
 
 function PlanetSystem(M, eos::EOS, bvs::BoundaryValues{NoTemp},
-    grid=linspace(M, 0, defaults.total_points), r_bracket=defaults.R_bracket)
+                      grid=linspace(M, 0, defaults.total_points), r_bracket=defaults.R_bracket)
 
     masscontinuity = MassContinuity(eos)
     structure = EquationSet([masscontinuity, pressurebalance])
@@ -158,8 +157,8 @@ function PlanetSystem(M, eos::EOS, bvs::BoundaryValues{NoTemp},
     TempIndepPlanet(M, structure, bvs, grid, r_bracket)
 end
 function PlanetSystem(M, eos::EOS, Cₚ::HeatCapacity,
-    bvs::BoundaryValues{WithTemp}, grid=linspace(M, 0, defaults.total_points),
-    r_bracket=defaults.R_bracket)
+                      bvs::BoundaryValues{WithTemp}, grid=linspace(M, 0, defaults.total_points),
+                      r_bracket=defaults.R_bracket)
 
     masscontinuity = MassContinuity(eos)
     temperaturegradient = TemperatureGradient(eos, Cₚ)

@@ -1,99 +1,100 @@
 using FactCheck
 import Ogre
-
+import WaterData
 
 module test_integrator_resources
-    import Ogre
+import Ogre
+import WaterData
 
-    # Simple ODEs
-    # dy/dt = 6  -->  y = 6t (y0=0)
-    ode_1(t, y::Real) = 6
-    ode_1(t, y::Vector) = [6]
-    ode_1_sol(t) = 6.*t
-    # dy/dt = 2t -->  t = t^2 + y0 (y0=0)
-    ode_2(t, y) = 2.*t
-    ode_2_sol(t) = t.^2
-    # dy/dt = y  -->  y = y0 e^t (y0=1)
-    ode_3(t, y) = y
-    ode_3_sol(t) = exp(t)
-    # dy1/dt = -y2, dy2/dt = y1  --> oscillating solution in y and w
-    ode_4(t, y) = [-y[2], y[1]]
-    ode_4_sol(t) = hcat(cos(t)-2*sin(t), 2*cos(t) + sin(t))
+# Simple ODEs
+# dy/dt = 6  -->  y = 6t (y0=0)
+ode_1(t, y::Real) = 6
+ode_1(t, y::Vector) = [6]
+ode_1_sol(t) = 6.*t
+# dy/dt = 2t -->  t = t^2 + y0 (y0=0)
+ode_2(t, y) = 2.*t
+ode_2_sol(t) = t.^2
+# dy/dt = y  -->  y = y0 e^t (y0=1)
+ode_3(t, y) = y
+ode_3_sol(t) = exp(t)
+# dy1/dt = -y2, dy2/dt = y1  --> oscillating solution in y and w
+ode_4(t, y) = [-y[2], y[1]]
+ode_4_sol(t) = hcat(cos(t)-2*sin(t), 2*cos(t) + sin(t))
 
-    simple_odes = [ode_1, ode_2, ode_3, ode_4]
-    simple_ode_solutions = [ode_1_sol, ode_2_sol, ode_3_sol, ode_4_sol]
+simple_odes = [ode_1, ode_2, ode_3, ode_4]
+simple_ode_solutions = [ode_1_sol, ode_2_sol, ode_3_sol, ode_4_sol]
 
-    # Simple no-temperature EOSes
-    fe = let
-        vinet = Ogre.Vinet(8.30e3, 156.2e9, 6.08, [1e3, 1e6]...)
-        tfd = Ogre.TFD(26, 55.845)
-        Ogre.PressurePiecewiseEOS([vinet, tfd], [0, 2.09e13, Inf])
-    end
-    mgsio3 = let
-        bme = Ogre.BME3(4.10e3, 247e9, 3.97, [1e3, 1e6]...)
-        tfd = Ogre.TFD([12, 14, 8], [24.305, 28.0855, 15.9994], [1., 1., 3.])
-        Ogre.PressurePiecewiseEOS([bme, tfd], [0, 1.35e13, Inf])
-    end
-    h2o = let
-        bme = Ogre.BME3(1460., 23.7e9, 4.15, [1e3, 1e6]...)
-        tfd = Ogre.TFD([1, 8], [1.00794, 15.9994], [2., 1.])
-        Ogre.PressurePiecewiseEOS([bme, tfd], [0, 7686e9, Inf])
-    end
+# Simple no-temperature EOSes
+fe = let
+    vinet = Ogre.Vinet(8.30e3, 156.2e9, 6.08, [1e3, 1e6]...)
+    tfd = Ogre.TFD(26, 55.845)
+    Ogre.PressurePiecewiseEOS([vinet, tfd], [0, 2.09e13, Inf])
+end
+mgsio3 = let
+    bme = Ogre.BME3(4.10e3, 247e9, 3.97, [1e3, 1e6]...)
+    tfd = Ogre.TFD([12, 14, 8], [24.305, 28.0855, 15.9994], [1., 1., 3.])
+    Ogre.PressurePiecewiseEOS([bme, tfd], [0, 1.35e13, Inf])
+end
+h2o = let
+    bme = Ogre.BME3(1460., 23.7e9, 4.15, [1e3, 1e6]...)
+    tfd = Ogre.TFD([1, 8], [1.00794, 15.9994], [2., 1.])
+    Ogre.PressurePiecewiseEOS([bme, tfd], [0, 7686e9, Inf])
+end
 
-    # Simple with-temperature EOS
-    type JustAPressureEOS <: Ogre.EOS end
-    PV = Ogre.PhysicalValues
-    MRP = Ogre.MassRadiusPressure
-    Base.call(eos::JustAPressureEOS, pv::PV) = eos(Ogre.pressure(pv))
-    Base.call(eos::JustAPressureEOS, pv::MRP) = eos(Ogre.pressure(pv))
-    Base.call(::JustAPressureEOS, P) = 1000 + P
-    Ogre.istempdependent(::JustAPressureEOS) = false
+# Simple with-temperature EOS
+type JustAPressureEOS <: Ogre.EOS end
+PV = Ogre.PhysicalValues
+MRP = Ogre.MassRadiusPressure
+Base.call(eos::JustAPressureEOS, pv::PV) = eos(Ogre.pressure(pv))
+Base.call(eos::JustAPressureEOS, pv::MRP) = eos(Ogre.pressure(pv))
+Base.call(::JustAPressureEOS, P) = 1000 + P
+Ogre.istempdependent(::JustAPressureEOS) = false
 
-    type NotReallyATemperatureEOS <: Ogre.EOS end
-    Base.call(::NotReallyATemperatureEOS, P, T) = 1000 + P
-    Ogre.istempdependent(::NotReallyATemperatureEOS) = true
+type NotReallyATemperatureEOS <: Ogre.EOS end
+Base.call(::NotReallyATemperatureEOS, P, T) = 1000 + P
+Ogre.istempdependent(::NotReallyATemperatureEOS) = true
 
-    type ReallyATemperatureEOS <: Ogre.EOS end
-    Base.call(::ReallyATemperatureEOS, P, T) = 1000 + 1/T
-    Ogre.istempdependent(::ReallyATemperatureEOS) = true
+type ReallyATemperatureEOS <: Ogre.EOS end
+Base.call(::ReallyATemperatureEOS, P, T) = 1000 + 1/T
+Ogre.istempdependent(::ReallyATemperatureEOS) = true
 
-    # Planet structures
-    M_earth = Ogre.M_earth
-    R_earth = Ogre.R_earth
-    atmospheric_pressure = 1e5
-    surface_temperature = 300
-    solution_grid = linspace(M_earth, 0, 100)
-    r_bracket = [0, 2]*M_earth
-    dual_layer_eos = let
-        eoses = [mgsio3, fe]
-        transitions = [0, 2/3, 1] * M_earth
-        Ogre.MassPiecewiseEOS(eoses, transitions)
-    end
-    tri_layer_eos = let
-        eoses = [h2o, mgsio3, fe]
-        transitions = [0, 1/6, 2/3, 1] * M_earth
-        Ogre.MassPiecewiseEOS(eoses, transitions)
-    end
-    tri_layer_system = let
-        trial_surface = Ogre.BoundaryValues(M_earth, R_earth, atmospheric_pressure)
-        system = Ogre.PlanetSystem(M_earth, tri_layer_eos, trial_surface,
-                                   solution_grid)
-        Ogre.converge!(system)
-        system
-    end
-    tri_layer_radius = Ogre.currentradiusguess(tri_layer_system)
+# Planet structures
+M_earth = Ogre.M_earth
+R_earth = Ogre.R_earth
+atmospheric_pressure = 1e5
+surface_temperature = 300
+solution_grid = linspace(M_earth, 0, 100)
+r_bracket = [0, 2]*M_earth
+dual_layer_eos = let
+    eoses = [mgsio3, fe]
+    transitions = [0, 2/3, 1] * M_earth
+    Ogre.MassPiecewiseEOS(eoses, transitions)
+end
+tri_layer_eos = let
+    eoses = [h2o, mgsio3, fe]
+    transitions = [0, 1/6, 2/3, 1] * M_earth
+    Ogre.MassPiecewiseEOS(eoses, transitions)
+end
+tri_layer_system = let
+    trial_surface = Ogre.BoundaryValues(M_earth, R_earth, atmospheric_pressure)
+    system = Ogre.PlanetSystem(M_earth, tri_layer_eos, trial_surface,
+                               solution_grid)
+    Ogre.converge!(system)
+    system
+end
+tri_layer_radius = Ogre.currentradiusguess(tri_layer_system)
 
-    # Full temperature structure
-    withtemp = let
-        heatcap = Ogre.ConstantHeatCapacity(4200)
-        eos = ReallyATemperatureEOS()
-        surface = Ogre.BoundaryValues(M_earth, R_earth, atmospheric_pressure,
-                                      surface_temperature)
-        system = Ogre.PlanetSystem(M_earth, eos, heatcap, surface, solution_grid,
-                                   r_bracket)
-        Ogre.converge!(system)
-        system
-    end
+# Full temperature structure
+withtemp = let
+    heatcap = WaterData.ConstantHeatCapacity(4200)
+    eos = ReallyATemperatureEOS()
+    surface = Ogre.BoundaryValues(M_earth, R_earth, atmospheric_pressure,
+                                  surface_temperature)
+    system = Ogre.PlanetSystem(M_earth, eos, heatcap, surface, solution_grid,
+                               r_bracket)
+    Ogre.converge!(system)
+    system
+end
 end
 
 
@@ -187,7 +188,7 @@ facts("Integrator tests") do
         context("Solving a single-layer solution two different ways") do
             eos_notemp = res.JustAPressureEOS()
             eos_withtemp = res.NotReallyATemperatureEOS()
-            heatcap = Ogre.ConstantHeatCapacity(1000.)
+            heatcap = WaterData.ConstantHeatCapacity(1000.)
             local radius = Ogre.R(res.M_earth, eos_notemp)
             tempdep_radius = Ogre.R(res.M_earth, eos_withtemp, heatcap)
             @fact tempdep_radius --> radius

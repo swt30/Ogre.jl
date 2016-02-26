@@ -1,11 +1,13 @@
 # Equations of state
 
 using WaterData
+import JLD, Dierckx, VoronoiDelaunay, GeometricalPredicates
 import WaterData: extracteos
 using Iterators: chain
 
-# The bulk of the EOSes are provided in the WaterData package.
-# We define one more EOS which is mass-piecewise (for modelling layered planets)
+# The bulk of the EOSes and heat capacities are provided in the WaterData
+# package. We define one more EOS which is mass-piecewise (for modelling layered
+# planets)
 """ Equation of state which is piecewise in the mass coordinate
 
     * `eoses`: Vector of EOSes for each piece.

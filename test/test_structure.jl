@@ -1,24 +1,25 @@
 using FactCheck
 import Ogre
+import WaterData
 
 
 module test_structure_resources
-    import Ogre
-    pressure = Ogre.pressure
-    temperature = Ogre.temperature
+import Ogre
+pressure = Ogre.pressure
+temperature = Ogre.temperature
 
-    type PressureEOS <: Ogre.EOS end
-    Base.call(eos::PressureEOS, pv::Ogre.PhysicalValues) = eos(pressure(pv))
-    Base.call(eos::PressureEOS, pv::Ogre.MassRadiusPressure) = eos(pressure(pv))
-    Base.call(::PressureEOS, P) = 4100. + 0.00161*(P^0.541)
-    Ogre.istempdependent(::PressureEOS) = false
+type PressureEOS <: Ogre.EOS end
+Base.call(eos::PressureEOS, pv::Ogre.PhysicalValues) = eos(pressure(pv))
+Base.call(eos::PressureEOS, pv::Ogre.MassRadiusPressure) = eos(pressure(pv))
+Base.call(::PressureEOS, P) = 4100. + 0.00161*(P^0.541)
+Ogre.istempdependent(::PressureEOS) = false
 
-    type PTEOS <: Ogre.EOS end
-    Base.call(eos::PTEOS, pv::Ogre.PhysicalValues) = eos(pressure(pv), temperature(pv))
-    Base.call(::PTEOS, P, T) = 4100. + 0.00161*(P^0.541)
-    # the effect of T on ρ here is arbitrary - we just want increasing
-    # T to mean decreasing ρ
-    Ogre.istempdependent(::PTEOS) = true
+type PTEOS <: Ogre.EOS end
+Base.call(eos::PTEOS, pv::Ogre.PhysicalValues) = eos(pressure(pv), temperature(pv))
+Base.call(::PTEOS, P, T) = 4100. + 0.00161*(P^0.541)
+# the effect of T on ρ here is arbitrary - we just want increasing
+# T to mean decreasing ρ
+Ogre.istempdependent(::PTEOS) = true
 end
 
 
@@ -76,7 +77,7 @@ facts("Structure equations") do
             eos = res.PTEOS()
 
             # arbitrary heat capacity
-            Cₚ = Ogre.ConstantHeatCapacity(100)
+            Cₚ = WaterData.ConstantHeatCapacity(100)
 
             masscontinuity = Ogre.MassContinuity(eos)
             pressurebalance = Ogre.PressureBalance()
@@ -105,10 +106,10 @@ facts("Structure equations") do
                 negative_temperature = Ogre.ValueSet(5.4e22, -1e6, 340e9, -5000.)
                 map([negative_radius, negative_pressure,
                      negative_mass, negative_temperature]) do vs
-                    @fact pressurebalance(vs) --> 0
-                    @fact masscontinuity(vs) --> 0
-                    @fact temperaturegradient(vs) --> 0
-                end
+                         @fact pressurebalance(vs) --> 0
+                         @fact masscontinuity(vs) --> 0
+                         @fact temperaturegradient(vs) --> 0
+                     end
             end
         end
     end
@@ -184,12 +185,12 @@ facts("Planetary structure types") do
             Tsurf = 300
             bvs = Ogre.BoundaryValues(M, R, Psurf, Tsurf)
             eos = res.PTEOS()
-            Cₚ = Ogre.ConstantHeatCapacity(1000)
+            Cₚ = WaterData.ConstantHeatCapacity(1000)
             masscontinuity = Ogre.MassContinuity(eos)
             temperaturegradient = Ogre.TemperatureGradient(eos, Cₚ)
             structure = Ogre.EquationSet([masscontinuity,
-                                         pressurebalance,
-                                         temperaturegradient])
+                                          pressurebalance,
+                                          temperaturegradient])
             system = Ogre.PlanetSystem(M, eos, Cₚ, bvs, solution_grid,
                                        radius_bracket)
             struct = Ogre.blank_structure(system)
