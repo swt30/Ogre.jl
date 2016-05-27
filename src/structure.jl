@@ -146,6 +146,7 @@ type TempDepPlanet <: PlanetSystem{WithTemp}
     boundary_values::BoundaryValues{WithTemp}
     solution_grid::Vector{Float64}
     radius_search_bracket::Vector{Float64}
+    refine_surface_temperature!::Nullable{Function}
 end
 
 function PlanetSystem(M, eos::EOS, bvs::BoundaryValues{NoTemp},
@@ -158,13 +159,13 @@ function PlanetSystem(M, eos::EOS, bvs::BoundaryValues{NoTemp},
 end
 function PlanetSystem(M, eos::EOS, Cₚ::HeatCapacity,
                       bvs::BoundaryValues{WithTemp}, grid=linspace(M, 0, defaults.total_points),
-                      r_bracket=defaults.R_bracket)
+                      r_bracket=defaults.R_bracket, refine_surface_temperature=nothing)
 
     masscontinuity = MassContinuity(eos)
     temperaturegradient = TemperatureGradient(eos, Cₚ)
     structure = EquationSet([masscontinuity, pressurebalance, temperaturegradient])
 
-    TempDepPlanet(M, structure, bvs, grid, r_bracket)
+    TempDepPlanet(M, structure, bvs, grid, r_bracket, refine_surface_temperature)
 end
 
 "Default planet system (using values from module `defaults`)"
@@ -251,15 +252,22 @@ maxradius(system) = system.radius_search_bracket[2]
 minradius(system) = system.radius_search_bracket[1]
 nextradiusguess(system) = mean(system.radius_search_bracket)
 currentradiusguess(system) = system.boundary_values.r
+
 function refine_r_bracket!(system::PlanetSystem, r_low, r_high)
     system.radius_search_bracket = [r_low, r_high]
-    return nothing
 end
+"Choose a new radius guess for a planet system"
 function refine_boundary_r!(system::PlanetSystem)
     system.boundary_values.r = nextradiusguess(system)
-    return nothing
 end
-
+"Adjust the surface temperature of a planet according to its changed radius"
+function refine_surface_temperature!(system::TempDepPlanet)
+    if !isnull(system.refine_surface_temperature!)
+        do_refine! = get(system.refine_surface_temperature!)
+        new_temperature = do_refine!(system.boundary_values)
+    end
+end
+refine_surface_temperature!(system::TempIndepPlanet) = nothing
 
 # Interacting with planet solution types
 

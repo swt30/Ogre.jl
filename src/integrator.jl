@@ -178,6 +178,7 @@ unacceptable(ps) = hit_the_centre(ps) || not_far_enough(ps)
 "Is the structural solution acceptable?"
 acceptable(ps) = !unacceptable(ps)
 
+"Update the radius search bracket using a bisection search"
 function refine_r_bracket!(system::PlanetSystem, previousresult::PlanetStructure)
     if hit_the_centre(previousresult)
         minR = currentradiusguess(system)
@@ -190,14 +191,22 @@ function refine_r_bracket!(system::PlanetSystem, previousresult::PlanetStructure
     end
 end
 
+"Update the planet's boundary conditions using the results of a test solution"
+function refine_boundary_conditions!(system::PlanetSystem, previousresult::PlanetStructure)
+    refine_r_bracket!(system, previousresult)
+    refine_boundary_r!(system)
+    refine_surface_temperature!(system)
+end
+
 """ Repeatedly solve a `PlanetSystem` until its radius is suitable
 
     Recursively search the radius search bracket of a `PlanetSystem` to
     get a result that has an acceptable error at the centre. Returns a
     `PlanetSystem` with the appropriate radius. """
 function converge!(system)
-    # first make sure the system has the correct value of R to start with
+    # first make sure the system has the correct boundary conditions to start with
     refine_boundary_r!(system)
+    refine_surface_temperature!(system)
 
     # then get the structure for this radius guess
     result = solve(system)
@@ -211,9 +220,12 @@ end
 function converge!(system, result)
     # we have already done an iteration and have a result to work with
     if !acceptable(result)
+        # if diff(system.radius_search_bracket)[1] < 1 && radius(centre(result)) > 0
+        # info("Did not converge fully")
+        # return system
+        # end
         # need to refine and try again
-        refine_r_bracket!(system, result)
-        refine_boundary_r!(system)
+        refine_boundary_conditions!(system, result)
         solve!(system, result)
         converge!(system, result)
     else
@@ -239,7 +251,7 @@ end
 # higher level functions for doing MR diagrams
 "Create and solve for a `PlanetSystem`'s radius'"
 function R(M, structure_equations::EquationSet, P_surface,
-    solution_grid, R_bracket)
+           solution_grid, R_bracket)
 
     R_guess = mean(R_bracket)
     system = PlanetSystem(M, R_guess, P_surface, structure,

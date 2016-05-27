@@ -4,12 +4,6 @@ using PyCall, PyPlot
 import PyPlot: plot
 
 
-# Python plot setup
-
-@pyimport matplotlib.style as plotstyle
-    plotstyle.use("fivethirtyeight")
-
-
 # Plotting planetary structures
 
 "Label the mass coordinate x-axis"
@@ -46,7 +40,7 @@ end
 
 "Plot the heat capacity profile of a planet"
 function plot_heat_capacity_profile(soln::PlanetStructure{WithTemp},
-    sys::PlanetSystem{WithTemp}; kws...)
+                                    sys::PlanetSystem{WithTemp}; kws...)
     x = vec(mass(soln)) / M_earth
     P = vec(pressure(soln))
     T = vec(temperature(soln))
@@ -62,7 +56,7 @@ end
 
 "Plot the thermal expansivity profile of a planet"
 function plot_expansivity_profile(soln::PlanetStructure{WithTemp},
-    sys::PlanetSystem{WithTemp}; kws...)
+                                  sys::PlanetSystem{WithTemp}; kws...)
     m = vec(mass(soln))
     x = m / M_earth
     P = vec(pressure(soln))
@@ -83,7 +77,7 @@ end
 
 "Plot the density profile of a planet"
 function plot_density_profile(soln::PlanetStructure{WithTemp},
-    sys::PlanetSystem{WithTemp}; kws...)
+                              sys::PlanetSystem{WithTemp}; kws...)
     m = vec(mass(soln))
     x = m / M_earth
     P = vec(pressure(soln))

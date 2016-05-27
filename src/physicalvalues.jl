@@ -79,3 +79,9 @@ Base.zero(::Type{MassRadiusPressure}) = MassRadiusPressure(0, 0, 0)
 Base.zero(::Type{PhysicalValues}) = PhysicalValues(0, 0, 0, 0)
 Base.zero(::Type{ValueSet{NoTemp}}) = zero(MassRadiusPressure)
 Base.zero(::Type{ValueSet{WithTemp}}) = zero(PhysicalValues)
+
+# Set individual values from the ValueSets
+setmass!(vs::ValueSet, m) = (vs.m = m)
+setradius!(vs::ValueSet, r) = (vs.r = r)
+setpressure!(vs::ValueSet, P) = (vs.P = P)
+settemperature!(vs::PhysicalValues, T) = (vs.T = T)
