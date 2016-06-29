@@ -7,22 +7,20 @@
 abstract ValueSet{mc<:ModelComplexity}
 
 "Holds physical values of mass, radius, pressure, and temperature."
-type PhysicalValues{R<:Real} <: ValueSet{WithTemp}
-    m::R
-    r::R
-    P::R
-    T::R
+type PhysicalValues{Ma<:Mass, Ra<:Radius, Pr<:Pressure, Te<:Temperature} <: ValueSet{WithTemp}
+    m::Ma
+    r::Ra
+    P::Pr
+    T::Te
 end
-PhysicalValues(m, r, P, T) = PhysicalValues(promote(m, r, P, T)...)
 ValueSet(m, r, P, T) = PhysicalValues(m, r, P, T)
 
 "Holds physical values of mass, radius, and pressure"
-type MassRadiusPressure{R<:Real} <: ValueSet{NoTemp}
-    m::R
-    r::R
-    P::R
+type MassRadiusPressure{Ma<:Mass,Ra<:Radius,Pr<:Pressure} <: ValueSet{NoTemp}
+    m::Ma
+    r::Ra
+    P::Pr
 end
-MassRadiusPressure(m, r, P) = MassRadiusPressure(promote(m, r, P)...)
 ValueSet(m, r, P) = MassRadiusPressure(m, r, P)
 
 
@@ -39,26 +37,23 @@ ndeps{mc<:ModelComplexity}(::Type{mc}) = nvars(mc) - 1
 # Print them in terms of Earth masses and radii
 function Base.show(io::IO, pv::PhysicalValues)
     m, r, P, T = pv.m, pv.r, pv.P, pv.T
-    m = m / M_earth
-    r = r / R_earth
-    println("$m M⊕, $r R⊕, $P Pa, $T K")
+
+    println("$(m/M_earth) M⊕, $(r/R_earth) R⊕, $(P/Pa) Pa, $(T/K) K")
 end
 function Base.show(io::IO, mrp::MassRadiusPressure)
     m, r, P = mrp.m, mrp.r, mrp.P
-    m = m / M_earth
-    r = r / R_earth
-    println("$m M⊕, $r R⊕, $P Pa")
+    println("$(m/M_earth) M⊕, $(r/R_earth) R⊕, $(P/Pa) Pa")
 end
 
 # Get individual values from the ValueSets
-mass(vs::ValueSet) = vs.m
-radius(vs::ValueSet) = vs.r
-pressure(vs::ValueSet) = vs.P
-temperature(vs::PhysicalValues) = vs.T
+mass(vs::ValueSet) = vs.m::Mass
+radius(vs::ValueSet) = vs.r::Radius
+pressure(vs::ValueSet) = vs.P::Pressure
+temperature(vs::PhysicalValues) = vs.T::Temperature
 function gravity(vs::ValueSet)
     m = mass(vs)
     r = radius(vs)
-    G * m ./ (r.^2)
+    (G * m ./ (r.^2))::Gravity
 end
 "Get dependent physical values (radius, pressure, [temperature])"
 function nonmass end

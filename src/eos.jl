@@ -13,11 +13,11 @@ using Iterators: chain
     * `eoses`: Vector of EOSes for each piece.
     * `edges`: Vector defining the edge of each piece. Evaluating
       past the ends of this vector will just evaluate the nearest EOS. """
-immutable MassPiecewiseEOS{E<:EOS, T<:Real} <: WaterData.PiecewiseEOS
+immutable MassPiecewiseEOS{E<:EOS, M<:Mass} <: WaterData.PiecewiseEOS
     eoses::Vector{E}
-    edges::Vector{T}
+    edges::Vector{M}
 end
-function MassPiecewiseEOS(eoses, M, mass_fractions)
+function MassPiecewiseEOS(eoses, M::Mass, mass_fractions)
     layer_edges = vcat([-Inf], cumsum(mass_fractions)) .* M
     layer_edges[end] = Inf
     MassPiecewiseEOS(eoses, layer_edges)

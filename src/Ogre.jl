@@ -4,6 +4,7 @@
 module Ogre
 
 include("common.jl")
+include("units.jl")
 include("constants.jl")
 include("config.jl")
 include("util.jl")

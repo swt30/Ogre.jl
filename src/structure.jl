@@ -111,9 +111,9 @@ function Base.call(te::ThermalExpansivity, pv::PhysicalValues)
     te.alpha(pressure(pv), temperature(pv))
 end
 
-Base.call(te::GridThermalExp, P::Real, T::Real) = te.alpha(P, T)
-Base.call(te::ConstantThermalExp, P::Real, T::Real) = te.alpha
-Base.call(::NoThermalExp, P::Real, T::Real) = zero(Float64)
+Base.call(te::GridThermalExp, P::Pressure, T::Temperature) = te.alpha(P, T)
+Base.call(te::ConstantThermalExp, P::Pressure, T::Temperature) = te.alpha
+Base.call(::NoThermalExp, P::Pressure, T::Temperature) = zero(Float64)
 
 
 # Planetary parameter types

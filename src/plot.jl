@@ -13,27 +13,27 @@ end
 
 "Plot the temperature profile of a planet"
 function plot_temperature_profile(soln::PlanetStructure{WithTemp}; kws...)
-    x = vec(mass(soln)) / M_earth
+    M = vec(mass(soln))
     T = vec(temperature(soln))
-    plot(x, T; kws...)
+    plot(M/M_earth, T/K; kws...)
     label_x_as_mass()
     ylabel("Temperature / K")
 end
 
 "Plot the radius profile of a planet"
 function plot_radius_profile(soln::PlanetStructure; kws...)
-    x = vec(mass(soln)) / M_earth
-    r = vec(radius(soln)) / R_earth
-    plot(x, r; kws...)
+    M = vec(mass(soln))
+    r = vec(radius(soln))
+    plot(M/M_earth, r/R_earth; kws...)
     label_x_as_mass()
     ylabel(L"Radius / R$_\oplus$")
 end
 
 "Plot the pressure profile of a planet"
 function plot_pressure_profile(soln::PlanetStructure; kws...)
-    x = vec(mass(soln)) / M_earth
-    P = vec(pressure(soln)) / 1e9
-    plot(x, P; kws...)
+    M = vec(mass(soln))
+    P = vec(pressure(soln))
+    plot(M/M_earth, P/GPa; kws...)
     label_x_as_mass()
     ylabel("Pressure / GPa")
 end
@@ -41,7 +41,7 @@ end
 "Plot the heat capacity profile of a planet"
 function plot_heat_capacity_profile(soln::PlanetStructure{WithTemp},
                                     sys::PlanetSystem{WithTemp}; kws...)
-    x = vec(mass(soln)) / M_earth
+    M = vec(mass(soln))
     P = vec(pressure(soln))
     T = vec(temperature(soln))
     thermal_gradient = sys.structure_equations[3]
@@ -49,7 +49,7 @@ function plot_heat_capacity_profile(soln::PlanetStructure{WithTemp},
     heatcap = thermal_gradient.heatcap
 
     cₚ = map(heatcap, P, T)
-    plot(x, cₚ; kws...)
+    plot(M/M_earth, cₚ/(J/kg/K); kws...)
     label_x_as_mass()
     ylabel(L"Heat capacity, c$_p$ / J kg$^{-1}$ K$^{-1}$")
 end
@@ -57,20 +57,19 @@ end
 "Plot the thermal expansivity profile of a planet"
 function plot_expansivity_profile(soln::PlanetStructure{WithTemp},
                                   sys::PlanetSystem{WithTemp}; kws...)
-    m = vec(mass(soln))
-    x = m / M_earth
+    M = vec(mass(soln))
     P = vec(pressure(soln))
     T = vec(temperature(soln))
     thermal_gradient = sys.structure_equations[3]
     eos = thermal_gradient.eos
     heatcap = thermal_gradient.heatcap
 
-    αᵥ = map(m, P, T) do m, P, T
-        vs = ValueSet(m, NaN, P, T)
+    αᵥ = map(M, P, T) do M, P, T
+        vs = ValueSet(M, NaN, P, T)
         Ogre.thermexp(eos, vs)
     end
 
-    plot(x, αᵥ; kws...)
+    plot(M/M_earth, αᵥ/(1/K); kws...)
     label_x_as_mass()
     ylabel(L"Thermal expansivity, $\alpha$ / K$^{-1}$")
 end
@@ -78,16 +77,15 @@ end
 "Plot the density profile of a planet"
 function plot_density_profile(soln::PlanetStructure{WithTemp},
                               sys::PlanetSystem{WithTemp}; kws...)
-    m = vec(mass(soln))
-    x = m / M_earth
+    M = vec(mass(soln))
     P = vec(pressure(soln))
     T = vec(temperature(soln))
     thermal_gradient = sys.structure_equations[3]
     eos = thermal_gradient.eos
     heatcap = thermal_gradient.heatcap
 
-    ρ = map((m, P, T) -> eos(Ogre.ValueSet(m, NaN, P, T)), m, P, T)
-    plot(x, ρ; kws...)
+    ρ = map((M, P, T) -> eos(Ogre.ValueSet(M, NaN, P, T)), M, P, T)
+    plot(M/M_earth, ρ/(kg/m^3); kws...)
     label_x_as_mass()
     ylabel(L"Density, $\rho$ / kg m$^{-3}$")
 end
@@ -166,7 +164,7 @@ function plot(soln::PlanetStructure{WithTemp}, sys::PlanetSystem{WithTemp}; kws.
 end
 
 function plot(pb::PhaseBoundary; kwargs...)
-    plot(pb.P, pb.T; kwargs...)
+    plot(pb.P/Pa, pb.T/K; kwargs...)
 end
 
 "Plot the P-T profile of a planet overlaid on the phase boundaries of water"
@@ -183,7 +181,7 @@ function phaseplot(soln::PlanetStructure{WithTemp}; kwargs...)
     yscale("log")
 
     plot_phases()
-    plot(P, T, kwargs...)
+    plot(P/Pa, T/K, kwargs...)
 
     xlim(xmin=1e4, xmax=1e12)
     ylim(ymin=200, ymax=10000)
@@ -195,8 +193,8 @@ end
 function plot_phases()
     boundaries = WaterData.load_phase_boundaries()["boundaries"]
     iapws = boundaries["iapws"]
-    plot(iapws.P, iapws.T, linewidth=1, color="Red")
+    plot(iapws.P/Pa, iapws.T/K, linewidth=1, color="Red")
     for pb in boundaries["dunaeva"]
-        plot(pb.P, pb.T, linewidth=1, color="Black")
+        plot(pb.P/Pa, pb.T/K, linewidth=1, color="Black")
     end
 end

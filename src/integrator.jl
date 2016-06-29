@@ -169,10 +169,10 @@ end
 
 # helper functions
 "Has the radius passed the central point?"
-hit_the_centre(R::Real) = R < 0
+hit_the_centre(R::Radius) = R < 0
 hit_the_centre(ps::PlanetStructure) = hit_the_centre(radius(centre(ps)))
 "Is the radius not yet close enough to the centre?"
-not_far_enough(R::Real) = R > 100
+not_far_enough(R::Radius) = R > 100
 not_far_enough(ps::PlanetStructure) = not_far_enough(radius(centre(ps)))
 unacceptable(ps) = hit_the_centre(ps) || not_far_enough(ps)
 "Is the structural solution acceptable?"
@@ -250,11 +250,11 @@ end
 
 # higher level functions for doing MR diagrams
 "Create and solve for a `PlanetSystem`'s radius'"
-function R(M, structure_equations::EquationSet, P_surface,
+function R(M::Mass, structure_equations::EquationSet, Psurf::Pressure,
            solution_grid, R_bracket)
 
     R_guess = mean(R_bracket)
-    system = PlanetSystem(M, R_guess, P_surface, structure,
+    system = PlanetSystem(M, R_guess, Psurf, structure,
                           solution_grid, R_bracket)
 
     radius = find_radius!(system)
