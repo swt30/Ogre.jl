@@ -195,7 +195,7 @@ end
 function refine_boundary_conditions!(system::PlanetSystem, previousresult::PlanetStructure)
     refine_r_bracket!(system, previousresult)
     refine_boundary_r!(system)
-    refine_surface_temperature!(system)
+    refine_surface!(system)
 end
 
 """ Repeatedly solve a `PlanetSystem` until its radius is suitable
@@ -206,7 +206,7 @@ end
 function converge!(system)
     # first make sure the system has the correct boundary conditions to start with
     refine_boundary_r!(system)
-    refine_surface_temperature!(system)
+    refine_surface!(system)
 
     # then get the structure for this radius guess
     result = solve(system)

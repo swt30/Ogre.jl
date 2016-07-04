@@ -146,7 +146,7 @@ type TempDepPlanet <: PlanetSystem{WithTemp}
     boundary_values::BoundaryValues{WithTemp}
     solution_grid::Vector{Float64}
     radius_search_bracket::Vector{Float64}
-    refine_surface_temperature!::Nullable{Function}
+    refine_surface!::Nullable{Function}
 end
 
 function PlanetSystem(M, eos::EOS, bvs::BoundaryValues{NoTemp},
@@ -159,13 +159,13 @@ function PlanetSystem(M, eos::EOS, bvs::BoundaryValues{NoTemp},
 end
 function PlanetSystem(M, eos::EOS, Cₚ::HeatCapacity,
                       bvs::BoundaryValues{WithTemp}, grid=linspace(M, 0, defaults.total_points),
-                      r_bracket=defaults.R_bracket, refine_surface_temperature=nothing)
+                      r_bracket=defaults.R_bracket, refine_surface=nothing)
 
     masscontinuity = MassContinuity(eos)
     temperaturegradient = TemperatureGradient(eos, Cₚ)
     structure = EquationSet([masscontinuity, pressurebalance, temperaturegradient])
 
-    TempDepPlanet(M, structure, bvs, grid, r_bracket, refine_surface_temperature)
+    TempDepPlanet(M, structure, bvs, grid, r_bracket, refine_surface)
 end
 
 "Default planet system (using values from module `defaults`)"
@@ -260,14 +260,14 @@ end
 function refine_boundary_r!(system::PlanetSystem)
     system.boundary_values.r = nextradiusguess(system)
 end
-"Adjust the surface temperature of a planet according to its changed radius"
-function refine_surface_temperature!(system::TempDepPlanet)
-    if !isnull(system.refine_surface_temperature!)
-        do_refine! = get(system.refine_surface_temperature!)
+"Adjust the surface temperature/properties of a planet after each iteration"
+function refine_surface!(system::TempDepPlanet)
+    if !isnull(system.refine_surface!)
+        do_refine! = get(system.refine_surface!)
         new_temperature = do_refine!(system.boundary_values)
     end
 end
-refine_surface_temperature!(system::TempIndepPlanet) = nothing
+refine_surface!(system::TempIndepPlanet) = nothing
 
 # Interacting with planet solution types
 
