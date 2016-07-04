@@ -37,12 +37,11 @@ ndeps{mc<:ModelComplexity}(::Type{mc}) = nvars(mc) - 1
 # Print them in terms of Earth masses and radii
 function Base.show(io::IO, pv::PhysicalValues)
     m, r, P, T = pv.m, pv.r, pv.P, pv.T
-
-    println("$(m/M_earth) M⊕, $(r/R_earth) R⊕, $(P/Pa) Pa, $(T/K) K")
+    show(io, "$(m/M_earth) M⊕, $(r/R_earth) R⊕, $(P/Pa) Pa, $(T/K) K")
 end
 function Base.show(io::IO, mrp::MassRadiusPressure)
     m, r, P = mrp.m, mrp.r, mrp.P
-    println("$(m/M_earth) M⊕, $(r/R_earth) R⊕, $(P/Pa) Pa")
+    show(io, "$(m/M_earth) M⊕, $(r/R_earth) R⊕, $(P/Pa) Pa")
 end
 
 # Get individual values from the ValueSets
