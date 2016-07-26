@@ -11,3 +11,6 @@ const M_earth = 5.972e24 * kg
 const R_earth = 6.3781e6 * m
 "The Stefan-Boltzmann constant, σ_B / W m-2 K-4"
 const σB = 5.670367e-8 * W/m^2/K^4
+"""The transition pressure between the radiative and convective layer.
+Above this pressure, the convective treatment is used."""
+const P_rad_max = 100 * bar

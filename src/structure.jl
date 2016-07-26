@@ -79,7 +79,7 @@ function Base.call(mce::MassContinuity, vs::ValueSet)
         r = radius(vs)
         P = pressure(vs)
         T = temperature(vs)
-        if P < 100e5
+        if P < P_rad_max
             ρ = h2o_idealgas(P, T)
         else
             ρ = mce.eos(vs)
