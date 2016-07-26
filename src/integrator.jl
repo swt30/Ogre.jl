@@ -176,7 +176,7 @@ not_far_enough(R::Radius) = R > 100
 not_far_enough(ps::PlanetStructure) = not_far_enough(radius(centre(ps)))
 unacceptable(ps) = hit_the_centre(ps) || not_far_enough(ps)
 "Is the structural solution acceptable?"
-acceptable(ps) = !unacceptable(ps)
+acceptable(system, structure) = !unacceptable(structure)
 
 "Update the radius search bracket using a bisection search"
 function refine_r_bracket!(system::PlanetSystem, previousresult::PlanetStructure)
@@ -213,20 +213,17 @@ function converge!(system)
 
     # and recursively iterate
     converge!(system, result)
-
-    # once we get here we're done
-    return system
 end
 function converge!(system, result)
     # we have already done an iteration and have a result to work with
-    if !acceptable(result)
+    if !acceptable(system, result)
         # if diff(system.radius_search_bracket)[1] < 1 && radius(centre(result)) > 0
         # info("Did not converge fully")
         # return system
         # end
+
         # need to refine and try again
         refine_boundary_conditions!(system, result)
-        solve!(system, result)
         converge!(system, result)
     else
         # we're done
