@@ -71,10 +71,19 @@ Base.call(e::StructureEquation, m, r, P, T) = e(PhysicalValues(m, r, P, T))
 # around i.e. define the calls in terms of the individual variables and then
 # split the ValueSet up and pass this
 
+using WaterData
+h2o_idealgas = WaterData.load_functional_eoses()["misc"]["ideal_gas"]
+
 function Base.call(mce::MassContinuity, vs::ValueSet)
     if isphysical(vs)
         r = radius(vs)
+        P = pressure(vs)
+        T = temperature(vs)
+        if P < 100e5
+            ρ = h2o_idealgas(P, T)
+        else
         ρ = mce.eos(vs)
+        end
         1 / (4pi * r^2 * ρ)
     else
         zero(Float64)
