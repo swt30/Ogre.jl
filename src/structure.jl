@@ -82,7 +82,7 @@ function Base.call(mce::MassContinuity, vs::ValueSet)
         if P < 100e5
             ρ = h2o_idealgas(P, T)
         else
-        ρ = mce.eos(vs)
+            ρ = mce.eos(vs)
         end
         1 / (4pi * r^2 * ρ)
     else
@@ -131,12 +131,12 @@ typealias BoundaryValues ValueSet
 
 """Describes planetary parameters to be solved for an interior structure.
 
-    * `M`: total mass
-    * `structure_equations`: set of structural equations which incorporate the
-      equation of state
-    * `boundary_values`: a set of values specifying the external boundary
-    * `solution_grid`: a grid of mass coordinates for the output
-    * `radius_search_bracket`: the radius range to search when solving for R"""
+* `M`: total mass
+* `structure_equations`: set of structural equations which incorporate the
+  equation of state
+* `boundary_values`: a set of values specifying the external boundary
+* `solution_grid`: a grid of mass coordinates for the output
+* `radius_search_bracket`: the radius range to search when solving for R"""
 abstract PlanetSystem{mc<:ModelComplexity}
 
 "A planet with no temperature dependence"
@@ -159,7 +159,8 @@ type TempDepPlanet <: PlanetSystem{WithTemp}
 end
 
 function PlanetSystem(M, eos::EOS, bvs::BoundaryValues{NoTemp},
-                      grid=linspace(M, 0, defaults.total_points), r_bracket=defaults.R_bracket)
+                      grid=linspace(M, 0, defaults.total_points),
+                      r_bracket=defaults.R_bracket)
 
     masscontinuity = MassContinuity(eos)
     structure = EquationSet([masscontinuity, pressurebalance])
@@ -167,7 +168,8 @@ function PlanetSystem(M, eos::EOS, bvs::BoundaryValues{NoTemp},
     TempIndepPlanet(M, structure, bvs, grid, r_bracket)
 end
 function PlanetSystem(M, eos::EOS, Cₚ::HeatCapacity,
-                      bvs::BoundaryValues{WithTemp}, grid=linspace(M, 0, defaults.total_points),
+                      bvs::BoundaryValues{WithTemp},
+                      grid=linspace(M, 0, defaults.total_points),
                       r_bracket=defaults.R_bracket, refine_surface=nothing)
 
     masscontinuity = MassContinuity(eos)
@@ -226,13 +228,14 @@ PlanetStructure(m, r, P, T) = FullPlanetStructure(hcat(m, r, P, T)')
 function blank_structure end
 function blank_structure(sys::PlanetSystem{NoTemp})
     n = npoints(sys)
-    MassRadiusPressureStructure(fill(NaN, 3, n))
+    m = nvars(NoTemp)
+    MassRadiusPressureStructure(fill(NaN, m, n))
 end
 function blank_structure(sys::PlanetSystem{WithTemp})
     n = npoints(sys)
-    FullPlanetStructure(fill(NaN, 4, n))
+    m = nvars(WithTemp)
+    FullPlanetStructure(fill(NaN, m, n))
 end
-
 
 # Interacting with planet parameter types
 
@@ -254,7 +257,7 @@ function Base.show(io::IO, p::PlanetSystem)
     println(io, "  radius bracket: $rbracket R⊕")
 end
 
-n_depvars{mc<:ModelComplexity}(sys::PlanetSystem{mc}) = n_depvars(mc)
+ndeps{mc<:ModelComplexity}(sys::PlanetSystem{mc}) = ndeps(mc)
 npoints(sys::PlanetSystem) = length(sys.solution_grid)
 
 maxradius(system) = system.radius_search_bracket[2]
@@ -273,7 +276,7 @@ end
 function refine_surface!(system::TempDepPlanet)
     if !isnull(system.refine_surface!)
         do_refine! = get(system.refine_surface!)
-        new_temperature = do_refine!(system.boundary_values)
+        do_refine!(system.boundary_values)
     end
 end
 refine_surface!(system::TempIndepPlanet) = nothing
