@@ -213,6 +213,7 @@ function converge!(system)
 
     # and recursively iterate
     converge!(system, result)
+    return system
 end
 function converge!(system, result)
     # we have already done an iteration and have a result to work with
@@ -224,6 +225,7 @@ function converge!(system, result)
 
         # need to refine and try again
         refine_boundary_conditions!(system, result)
+        solve!(system, result)
         converge!(system, result)
     else
         # we're done
