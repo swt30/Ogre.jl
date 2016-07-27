@@ -71,6 +71,7 @@ Base.call(e::StructureEquation, m, r, P, T) = e(PhysicalValues(m, r, P, T))
 # around i.e. define the calls in terms of the individual variables and then
 # split the ValueSet up and pass this
 
+# bring in the ideal gas EOS and use it in the atmospheric layer
 using WaterData
 h2o_idealgas = WaterData.load_functional_eoses()["misc"]["ideal_gas"]
 

@@ -198,6 +198,8 @@ function refine_boundary_conditions!(system::PlanetSystem, previousresult::Plane
     refine_surface!(system)
 end
 
+import Plots: plot
+Plots.pyplot(show=true)
 """ Repeatedly solve a `PlanetSystem` until its radius is suitable
 
     Recursively search the radius search bracket of a `PlanetSystem` to
@@ -210,6 +212,7 @@ function converge!(system)
 
     # then get the structure for this radius guess
     result = solve(system)
+    plot(result)
 
     # and recursively iterate
     converge!(system, result)
@@ -226,6 +229,7 @@ function converge!(system, result)
         # need to refine and try again
         refine_boundary_conditions!(system, result)
         solve!(system, result)
+        plot(result)
         converge!(system, result)
     else
         # we're done

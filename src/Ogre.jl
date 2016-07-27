@@ -12,6 +12,7 @@ include("physicalvalues.jl")
 include("eos.jl")
 include("heatcapacity.jl")
 include("structure.jl")
+include("atmosphere.jl")
 include("plot.jl")
 include("integrator.jl")
 
