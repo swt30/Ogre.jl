@@ -1,5 +1,4 @@
-# TODO: Update REQUIRE with needed packages once v0.4 is out
-julia v0.4
+julia v0.5-
 WaterData
 DataStructures
 Iterators
@@ -9,4 +8,3 @@ PyPlot
 PyCall
 VoronoiDelaunay
 GeometricalPredicates
-FactCheck

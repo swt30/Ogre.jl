@@ -1,11 +1,4 @@
-# Tests on utility functions
-
-if VERSION < v"0.5"
-    using BaseTestNext
-else
-    using Base.Test
-end
-
+using Base.Test
 import Ogre
 
 module test_util_resources

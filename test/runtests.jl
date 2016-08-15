@@ -1,10 +1,5 @@
 # Test runner script
-
-if VERSION < v"0.5"
-    using BaseTestNext
-else
-    using Base.Test
-end
+using Base.Test
 
 # tests
 
