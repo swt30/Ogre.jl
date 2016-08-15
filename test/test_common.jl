@@ -1,6 +1,9 @@
-using FactCheck
+if VERSION < v"0.5"
+    using BaseTestNext
+else
+    using Base.Test
+end
 
-
-facts("No common tests") do
+@testset "No common tests" begin
     nothing
 end

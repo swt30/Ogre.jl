@@ -1,4 +1,9 @@
-import FactCheck
+if VERSION < v"0.5"
+    using BaseTestNext
+else
+    using Base.Test
+end
+
 import Ogre
 
 
@@ -35,7 +40,7 @@ module test_eos_resources
     Ogre.istempdependent(::ComplicatedEOS) = true
 end
 
-facts("Basic equation of state tests") do
+@testset "Basic equation of state tests" begin
     res = test_eos_resources
 
     eos1 = res.SimpleEOS(1.,2.,3.)
@@ -46,26 +51,26 @@ facts("Basic equation of state tests") do
     vs1 = vs(1,2,3)
     vs2 = vs(1,2,3,4)
 
-    context("Calling with physical value sets") do
-        @fact eos1(vs1) --> 1*3^2 + 3
-        @fact eos1(vs2) --> 1*3^2 + 3
-        @fact_throws eos2(vs1)
-        @fact eos2(vs2) --> 1*3 + 2*4
-        @fact eos3(vs1) --> 4
-        @fact eos3(vs2) --> 4
+    @testset "Calling with physical value sets" begin
+        @test eos1(vs1) == 1*3^2 + 3
+        @test eos1(vs2) == 1*3^2 + 3
+        @test_throws MethodError eos2(vs1)
+        @test eos2(vs2) == 1*3 + 2*4
+        @test eos3(vs1) == 4
+        @test eos3(vs2) == 4
     end
 
-    context("Handling mass piecewise EOSes") do
+    @testset "Handling mass piecewise EOSes" begin
         mpw = Ogre.MassPiecewiseEOS([eos1, eos2, eos3], [0, 1, 2, 3])
         mpw2 = Ogre.MassPiecewiseEOS([eos1, eos2, eos3], 3, [1/3, 1/3, 1/3])
 
-        @fact mpw(vs(0.5, 1, 2)) --> eos1(2)
-        @fact mpw2(vs(0.5, 1, 2)) --> eos1(2)
-        @fact mpw(vs(1.5, 1, 2, 3)) --> eos2(2, 3)
-        @fact mpw2(vs(1.5, 1, 2, 3)) --> eos2(2, 3)
-        @fact mpw(vs(2.5, 1, 2, 3)) --> eos3(2, 3)
-        @fact mpw2(vs(2.5, 1, 2, 3)) --> eos3(2, 3)
-        @fact_throws(mpw(vs(1.5, 2, 3)))
-        @fact_throws(mpw2(vs(1.5, 2, 3)))
+        @test mpw(vs(0.5, 1, 2)) == eos1(2)
+        @test mpw2(vs(0.5, 1, 2)) == eos1(2)
+        @test mpw(vs(1.5, 1, 2, 3)) == eos2(2, 3)
+        @test mpw2(vs(1.5, 1, 2, 3)) == eos2(2, 3)
+        @test mpw(vs(2.5, 1, 2, 3)) == eos3(2, 3)
+        @test mpw2(vs(2.5, 1, 2, 3)) == eos3(2, 3)
+        @test_throws MethodError mpw(vs(1.5, 2, 3))
+        @test_throws MethodError mpw2(vs(1.5, 2, 3))
     end
 end

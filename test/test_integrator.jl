@@ -1,4 +1,9 @@
-using FactCheck
+if VERSION < v"0.5"
+    using BaseTestNext
+else
+    using Base.Test
+end
+
 import Ogre
 import WaterData
 
@@ -101,7 +106,7 @@ end
 end
 
 
-facts("Integrator tests") do
+@testset "Integrator tests" begin
     mass = Ogre.mass
     radius = Ogre.radius
     pressure = Ogre.pressure
@@ -110,7 +115,7 @@ facts("Integrator tests") do
     surface = Ogre.surface
     res = test_integrator_resources
 
-    context("Standard RK4 integrator test cases") do
+    @testset "Standard RK4 integrator test cases" begin
         t = collect(Float64, 0:.1:10)
 
         # Four different integrator tests
@@ -118,34 +123,34 @@ facts("Integrator tests") do
         soln_funcs = res.simple_ode_solutions
         solns = map(f -> f(t), soln_funcs)
 
-        context("The integrator initialises and steps properly") do
+        @testset "The integrator initialises and steps properly" begin
             integrator = Ogre.RK4
             s1 = integrator(odes[1], 0., t)
             s2 = integrator(odes[1], [0.], t)
             s3 = integrator(odes[4], [1., 2.], t)
-            @fact Ogre.y0(s1) --> 0.0
-            @fact start(s1) --> 1
-            @fact next(s1, 1)[2] --> 2
-            @fact Ogre.y0(s2) --> [0.0]
-            @fact start(s2) --> 1
-            @fact next(s2, 1)[2] --> 2
-            @fact Ogre.y0(s3) --> [1., 2.]
-            @fact start(s3) --> 1
-            @fact next(s3, 1)[2] --> 2
+            @test Ogre.y0(s1) == 0.0
+            @test start(s1) == 1
+            @test next(s1, 1)[2] == 2
+            @test Ogre.y0(s2) == [0.0]
+            @test start(s2) == 1
+            @test next(s2, 1)[2] == 2
+            @test Ogre.y0(s3) == [1., 2.]
+            @test start(s3) == 1
+            @test next(s3, 1)[2] == 2
         end
 
-        context("The dense solutions are as expected") do
+        @testset "The dense solutions are as expected" begin
             f = Ogre.ode4_dense
-            @fact f(odes[1], 0., t) --> roughly(solns[1])
-            @fact f(odes[2], 0., t) --> roughly(solns[2])
-            @fact f(odes[3], 1., t) --> roughly(solns[3], rtol=5e-3)
-            @fact f(odes[4], [1., 2.], t) --> roughly(solns[4], rtol=5e-3)
+            @test isapprox(f(odes[1], 0., t), solns[1])
+            @test isapprox(f(odes[2], 0., t), solns[2])
+            @test isapprox(f(odes[3], 1., t), solns[3], rtol=5e-3)
+            @test isapprox(f(odes[4], [1., 2.], t), solns[4], rtol=5e-3)
         end
     end
 
-    context("Planetary integrator test cases") do
-        context("Solving for a radius (high-level funcs)") do
-            context("We can match Madhu and Sara's results to within 1%") do
+    @testset "Planetary integrator test cases" begin
+        @testset "Solving for a radius (high-level funcs)" begin
+            @testset "We can match Madhu and Sara's results to within 1%" begin
                 test_masses = [0.5, 1.0, 5.0]
                 fe = res.fe
                 mgsio3 = res.mgsio3
@@ -155,60 +160,60 @@ facts("Integrator tests") do
                 fe_radii = Ogre.R(test_masses, fe, in_earth_units=true)
                 mgsio3_radii = Ogre.R(test_masses, mgsio3, in_earth_units=true)
 
-                @fact fe_radii --> roughly(target_fe_radii, rtol=0.01)
-                @fact mgsio3_radii --> roughly(target_mgsio3_radii, rtol=0.01)
+                @test isapprox(fe_radii, target_fe_radii, rtol=0.01)
+                @test isapprox(mgsio3_radii, target_mgsio3_radii, rtol=0.01)
             end
 
-            context("Dual- and tri-layer solutions work") do
+            @testset "Dual- and tri-layer solutions work" begin
                 # accept a pretty large error since we're really just looking
                 # to make sure that it produces the right type of solution
-                @fact (Ogre.R(res.M_earth, res.dual_layer_eos)
-                       --> roughly(res.R_earth, rtol=0.05))
-                @fact (Ogre.R(res.M_earth, res.tri_layer_eos)
-                       --> roughly(res.R_earth, rtol=0.05))
+                @test isapprox(Ogre.R(res.M_earth, res.dual_layer_eos),
+                               res.R_earth, rtol=0.05)
+                @test isapprox(Ogre.R(res.M_earth, res.tri_layer_eos),
+                               res.R_earth, rtol=0.05)
             end
         end
 
-        context("Solving for internal structure (tri-layer)") do
+        @testset "Solving for internal structure (tri-layer)" begin
             system = res.tri_layer_system
             soln = Ogre.solve(system)
 
-            context("Solution outputs are the correct type") do
-                @fact isa(soln, Ogre.PlanetStructure{Ogre.NoTemp}) --> true
+            @testset "Solution outputs are the correct type" begin
+                @test isa(soln, Ogre.PlanetStructure{Ogre.NoTemp})
             end
 
-            context("Solution boundaries match the boundary conditions") do
-                @fact mass(centre(soln)) --> 0
-                @fact mass(surface(soln)) --> res.M_earth
-                @fact pressure(centre(soln)) --> greater_than(pressure(surface(soln)))
-                @fact pressure(surface(soln)) --> res.atmospheric_pressure
-                @fact radius(centre(soln)) --> less_than(100)
-                @fact radius(centre(soln)) --> greater_than(0)
-                @fact radius(surface(soln)) --> res.tri_layer_radius
+            @testset "Solution boundaries match the boundary conditions" begin
+                @test mass(centre(soln)) == 0
+                @test mass(surface(soln)) == res.M_earth
+                @test pressure(centre(soln)) > pressure(surface(soln))
+                @test pressure(surface(soln)) == res.atmospheric_pressure
+                @test radius(centre(soln)) < 100
+                @test radius(centre(soln)) > 0
+                @test radius(surface(soln)) == res.tri_layer_radius
             end
         end
 
-        context("Solving a single-layer solution two different ways") do
+        @testset "Solving a single-layer solution two different ways" begin
             eos_notemp = res.JustAPressureEOS()
             eos_withtemp = res.NotReallyATemperatureEOS()
             heatcap = WaterData.ConstantHeatCapacity(1000.)
             local radius = Ogre.R(res.M_earth, eos_notemp)
             tempdep_radius = Ogre.R(res.M_earth, eos_withtemp, heatcap)
-            @fact tempdep_radius --> radius
+            @test tempdep_radius == radius
         end
 
-        context("Temperature dependence") do
+        @testset "Temperature dependence" begin
             system = res.withtemp
             soln = Ogre.solve(system)
 
-            @fact mass(centre(soln)) --> 0
-            @fact mass(surface(soln)) --> res.M_earth
-            @fact pressure(centre(soln)) --> greater_than(pressure(surface(soln)))
-            @fact pressure(surface(soln)) --> res.atmospheric_pressure
-            @fact temperature(centre(soln)) --> greater_than(temperature(surface(soln)))
-            @fact temperature(surface(soln)) --> 300
-            @fact radius(centre(soln)) --> less_than(100)
-            @fact isa(soln, Ogre.PlanetStructure{Ogre.WithTemp}) --> true
+            @test mass(centre(soln)) == 0
+            @test mass(surface(soln)) == res.M_earth
+            @test pressure(centre(soln)) > pressure(surface(soln))
+            @test pressure(surface(soln)) == res.atmospheric_pressure
+            @test temperature(centre(soln)) > temperature(surface(soln))
+            @test temperature(surface(soln)) == 300
+            @test radius(centre(soln)) < 100
+            @test isa(soln, Ogre.PlanetStructure{Ogre.WithTemp})
         end
     end
 end

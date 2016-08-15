@@ -1,38 +1,43 @@
-using FactCheck
+if VERSION < v"0.5"
+    using BaseTestNext
+else
+    using Base.Test
+end
+
 import Ogre
 
 
-facts("Value sets") do
+@testset "Value sets" begin
     vs_notemp = Ogre.ValueSet(1,2,3)
     vs_full = Ogre.ValueSet(1,2,3,4)
-    @fact_throws Ogre.ValueSet(1,2)
+    @test_throws MethodError Ogre.ValueSet(1,2)
 
-    context("Type hierarchy") do
+    @testset "Type hierarchy" begin
         tempdep = Ogre.ValueSet{Ogre.WithTemp}
         notemp = Ogre.ValueSet{Ogre.NoTemp}
-        @fact isa(vs_notemp, tempdep) --> false
-        @fact isa(vs_notemp, notemp) --> true
-        @fact isa(vs_notemp, Ogre.ValueSet) --> true
-        @fact isa(vs_full, tempdep) --> true
-        @fact isa(vs_full, notemp) --> false
-        @fact isa(vs_full, Ogre.ValueSet) --> true
+        @test !isa(vs_notemp, tempdep)
+        @test isa(vs_notemp, notemp)
+        @test isa(vs_notemp, Ogre.ValueSet)
+        @test isa(vs_full, tempdep)
+        @test !isa(vs_full, notemp)
+        @test isa(vs_full, Ogre.ValueSet)
     end
 
-    context("Get values from them") do
-        @fact Ogre.mass(vs_notemp) --> 1
-        @fact Ogre.nonmass(vs_notemp) --> [2,3]
-        @fact Ogre.mass(vs_full) --> 1
-        @fact Ogre.nonmass(vs_full) --> [2,3,4]
-        @fact Ogre.radius(vs_notemp) --> 2
-        @fact Ogre.pressure(vs_full) --> 3
-        @fact_throws Ogre.temperature(vs_notemp)
-        @fact Ogre.temperature(vs_full) --> 4
+    @testset "Get values from them" begin
+        @test Ogre.mass(vs_notemp) == 1
+        @test Ogre.nonmass(vs_notemp) == [2,3]
+        @test Ogre.mass(vs_full) == 1
+        @test Ogre.nonmass(vs_full) == [2,3,4]
+        @test Ogre.radius(vs_notemp) == 2
+        @test Ogre.pressure(vs_full) == 3
+        @test_throws MethodError Ogre.temperature(vs_notemp)
+        @test Ogre.temperature(vs_full) == 4
     end
 
-    context("Zero values or less are considered 'unphysical'") do
-        @fact Ogre.zero(Ogre.ValueSet{Ogre.NoTemp}) --> not(Ogre.isphysical)
-        @fact Ogre.zero(Ogre.ValueSet{Ogre.WithTemp}) --> not(Ogre.isphysical)
-        @fact Ogre.ValueSet(0, 0, -1) --> not(Ogre.isphysical)
-        @fact Ogre.ValueSet(0, 0, 0, -1) --> not(Ogre.isphysical)
+    @testset "Zero values or less are considered 'unphysical'" begin
+        @test !Ogre.isphysical(Ogre.zero(Ogre.ValueSet{Ogre.NoTemp}))
+        @test !Ogre.isphysical(Ogre.zero(Ogre.ValueSet{Ogre.WithTemp}))
+        @test !Ogre.isphysical(Ogre.ValueSet(0, 0, -1))
+        @test !Ogre.isphysical(Ogre.ValueSet(0, 0, 0, -1))
     end
 end

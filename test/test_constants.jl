@@ -1,6 +1,9 @@
-using FactCheck
+if VERSION < v"0.5"
+    using BaseTestNext
+else
+    using Base.Test
+end
 
-
-facts("No constant tests") do
+@testset "No constant tests" begin
     nothing
 end

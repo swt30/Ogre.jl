@@ -1,6 +1,11 @@
 # Tests on utility functions
 
-using FactCheck
+if VERSION < v"0.5"
+    using BaseTestNext
+else
+    using Base.Test
+end
+
 import Ogre
 
 module test_util_resources
@@ -16,31 +21,31 @@ module test_util_resources
 end
 
 
-facts("Utility function tests") do
+@testset "Utility function tests" begin
     res = test_util_resources
 
-    context("Copy-modification of types") do
+    @testset "Copy-modification of types" begin
         t1 = res.my_immutable_type("hello", 12)
         t2 = Ogre.cpmod(t1, field1="world")
-        @fact t2.field1 --> "world"
-        @fact t2.field2 --> 12
+        @test t2.field1 == "world"
+        @test t2.field2 == 12
 
         t3 = res.my_mutable_type("foo", 13)
         t4 = Ogre.cpmod(t3, field2=14)
-        @fact t4.field1 --> "foo"
-        @fact t4.field2 --> 14
+        @test t4.field1 == "foo"
+        @test t4.field2 == 14
     end
 
-    context("Mapping rows of a function") do
+    @testset "Mapping rows of a function" begin
         M = [1 2 3;
              4 5 6;
              7 8 9]
-        @fact vec(Ogre.maprows(sum, M)) --> [6, 15, 24]
-        @fact vec(Ogre.maprows(mean, M)) --> [2., 5., 8.]
+        @test vec(Ogre.maprows(sum, M)) == [6, 15, 24]
+        @test vec(Ogre.maprows(mean, M)) == [2., 5., 8.]
     end
 
-    context("Testing for NaN values") do
-        @fact Ogre.hasnan([1, 2, 3, 4]) --> false
-        @fact Ogre.hasnan([1, NaN, 3, NaN]) --> true
+    @testset "Testing for NaN values" begin
+        @test !Ogre.hasnan([1, 2, 3, 4])
+        @test Ogre.hasnan([1, NaN, 3, NaN])
     end
 end

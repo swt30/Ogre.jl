@@ -1,4 +1,9 @@
-using FactCheck
+if VERSION < v"0.5"
+    using BaseTestNext
+else
+    using Base.Test
+end
+
 import Ogre
 import WaterData
 
@@ -9,13 +14,12 @@ pressure = Ogre.pressure
 temperature = Ogre.temperature
 
 type PressureEOS <: Ogre.EOS end
-Base.call(eos::PressureEOS, pv::Ogre.PhysicalValues) = eos(pressure(pv))
-Base.call(eos::PressureEOS, pv::Ogre.MassRadiusPressure) = eos(pressure(pv))
+Ogre.@addEOSCall PressureEOS
 Base.call(::PressureEOS, P) = 4100. + 0.00161*(P^0.541)
 Ogre.istempdependent(::PressureEOS) = false
 
 type PTEOS <: Ogre.EOS end
-Base.call(eos::PTEOS, pv::Ogre.PhysicalValues) = eos(pressure(pv), temperature(pv))
+Ogre.@addEOSCall PTEOS
 Base.call(::PTEOS, P, T) = 4100. + 0.00161*(P^0.541)
 # the effect of T on ρ here is arbitrary - we just want increasing
 # T to mean decreasing ρ
@@ -23,7 +27,7 @@ Ogre.istempdependent(::PTEOS) = true
 end
 
 
-facts("Structure equations") do
+@testset "Structure equations" begin
     res = test_structure_resources
 
     # realistic values taken from PREM at r=1000 km from the centre
@@ -31,41 +35,41 @@ facts("Structure equations") do
     radius = 1e6       # m
     pressure = 340e9   # Pa
 
-    context("with no temperature dependence") do
+    @testset "with no temperature dependence" begin
         realistic_values = Ogre.ValueSet(mass, radius, pressure)
 
-        context("using an analytic EOS") do
+        @testset "using an analytic EOS" begin
             eos = res.PressureEOS()
 
             masscontinuity = Ogre.MassContinuity(eos)
             pressurebalance = Ogre.PressureBalance()
 
-            context("Zero gradients at the r=0 limit") do
+            @testset "Zero gradients at the r=0 limit" begin
                 zero_values = zero(Ogre.MassRadiusPressure)
-                @fact pressurebalance(zero_values) --> 0
-                @fact masscontinuity(zero_values) --> 0
+                @test pressurebalance(zero_values) == 0
+                @test masscontinuity(zero_values) == 0
             end
 
-            context("Correct signs for the structure equations") do
+            @testset "Correct signs for the structure equations" begin
                 # change in pressure is negative outwards
-                @fact pressurebalance(realistic_values) --> less_than(0)
+                @test pressurebalance(realistic_values) < 0
                 # change in mass is positive outwards
-                @fact masscontinuity(realistic_values) --> greater_than(0)
+                @test masscontinuity(realistic_values) > 0
             end
 
-            context("Attempting to go over the singularity at r=0 returns zero") do
+            @testset "Attempting to go over the singularity at r=0 returns zero" begin
                 negative_radius = Ogre.ValueSet(5.4e22, -1e6, 340e9)
                 negative_pressure = Ogre.ValueSet(5.4e22, 1e6, -340e9)
                 negative_mass = Ogre.ValueSet(-5.4e22, 1e6, 340e9)
                 map([negative_radius, negative_pressure, negative_mass]) do vs
-                    @fact pressurebalance(vs) --> 0
-                    @fact masscontinuity(vs) --> 0
+                    @test pressurebalance(vs) == 0
+                    @test masscontinuity(vs) == 0
                 end
             end
         end
     end
 
-    context("with temperature dependence") do
+    @testset "with temperature dependence" begin
         # realistic values taken from PREM at r=1000 km from the centre
         mass = 5.4e22      # kg enclosed
         radius = 1e6       # m
@@ -73,7 +77,7 @@ facts("Structure equations") do
         temperature = 5000 # K, this value is only rough
         realistic_values = Ogre.ValueSet(mass, radius, pressure, temperature)
 
-        context("using an analytic EOS") do
+        @testset "using an analytic EOS" begin
             eos = res.PTEOS()
 
             # arbitrary heat capacity
@@ -83,32 +87,32 @@ facts("Structure equations") do
             pressurebalance = Ogre.PressureBalance()
             temperaturegradient = Ogre.TemperatureGradient(eos, Cₚ)
 
-            context("Zero gradients at the r=0 limit") do
+            @testset "Zero gradients at the r=0 limit" begin
                 zero_values = zero(Ogre.PhysicalValues)
-                @fact pressurebalance(zero_values) --> 0
-                @fact masscontinuity(zero_values) --> 0
-                @fact temperaturegradient(zero_values) --> 0
+                @test pressurebalance(zero_values) == 0
+                @test masscontinuity(zero_values) == 0
+                @test temperaturegradient(zero_values) == 0
             end
 
-            context("Correct signs for the structure equations") do
+            @testset "Correct signs for the structure equations" begin
                 # change in pressure is negative outwards
-                @fact pressurebalance(realistic_values) --> less_than(0)
+                @test pressurebalance(realistic_values) < 0
                 # change in mass is positive outwards
-                @fact masscontinuity(realistic_values) --> greater_than(0)
+                @test masscontinuity(realistic_values) > 0
                 # change in temperature is negative outwards
-                @fact temperaturegradient(realistic_values) --> less_than(0)
+                @test temperaturegradient(realistic_values) < 0
             end
 
-            context("Attempting to go over the singularity at r=0 returns zero") do
+            @testset "Attempting to go over the singularity at r=0 returns zero" begin
                 negative_radius = Ogre.ValueSet(5.4e22, -1e6, 340e9, 5000.)
                 negative_pressure = Ogre.ValueSet(5.4e22, 1e6, -340e9, 5000.)
                 negative_mass = Ogre.ValueSet(-5.4e22, 1e6, 340e9, 5000.)
                 negative_temperature = Ogre.ValueSet(5.4e22, -1e6, 340e9, -5000.)
                 map([negative_radius, negative_pressure,
                      negative_mass, negative_temperature]) do vs
-                         @fact pressurebalance(vs) --> 0
-                         @fact masscontinuity(vs) --> 0
-                         @fact temperaturegradient(vs) --> 0
+                         @test pressurebalance(vs) == 0
+                         @test masscontinuity(vs) == 0
+                         @test temperaturegradient(vs) == 0
                      end
             end
         end
@@ -116,16 +120,16 @@ facts("Structure equations") do
 end
 
 
-facts("Planetary structure types") do
+@testset "Planetary structure types" begin
     res = test_structure_resources
-    context("Boundary values") do
+    @testset "Boundary values" begin
         bvs = Ogre.BoundaryValues(1,2,3)
         bvsT = Ogre.BoundaryValues(1,2,3,4)
-        @fact Ogre.radius(bvs) --> 2
-        @fact Ogre.temperature(bvsT) --> 4
+        @test Ogre.radius(bvs) == 2
+        @test Ogre.temperature(bvsT) == 4
     end
 
-    context("Centre and surface values") do
+    @testset "Centre and surface values" begin
         mc, ms = 1, 2
         rc, rs = 3, 4
         Pc, Ps = 5, 6
@@ -140,23 +144,23 @@ facts("Planetary structure types") do
         s1 = Ogre.PlanetStructure(m, r, P)
         s2 = Ogre.PlanetStructure(m, r, P, T)
 
-        @fact Ogre.mass(Ogre.centre(s1)) --> mc
-        @fact Ogre.mass(Ogre.centre(s2)) --> mc
-        @fact Ogre.mass(Ogre.surface(s1)) --> ms
-        @fact Ogre.mass(Ogre.surface(s2)) --> ms
-        @fact Ogre.radius(Ogre.centre(s1)) --> rc
-        @fact Ogre.radius(Ogre.centre(s2)) --> rc
-        @fact Ogre.radius(Ogre.surface(s1)) --> rs
-        @fact Ogre.radius(Ogre.surface(s2)) --> rs
-        @fact Ogre.pressure(Ogre.centre(s1)) --> Pc
-        @fact Ogre.pressure(Ogre.centre(s2)) --> Pc
-        @fact Ogre.pressure(Ogre.surface(s1)) --> Ps
-        @fact Ogre.pressure(Ogre.surface(s2)) --> Ps
-        @fact Ogre.temperature(Ogre.centre(s2)) --> Tc
-        @fact Ogre.temperature(Ogre.surface(s2)) --> Ts
+        @test Ogre.mass(Ogre.centre(s1)) == mc
+        @test Ogre.mass(Ogre.centre(s2)) == mc
+        @test Ogre.mass(Ogre.surface(s1)) == ms
+        @test Ogre.mass(Ogre.surface(s2)) == ms
+        @test Ogre.radius(Ogre.centre(s1)) == rc
+        @test Ogre.radius(Ogre.centre(s2)) == rc
+        @test Ogre.radius(Ogre.surface(s1)) == rs
+        @test Ogre.radius(Ogre.surface(s2)) == rs
+        @test Ogre.pressure(Ogre.centre(s1)) == Pc
+        @test Ogre.pressure(Ogre.centre(s2)) == Pc
+        @test Ogre.pressure(Ogre.surface(s1)) == Ps
+        @test Ogre.pressure(Ogre.surface(s2)) == Ps
+        @test Ogre.temperature(Ogre.centre(s2)) == Tc
+        @test Ogre.temperature(Ogre.surface(s2)) == Ts
     end
 
-    context("Planet system and solution setup") do
+    @testset "Planet system and solution setup" begin
         M = 5.972e24
         R = 6.3781e6
         Psurf = 1e5
@@ -165,7 +169,7 @@ facts("Planetary structure types") do
 
         pressurebalance = Ogre.PressureBalance()
 
-        context("No temperature dependence") do
+        @testset "No temperature dependence" begin
             bvs = Ogre.BoundaryValues(M, R, Psurf)
             eos = res.PressureEOS()
             masscontinuity = Ogre.MassContinuity(eos)
@@ -175,13 +179,13 @@ facts("Planetary structure types") do
                                        radius_bracket)
             struct = Ogre.blank_structure(system)
 
-            @fact length(Ogre.mass(struct)) --> 5
-            @fact length(Ogre.radius(struct)) --> 5
-            @fact length(Ogre.pressure(struct)) --> 5
-            @fact_throws Ogre.temperature(struct)
+            @test length(Ogre.mass(struct)) == 5
+            @test length(Ogre.radius(struct)) == 5
+            @test length(Ogre.pressure(struct)) == 5
+            @test_throws MethodError Ogre.temperature(struct)
         end
 
-        context("Temperature dependence") do
+        @testset "Temperature dependence" begin
             Tsurf = 300
             bvs = Ogre.BoundaryValues(M, R, Psurf, Tsurf)
             eos = res.PTEOS()
@@ -195,10 +199,10 @@ facts("Planetary structure types") do
                                        radius_bracket)
             struct = Ogre.blank_structure(system)
 
-            @fact length(Ogre.mass(struct)) --> 5
-            @fact length(Ogre.radius(struct)) --> 5
-            @fact length(Ogre.pressure(struct)) --> 5
-            @fact length(Ogre.temperature(struct)) --> 5
+            @test length(Ogre.mass(struct)) == 5
+            @test length(Ogre.radius(struct)) == 5
+            @test length(Ogre.pressure(struct)) == 5
+            @test length(Ogre.temperature(struct)) == 5
         end
     end
 end
