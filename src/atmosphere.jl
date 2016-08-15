@@ -116,8 +116,8 @@ function dτdm(κ::Dimensionless, r::Distance)
     -κ/(4π*r^2)
 end
 
-"A constant opacity for testing purposes"
-const κ_const = 0.1
+"A constant opacity"
+const κ_const = 30.
 
 function Base.call(odg::OpticalDepthGradient, vs::ValueSet)
     if isphysical(vs) && odg.is_radiative(vs)
@@ -191,11 +191,6 @@ function refine_surface!(system::AtmospherePlanet)
         do_refine! = get(system.refine_surface!)
         do_refine!(system)
     end
-    # if !isnull(system.refine_atmosphere_grid!)
-    #     do_refine_grid! = get(system.refine_atmosphere_grid!)
-    #     refine_range = 1:10
-    #     do_refine_grid!(system.solution_grid, refine_range)
-    # end
 end
 
 nvars(::Type{WithAtmosphere}) = 5 # M, R, P, T, τ
@@ -232,11 +227,9 @@ let specific_eoses = (TFD, BME3, BME4, Vinet, PolytropicEOS, WaterData.OutOfDoma
     end
 end
 
-"""
-                            Make a power law opacity from the functions in Kurosaki et al.
-                            These functions have the form κ = D * (P / 1 bar)^α * (T / 1000 K)^β cm^2/g.
-                            This function returns a power law opacity κ(P, T), accepting P/Pa and T/K.
-                            """
+"""Make a power law opacity from the functions in Kurosaki et al.
+These functions have the form κ = D * (P / 1 bar)^α * (T / 1000 K)^β cm^2/g.
+This function returns a power law opacity κ(P, T), accepting P/Pa and T/K."""
 function kurosaki_opacity(D, α, β)
     C = D * cm^2/g * (1/1bar)^α * (1/1000K)^β
     PowerLawOpacity(C, α, β)
@@ -249,20 +242,20 @@ const water_opacity_p_vis = kurosaki_opacity(1.94e4, 0.01, 1.0)
 const water_opacity_p_th = kurosaki_opacity(4.15e5, 0.01, -1.1)
 
 # Default values
-const Tint = 400. * K
-const Tirr = 300. * K
 const γ = 1.
 
 is_radiative(vs::ValueSet) = (pressure(vs) < P_rad_max)
 const opticaldepth_gradient = OpticalDepthGradient(water_opacity_r_th, is_radiative)
-const wateratm_gradient = TwoStreamTemperatureGradient(water_opacity_r_th, Tint, Tirr, γ)
 
 "Do-everything constructor for a watery planet with a watery atmosphere"
 function AtmospherePlanet(M::Mass, eos::EOS, Cₚ::HeatCapacity,
                           bvs::BoundaryValues{WithAtmosphere},
+                          Tint_initial::Temperature, Tirr_initial::Temperature,
                           grid=linspace(M, 0, defaults.total_points),
                           r_bracket=defaults.R_bracket, refine_surface=nothing)
 
+    wateratm_gradient = TwoStreamTemperatureGradient(water_opacity_r_th,
+                                                     Tint_initial, Tirr_initial, γ)
     masscontinuity = MassContinuity(eos)
     adiabatic_gradient = TemperatureGradient(eos, Cₚ)
     combined_temperature = CombinedTemperatureGradient(wateratm_gradient,

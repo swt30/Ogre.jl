@@ -31,7 +31,7 @@ end
     ρ = map(ρ_patched, P, T)
 
     legend := false
-    markershape := :none
+    markershape := :xcross
     markersize := 3
     linewidth := 2
 
@@ -49,19 +49,18 @@ end
     # (τ, P/bar)
 
     # all profiles
-    layout := 4
+    layout := 5
     xguide := L"Radius r / R$_⊕$"
     yguide := hcat(L"Mass m / M$_⊕$",
-                   "log10 Pressure P / bar",
+                   "Pressure P / bar",
                    "Temperature T / K",
-                   L"log10 Density $ρ$ / kg/m$^3$")
-    ylims := hcat(nothing,
-                  nothing,
-                  nothing,
-                  nothing)
+                   L"Optical depth $τ$",
+                   L"Density $ρ$ / kg/m$^3$")
+    ylims := [nothing]
+    yscale := [:identity :log10 :identity :log10 :log10]
 
     x = r/R_earth
-    ys = hcat(M/M_earth, log10(P/1bar), T/K, log10(ρ/(kg/m^3)))
+    ys = hcat(M/M_earth, P/1bar, T/K, τ, ρ/(kg/m^3))
 
     (x, ys)
 end

@@ -75,19 +75,26 @@ Base.call(e::StructureEquation, m, r, P, T) = e(PhysicalValues(m, r, P, T))
 using WaterData
 h2o_idealgas = WaterData.load_functional_eoses()["misc"]["ideal_gas"]
 
+function density(eos::EOS, vs)
+    P = pressure(vs)
+    T = temperature(vs)
+    if P < P_rad_max
+        ρ = h2o_idealgas(P, T)
+    else
+        ρ = eos(vs)
+    end
+    return ρ
+end
+
 function Base.call(mce::MassContinuity, vs::ValueSet)
     if isphysical(vs)
         r = radius(vs)
         P = pressure(vs)
         T = temperature(vs)
-        if P < P_rad_max
-            ρ = h2o_idealgas(P, T)
-        else
-            ρ = mce.eos(vs)
-        end
-        1 / (4pi * r^2 * ρ)
+        ρ = density(mce.eos, vs)
+        return 1 / (4pi * r^2 * ρ)
     else
-        zero(Float64)
+        return zero(Float64)
     end
 end
 
