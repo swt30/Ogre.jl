@@ -165,7 +165,11 @@ function Base.call(ctg::CombinedTemperatureGradient, vs::ValueSet)
     end
 end
 
-Base.call(e::StructureEquation, m, r, P, T, τ) = e(AtmosphereValues(m, r, P, T, τ))
+# FIXME: these multiple definitions are a workaround for julia issue #14919
+Base.call(e::MassContinuity, m, r, P, T, τ) = e(AtmosphereValues(m, r, P, T, τ))
+Base.call(e::PressureBalance, m, r, P, T, τ) = e(AtmosphereValues(m, r, P, T, τ))
+Base.call(e::TemperatureGradient, m, r, P, T, τ) = e(AtmosphereValues(m, r, P, T, τ))
+
 function Base.call(tg::TemperatureGradient, av::AtmosphereValues)
     m = mass(av)
     r = radius(av)
@@ -218,14 +222,28 @@ function isphysical(vs::AtmosphereValues)
     (mass(vs) > 0 && radius(vs) > 0 && pressure(vs) > 0 &&
      temperature(vs) > 0 && opticaldepth(vs) > 0)
 end
-let specific_eoses = (TFD, BME3, BME4, Vinet, PolytropicEOS, WaterData.OutOfDomainEOS),
-    modifier_eoses = (BoundedEOS, WaterData.InverseFunctionalEOS, PressurePiecewiseEOS),
-    general_eoses = (LineEOS, GridEOS, EOS, )
 
-    for T in chain(specific_eoses, modifier_eoses, general_eoses)
-        Base.call(eos::T, vs::AtmosphereValues) = eos(pressure(vs), temperature(vs))
+# FIXME: this is a workaround for julia issue #14919
+"Declare that an EOS type can be called with ValueSet arguments"
+macro addEOSCall(theEOSType)
+    quote
+        Base.call(eos::$(esc(theEOSType)), vs::MassRadiusPressure) = eos(pressure(vs))
+        Base.call(eos::$(esc(theEOSType)), vs::PhysicalValues) = eos(pressure(vs), temperature(vs))
+        Base.call(eos::$(esc(theEOSType)), vs::AtmosphereValues) = eos(pressure(vs), temperature(vs))
     end
 end
+@addEOSCall TFD
+@addEOSCall BME3
+@addEOSCall BME4
+@addEOSCall Vinet
+@addEOSCall PolytropicEOS
+@addEOSCall WaterData.OutOfDomainEOS
+@addEOSCall BoundedEOS
+@addEOSCall IAPWS
+@addEOSCall MGDPressureEOS
+@addEOSCall PressurePiecewiseEOS
+@addEOSCall LineEOS
+@addEOSCall GridEOS
 
 """Make a power law opacity from the functions in Kurosaki et al.
 These functions have the form κ = D * (P / 1 bar)^α * (T / 1000 K)^β cm^2/g.

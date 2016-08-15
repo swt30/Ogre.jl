@@ -64,12 +64,18 @@ end
 
 # Evaluating structural equations
 
-Base.call(e::StructureEquation, m, y::Vector) = e(m, y...)
-Base.call(e::StructureEquation, m, r, P) = e(MassRadiusPressure(m, r, P))
-Base.call(e::StructureEquation, m, r, P, T) = e(PhysicalValues(m, r, P, T))
-# TODO: I don't like this fake value stuff, maybe we should do it the other way
-# around i.e. define the calls in terms of the individual variables and then
-# split the ValueSet up and pass this
+# FIXME: this is a workaround for julia issue #14919
+"Declare that a StructureEquation can be called with ValueSet arguments"
+macro addStructureCall(theStructureType)
+    quote
+        Base.call(eq::$(esc(theStructureType)), m, y::Vector) = eq(m, y...)
+        Base.call(eq::$(esc(theStructureType)), m, r, P) = eq(MassRadiusPressure(m, r, P))
+        Base.call(eq::$(esc(theStructureType)), m, r, P, T) = eq(PhysicalValues(m, r, P, T))
+    end
+end
+@addStructureCall MassContinuity
+@addStructureCall PressureBalance
+@addStructureCall TemperatureGradient
 
 # bring in the ideal gas EOS and use it in the atmospheric layer
 using WaterData
@@ -78,7 +84,8 @@ h2o_idealgas = WaterData.load_functional_eoses()["misc"]["ideal_gas"]
 function density(eos::EOS, vs)
     P = pressure(vs)
     T = temperature(vs)
-    if P < P_rad_max
+    if false
+    # if P < P_rad_max
         ρ = h2o_idealgas(P, T)
     else
         ρ = eos(vs)
@@ -86,11 +93,12 @@ function density(eos::EOS, vs)
     return ρ
 end
 
+density(eos::EOS, vs::MassRadiusPressure) = eos(vs)
+
 function Base.call(mce::MassContinuity, vs::ValueSet)
     if isphysical(vs)
         r = radius(vs)
         P = pressure(vs)
-        T = temperature(vs)
         ρ = density(mce.eos, vs)
         return 1 / (4pi * r^2 * ρ)
     else
@@ -124,9 +132,9 @@ function Base.call(tg::TemperatureGradient, pv::PhysicalValues)
     return zero(Float64)
 end
 
-function Base.call(te::ThermalExpansivity, pv::PhysicalValues)
-    te.alpha(pressure(pv), temperature(pv))
-end
+Base.call(te::GridThermalExp, pv::PhysicalValues) = te.alpha(pressure(pv), temperature(pv))
+Base.call(te::ConstantThermalExp, pv::PhysicalValues) = te.alpha(pressure(pv), temperature(pv))
+Base.call(te::NoThermalExp, pv::PhysicalValues) = te.alpha(pressure(pv), temperature(pv))
 
 Base.call(te::GridThermalExp, P::Pressure, T::Temperature) = te.alpha(P, T)
 Base.call(te::ConstantThermalExp, P::Pressure, T::Temperature) = te.alpha

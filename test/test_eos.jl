@@ -12,15 +12,18 @@ module test_eos_resources
         n::Float64
         C::Float64
     end
+    Ogre.@addEOSCall SimpleEOS
 
     type ComplicatedEOS <: Ogre.EOS
         A::Float64
         B::Float64
     end
+    Ogre.@addEOSCall ComplicatedEOS
 
     type ConstantEOS <: Ogre.EOS
         C::Float64
     end
+    Ogre.@addEOSCall ConstantEOS
 
     Base.call(eos::SimpleEOS, P::Number) = eos.A*P^eos.n + eos.C
     Base.call(eos::SimpleEOS, P::Number, T::Number) = eos(P)
@@ -29,14 +32,7 @@ module test_eos_resources
     Base.call(eos::ConstantEOS, P::Number, T::Number) = eos(P)
 
     Ogre.istempdependent(::Union{SimpleEOS, ConstantEOS}) = false
-    Ogre.istempdependent(::ComplicatedEOS) = true 
-
-    for T in (SimpleEOS, ConstantEOS)
-        Base.call(eos::T, vs::Ogre.MassRadiusPressure) = eos(Ogre.pressure(vs))
-    end
-    for T in (ComplicatedEOS, ConstantEOS)
-        Base.call(eos::T, vs::Ogre.PhysicalValues) = eos(Ogre.pressure(vs), Ogre.temperature(vs))
-    end
+    Ogre.istempdependent(::ComplicatedEOS) = true
 end
 
 facts("Basic equation of state tests") do

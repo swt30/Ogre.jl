@@ -37,13 +37,4 @@ for T in (MassRadiusPressure, PhysicalValues)
     Base.call(eos::MassPiecewiseEOS, vs::T) = extracteos(eos, vs)(vs)
 end
 
-# Calling EOSes with ValueSets
-let specific_eoses = (TFD, BME3, BME4, Vinet, PolytropicEOS, WaterData.OutOfDomainEOS),
-    modifier_eoses = (BoundedEOS, WaterData.InverseFunctionalEOS, PressurePiecewiseEOS),
-    general_eoses = (LineEOS, GridEOS, EOS, )
-
-    for T in chain(specific_eoses, modifier_eoses, general_eoses)
-        Base.call(eos::T, vs::MassRadiusPressure) = eos(pressure(vs))
-        Base.call(eos::T, vs::PhysicalValues) = eos(pressure(vs), temperature(vs))
-    end
-end
+# call definitions have gone to atmosphere.jl as a workaround

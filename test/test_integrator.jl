@@ -43,6 +43,7 @@ end
 
 # Simple with-temperature EOS
 type JustAPressureEOS <: Ogre.EOS end
+Ogre.@addEOSCall JustAPressureEOS
 PV = Ogre.PhysicalValues
 MRP = Ogre.MassRadiusPressure
 Base.call(eos::JustAPressureEOS, pv::PV) = eos(Ogre.pressure(pv))
@@ -51,10 +52,12 @@ Base.call(::JustAPressureEOS, P) = 1000 + P
 Ogre.istempdependent(::JustAPressureEOS) = false
 
 type NotReallyATemperatureEOS <: Ogre.EOS end
+@Ogre.addEOSCall NotReallyATemperatureEOS
 Base.call(::NotReallyATemperatureEOS, P, T) = 1000 + P
 Ogre.istempdependent(::NotReallyATemperatureEOS) = true
 
 type ReallyATemperatureEOS <: Ogre.EOS end
+@Ogre.addEOSCall ReallyATemperatureEOS
 Base.call(::ReallyATemperatureEOS, P, T) = 1000 + 1/T
 Ogre.istempdependent(::ReallyATemperatureEOS) = true
 
