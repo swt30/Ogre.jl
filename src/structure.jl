@@ -16,8 +16,8 @@ end
 
 Base.length(es::EquationSet) = length(es.equations)
 Base.getindex(es::EquationSet, i) = es.equations[i]
-Base.call(es::EquationSet, x::Real, y::Vector) = map(eq -> eq(x, y), es.equations)
-Base.call(es::EquationSet, vs::ValueSet) = map(eq -> eq(vs), es.equations)
+(es::EquationSet)(x::Real, y::Vector) = map(eq -> eq(x, y), es.equations)
+(es::EquationSet)(vs::ValueSet) = map(eq -> eq(vs), es.equations)
 
 
 # Structural equation types
@@ -65,17 +65,16 @@ end
 # Evaluating structural equations
 
 # FIXME: this is a workaround for julia issue #14919
-"Declare that a StructureEquation can be called with ValueSet arguments"
-macro addStructureCall(theStructureType)
-    quote
-        Base.call(eq::$(esc(theStructureType)), m, y::Vector) = eq(m, y...)
-        Base.call(eq::$(esc(theStructureType)), m, r, P) = eq(MassRadiusPressure(m, r, P))
-        Base.call(eq::$(esc(theStructureType)), m, r, P, T) = eq(PhysicalValues(m, r, P, T))
+# (the macro approach ran into segfault issues)
+for structEq in (MassContinuity, PressureBalance, TemperatureGradient)
+    @eval begin
+        let MRP = Ogre.MassRadiusPressure, PV = Ogre.PhysicalValues
+            (eq::$structEq)(m::Real, y::Vector) = eq(m, y...)
+            (eq::$structEq)(m::Real, r::Real, P::Real) = eq(MRP(m, r, P))
+            (eq::$structEq)(m::Real, r::Real, P::Real, T::Real) = eq(PV(m, r, P, T))
+        end
     end
 end
-@addStructureCall MassContinuity
-@addStructureCall PressureBalance
-@addStructureCall TemperatureGradient
 
 # bring in the ideal gas EOS and use it in the atmospheric layer
 using WaterData
@@ -95,7 +94,7 @@ end
 
 density(eos::EOS, vs::MassRadiusPressure) = eos(vs)
 
-function Base.call(mce::MassContinuity, vs::ValueSet)
+function (mce::MassContinuity)(vs::ValueSet)
     if isphysical(vs)
         r = radius(vs)
         P = pressure(vs)
@@ -106,7 +105,7 @@ function Base.call(mce::MassContinuity, vs::ValueSet)
     end
 end
 
-function Base.call(::PressureBalance, vs::ValueSet)
+function (::PressureBalance)(vs::ValueSet)
     if isphysical(vs)
         m = mass(vs)
         r = radius(vs)
@@ -116,7 +115,7 @@ function Base.call(::PressureBalance, vs::ValueSet)
     end
 end
 
-function Base.call(tg::TemperatureGradient, pv::PhysicalValues)
+function (tg::TemperatureGradient)(pv::PhysicalValues)
     if isphysical(pv)
         ρ = tg.eos(pv)
         cₚ = tg.heatcap(pv)
@@ -132,13 +131,13 @@ function Base.call(tg::TemperatureGradient, pv::PhysicalValues)
     return zero(Float64)
 end
 
-Base.call(te::GridThermalExp, pv::PhysicalValues) = te.alpha(pressure(pv), temperature(pv))
-Base.call(te::ConstantThermalExp, pv::PhysicalValues) = te.alpha(pressure(pv), temperature(pv))
-Base.call(te::NoThermalExp, pv::PhysicalValues) = te.alpha(pressure(pv), temperature(pv))
+(te::GridThermalExp)(pv::PhysicalValues) = te.alpha(pressure(pv), temperature(pv))
+(te::ConstantThermalExp)(pv::PhysicalValues) = te.alpha(pressure(pv), temperature(pv))
+(te::NoThermalExp)(pv::PhysicalValues) = te.alpha(pressure(pv), temperature(pv))
 
-Base.call(te::GridThermalExp, P::Pressure, T::Temperature) = te.alpha(P, T)
-Base.call(te::ConstantThermalExp, P::Pressure, T::Temperature) = te.alpha
-Base.call(::NoThermalExp, P::Pressure, T::Temperature) = zero(Float64)
+(te::GridThermalExp)(P::Pressure, T::Temperature) = te.alpha(P, T)
+(te::ConstantThermalExp)(P::Pressure, T::Temperature) = te.alpha
+(::NoThermalExp)(P::Pressure, T::Temperature) = zero(Float64)
 
 
 # Planetary parameter types

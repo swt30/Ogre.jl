@@ -34,7 +34,7 @@ function extracteos(eos::WaterData.PressurePiecewiseEOS, vs::ValueSet)
     extracteos(eos, pressure(vs))
 end
 for T in (MassRadiusPressure, PhysicalValues)
-    Base.call(eos::MassPiecewiseEOS, vs::T) = extracteos(eos, vs)(vs)
+    (eos::MassPiecewiseEOS)(vs::T) = extracteos(eos, vs)(vs)
 end
 
 # call definitions have gone to atmosphere.jl as a workaround

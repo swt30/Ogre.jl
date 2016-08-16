@@ -12,24 +12,25 @@ module test_eos_resources
         n::Float64
         C::Float64
     end
-    Ogre.@addEOSCall SimpleEOS
 
     type ComplicatedEOS <: Ogre.EOS
         A::Float64
         B::Float64
     end
-    Ogre.@addEOSCall ComplicatedEOS
 
     type ConstantEOS <: Ogre.EOS
         C::Float64
     end
-    Ogre.@addEOSCall ConstantEOS
 
-    Base.call(eos::SimpleEOS, P::Number) = eos.A*P^eos.n + eos.C
-    Base.call(eos::SimpleEOS, P::Number, T::Number) = eos(P)
-    Base.call(eos::ComplicatedEOS, P::Number, T::Number) = eos.A*P + eos.B*T
-    Base.call(eos::ConstantEOS, P::Number) = eos.C
-    Base.call(eos::ConstantEOS, P::Number, T::Number) = eos(P)
+    for eos in (SimpleEOS, ComplicatedEOS, ConstantEOS)
+        Ogre.@addEOSCall eos
+    end
+
+    (eos::SimpleEOS)(P::Number) = eos.A*P^eos.n + eos.C
+    (eos::SimpleEOS)(P::Number, T::Number) = eos(P)
+    (eos::ComplicatedEOS)(P::Number, T::Number) = eos.A*P + eos.B*T
+    (eos::ConstantEOS)(P::Number) = eos.C
+    (eos::ConstantEOS)(P::Number, T::Number) = eos(P)
 
     Ogre.istempdependent(::Union{SimpleEOS, ConstantEOS}) = false
     Ogre.istempdependent(::ComplicatedEOS) = true

@@ -10,12 +10,12 @@ temperature = Ogre.temperature
 
 type PressureEOS <: Ogre.EOS end
 Ogre.@addEOSCall PressureEOS
-Base.call(::PressureEOS, P) = 4100. + 0.00161*(P^0.541)
+(::PressureEOS)(P) = 4100. + 0.00161*(P^0.541)
 Ogre.istempdependent(::PressureEOS) = false
 
 type PTEOS <: Ogre.EOS end
 Ogre.@addEOSCall PTEOS
-Base.call(::PTEOS, P, T) = 4100. + 0.00161*(P^0.541)
+(::PTEOS)(P, T) = 4100. + 0.00161*(P^0.541)
 # the effect of T on ρ here is arbitrary - we just want increasing
 # T to mean decreasing ρ
 Ogre.istempdependent(::PTEOS) = true

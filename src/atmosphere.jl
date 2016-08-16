@@ -103,7 +103,7 @@ end
 
 # Evaluating structure
 
-function Base.call(κ::PowerLawOpacity, P::Pressure, T::Temperature)
+function (κ::PowerLawOpacity)(P::Pressure, T::Temperature)
     C = κ.C
     α = κ.α
     β = κ.β
@@ -119,7 +119,7 @@ end
 "A constant opacity"
 const κ_const = 30.
 
-function Base.call(odg::OpticalDepthGradient, vs::ValueSet)
+function (odg::OpticalDepthGradient)(vs::ValueSet)
     if isphysical(vs) && odg.is_radiative(vs)
         r = radius(vs)
         P = pressure(vs)
@@ -133,7 +133,7 @@ function Base.call(odg::OpticalDepthGradient, vs::ValueSet)
     end
 end
 
-function Base.call(tst::TwoStreamTemperatureGradient, vs::ValueSet)
+function (tst::TwoStreamTemperatureGradient)(vs::ValueSet)
     if isphysical(vs)
         r = radius(vs)
         P = pressure(vs)
@@ -153,7 +153,7 @@ function Base.call(tst::TwoStreamTemperatureGradient, vs::ValueSet)
     end
 end
 
-function Base.call(ctg::CombinedTemperatureGradient, vs::ValueSet)
+function (ctg::CombinedTemperatureGradient)(vs::ValueSet)
     atmosphere = ctg.atmosphere_gradient
     interior = ctg.interior_gradient
     is_radiative = ctg.is_radiative
@@ -166,11 +166,11 @@ function Base.call(ctg::CombinedTemperatureGradient, vs::ValueSet)
 end
 
 # FIXME: these multiple definitions are a workaround for julia issue #14919
-Base.call(e::MassContinuity, m, r, P, T, τ) = e(AtmosphereValues(m, r, P, T, τ))
-Base.call(e::PressureBalance, m, r, P, T, τ) = e(AtmosphereValues(m, r, P, T, τ))
-Base.call(e::TemperatureGradient, m, r, P, T, τ) = e(AtmosphereValues(m, r, P, T, τ))
+(e::MassContinuity)(m, r, P, T, τ) = e(AtmosphereValues(m, r, P, T, τ))
+(e::PressureBalance)(m, r, P, T, τ) = e(AtmosphereValues(m, r, P, T, τ))
+(e::TemperatureGradient)(m, r, P, T, τ) = e(AtmosphereValues(m, r, P, T, τ))
 
-function Base.call(tg::TemperatureGradient, av::AtmosphereValues)
+function (tg::TemperatureGradient)(av::AtmosphereValues)
     m = mass(av)
     r = radius(av)
     P = pressure(av)
@@ -178,7 +178,7 @@ function Base.call(tg::TemperatureGradient, av::AtmosphereValues)
 
     tg(m, r, P, T)
 end
-Base.call(eos::MassPiecewiseEOS, vs::AtmosphereValues) = extracteos(eos, vs)(vs)
+(eos::MassPiecewiseEOS)(vs::AtmosphereValues) = extracteos(eos, vs)(vs)
 
 # Other additions to Ogre methods
 
@@ -224,26 +224,23 @@ function isphysical(vs::AtmosphereValues)
 end
 
 # FIXME: this is a workaround for julia issue #14919
-"Declare that an EOS type can be called with ValueSet arguments"
-macro addEOSCall(theEOSType)
-    quote
-        Base.call(eos::$(esc(theEOSType)), vs::MassRadiusPressure) = eos(pressure(vs))
-        Base.call(eos::$(esc(theEOSType)), vs::PhysicalValues) = eos(pressure(vs), temperature(vs))
-        Base.call(eos::$(esc(theEOSType)), vs::AtmosphereValues) = eos(pressure(vs), temperature(vs))
-    end
+macro addEOSCall(eos)
+    esc(
+        quote
+            let P = Ogre.pressure, T = Ogre.temperature,
+                MRP = Ogre.MassRadiusPressure, PV = Ogre.PhysicalValues,
+                AV = Ogre.AtmosphereValues
+                (e::$eos)(vs::MRP) = e(P(vs))
+                (e::$eos)(vs::PV) = e(P(vs), T(vs))
+                (e::$eos)(vs::AV) = e(P(vs), T(vs))
+            end
+        end
+    )
 end
-@addEOSCall TFD
-@addEOSCall BME3
-@addEOSCall BME4
-@addEOSCall Vinet
-@addEOSCall PolytropicEOS
-@addEOSCall WaterData.OutOfDomainEOS
-@addEOSCall BoundedEOS
-@addEOSCall IAPWS
-@addEOSCall MGDPressureEOS
-@addEOSCall PressurePiecewiseEOS
-@addEOSCall LineEOS
-@addEOSCall GridEOS
+
+for eos in (TFD, BME3, BME4, Vinet, PolytropicEOS, WaterData.OutOfDomainEOS, BoundedEOS, IAPWS, MGDPressureEOS, PressurePiecewiseEOS, LineEOS, GridEOS)
+    @addEOSCall eos
+end
 
 """Make a power law opacity from the functions in Kurosaki et al.
 These functions have the form κ = D * (P / 1 bar)^α * (T / 1000 K)^β cm^2/g.
