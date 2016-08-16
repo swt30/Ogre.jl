@@ -45,6 +45,7 @@ immutable CombinedTemperatureGradient <: StructureEquation
     is_radiative::Function
 end
 
+
 "A planet with temperature dependence and an atmosphere"
 type AtmospherePlanet <: PlanetSystem{WithAtmosphere}
     M::Float64
@@ -165,10 +166,20 @@ function (ctg::CombinedTemperatureGradient)(vs::ValueSet)
     end
 end
 
-# FIXME: these multiple definitions are a workaround for julia issue #14919
-(e::MassContinuity)(m, r, P, T, τ) = e(AtmosphereValues(m, r, P, T, τ))
-(e::PressureBalance)(m, r, P, T, τ) = e(AtmosphereValues(m, r, P, T, τ))
-(e::TemperatureGradient)(m, r, P, T, τ) = e(AtmosphereValues(m, r, P, T, τ))
+# FIXME: this is a workaround for julia issue #14919
+# (the macro approach ran into segfault issues)
+for structEq in (MassContinuity, PressureBalance, TemperatureGradient,
+                 CombinedTemperatureGradient, TwoStreamTemperatureGradient,
+                 OpticalDepthGradient)
+    @eval begin
+        let MRP = Ogre.MassRadiusPressure, PV = Ogre.PhysicalValues, AV=Ogre.AtmosphereValues
+            (eq::$structEq)(m, y::Vector) = eq(m, y...)
+            (eq::$structEq)(m, r, P) = eq(MRP(m, r, P))
+            (eq::$structEq)(m, r, P, T) = eq(PV(m, r, P, T))
+            (eq::$structEq)(m, r, P, T, τ) = eq(AV(m, r, P, T, τ))
+        end
+    end
+end
 
 function (tg::TemperatureGradient)(av::AtmosphereValues)
     m = mass(av)

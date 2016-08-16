@@ -64,17 +64,7 @@ end
 
 # Evaluating structural equations
 
-# FIXME: this is a workaround for julia issue #14919
-# (the macro approach ran into segfault issues)
-for structEq in (MassContinuity, PressureBalance, TemperatureGradient)
-    @eval begin
-        let MRP = Ogre.MassRadiusPressure, PV = Ogre.PhysicalValues
-            (eq::$structEq)(m::Real, y::Vector) = eq(m, y...)
-            (eq::$structEq)(m::Real, r::Real, P::Real) = eq(MRP(m, r, P))
-            (eq::$structEq)(m::Real, r::Real, P::Real, T::Real) = eq(PV(m, r, P, T))
-        end
-    end
-end
+# this has been moved to the atmosphere section to keep things together
 
 # bring in the ideal gas EOS and use it in the atmospheric layer
 using WaterData
