@@ -27,6 +27,7 @@ abstract StructureEquation <: Equation
 
 "Mass continuity: dr/dm = 1/4πr²ρ"
 immutable MassContinuity{E<:EOS} <: StructureEquation
+    # this equation depends on density and therefore on the EOS
     eos::E
 end
 
@@ -38,6 +39,7 @@ const pressurebalance = PressureBalance()
 
 "Adiabatic temperature gradient: dT/dm = -GmαT/4πr⁴Cₚ"
 immutable TemperatureGradient <: StructureEquation
+    # this equation depends on density and the heat capacity
     eos::EOS
     heatcap::HeatCapacity
 end
@@ -64,25 +66,7 @@ end
 
 # Evaluating structural equations
 
-# this has been moved to the atmosphere section to keep things together
-
-# bring in the ideal gas EOS and use it in the atmospheric layer
-using WaterData
-h2o_idealgas = WaterData.load_functional_eoses()["misc"]["ideal_gas"]
-
-function density(eos::EOS, vs)
-    P = pressure(vs)
-    T = temperature(vs)
-    if false
-    # if P < P_rad_max
-        ρ = h2o_idealgas(P, T)
-    else
-        ρ = eos(vs)
-    end
-    return ρ
-end
-
-density(eos::EOS, vs::MassRadiusPressure) = eos(vs)
+density(eos::EOS, vs) = eos(vs)
 
 function (mce::MassContinuity)(vs::ValueSet)
     if isphysical(vs)

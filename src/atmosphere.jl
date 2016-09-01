@@ -92,13 +92,13 @@ function temperature_profile(τ::OpticalDepth,
     irradiation_term = 3/4 * T_irr^4 * μ * (2/3 + μ/γ + (γ/3μ - μ/γ)*exp(-γ*τ/μ))
 
     T⁴ = internal_term + irradiation_term
-    return (T⁴ ^ (1//4))::Temperature
+    return (T⁴ ^ (1/4))::Temperature
 end
 "Derivative of the angle-dependent atmospheric temperature profile"
 function temperature_profile_deriv(τ::OpticalDepth,
                                    T_int::Temperature, T_irr::Temperature,
                                    γ::Dimensionless, μ::Dimensionless=μ_isotropic)
-    T(τ) = temperature_profile(τ, T_int, T_irr, γ, μ)
+    T = τ -> temperature_profile(τ, T_int, T_irr, γ, μ)
     dTdτ = derivative(T, τ)
 end
 
@@ -114,10 +114,11 @@ end
 
 "The optical-depth--radius relation for a radiative layer"
 function dτdm(κ::Dimensionless, r::Distance)
-    -κ/(4π*r^2)
+    return -κ/(4π*r^2)
 end
 
-"A constant opacity"
+const ISOTHERMAL_ATM = false
+const FIXED_OPACITY = true
 const κ_const = 30.
 
 function (odg::OpticalDepthGradient)(vs::ValueSet)
@@ -125,8 +126,11 @@ function (odg::OpticalDepthGradient)(vs::ValueSet)
         r = radius(vs)
         P = pressure(vs)
         T = temperature(vs)
-        # κ = odg.κ(P, T)
-        κ = κ_const
+        if FIXED_OPACITY
+            κ = κ_const
+        else
+            κ = odg.κ(P, T)
+        end
 
         return dτdm(κ, r)
     else
@@ -135,35 +139,39 @@ function (odg::OpticalDepthGradient)(vs::ValueSet)
 end
 
 function (tst::TwoStreamTemperatureGradient)(vs::ValueSet)
+    dTdm = zero(Float64)
+
     if isphysical(vs)
         r = radius(vs)
         P = pressure(vs)
         T = temperature(vs)
         τ = opticaldepth(vs)
-        # κ = tst.κ(P, T)
-        κ = κ_const
+        if FIXED_OPACITY
+            κ = κ_const
+        else
+            κ = tst.κ(P, T)
+        end
         Tint = tst.Tint
         Tirr = tst.Tirr
         γ = tst.γ
-
-        dTdτ = temperature_profile_deriv(τ, Tint, Tirr, γ)
-        dTdm = dTdτ * dτdm(κ, r)
-        return dTdm
-    else
-        return zero(Float64)
+        if !ISOTHERMAL_ATM
+            dTdτ = temperature_profile_deriv(τ, Tint, Tirr, γ)
+            dTdm = dTdτ * dτdm(κ, r)
+        end
     end
+
+    return dTdm
 end
 
 function (ctg::CombinedTemperatureGradient)(vs::ValueSet)
+    dTdm = zero(Float64)
     atmosphere = ctg.atmosphere_gradient
     interior = ctg.interior_gradient
     is_radiative = ctg.is_radiative
 
-    if is_radiative(vs)
-        atmosphere(vs)
-    else
-        interior(vs)
-    end
+    dTdm = is_radiative(vs) ? atmosphere(vs) : interior(vs)
+
+    return dTdm
 end
 
 # FIXME: this is a workaround for julia issue #14919
@@ -249,7 +257,7 @@ macro addEOSCall(eos)
     )
 end
 
-for eos in (TFD, BME3, BME4, Vinet, PolytropicEOS, WaterData.OutOfDomainEOS, BoundedEOS, IAPWS, MGDPressureEOS, PressurePiecewiseEOS, LineEOS, GridEOS)
+for eos in (TFD, BME3, BME4, Vinet, PolytropicEOS, WaterData.OutOfDomainEOS, BoundedEOS, IAPWS, MGDPressureEOS, PressurePiecewiseEOS, LineEOS, GridEOS, StitchedEOS)
     @addEOSCall eos
 end
 
@@ -262,26 +270,27 @@ function kurosaki_opacity(D, α, β)
 end
 
 # The water opacities
-const water_opacity_r_vis = kurosaki_opacity(2.20, 1.0, -0.4)
-const water_opacity_r_th = kurosaki_opacity(3.07e2, 0.9, -4.0)
-const water_opacity_p_vis = kurosaki_opacity(1.94e4, 0.01, 1.0)
-const water_opacity_p_th = kurosaki_opacity(4.15e5, 0.01, -1.1)
+const water_opacity_r = kurosaki_opacity(2.20, 1.0, -0.4)
+# const water_opacity_r_vis = kurosaki_opacity(2.20, 1.0, -0.4)
+# const water_opacity_r_th = kurosaki_opacity(3.07e2, 0.9, -4.0)
+# const water_opacity_p_vis = kurosaki_opacity(1.94e4, 0.01, 1.0)
+# const water_opacity_p_th = kurosaki_opacity(4.15e5, 0.01, -1.1)
 
 # Default values
 const γ = 1.
 
 is_radiative(vs::ValueSet) = (pressure(vs) < P_rad_max)
-const opticaldepth_gradient = OpticalDepthGradient(water_opacity_r_th, is_radiative)
+const opticaldepth_gradient = OpticalDepthGradient(water_opacity_r, is_radiative)
 
 "Do-everything constructor for a watery planet with a watery atmosphere"
 function AtmospherePlanet(M::Mass, eos::EOS, Cₚ::HeatCapacity,
                           bvs::BoundaryValues{WithAtmosphere},
-                          Tint_initial::Temperature, Tirr_initial::Temperature,
+                          Tint_initial::Temperature, Tirr::Temperature,
                           grid=linspace(M, 0, defaults.total_points),
                           r_bracket=defaults.R_bracket, refine_surface=nothing)
 
-    wateratm_gradient = TwoStreamTemperatureGradient(water_opacity_r_th,
-                                                     Tint_initial, Tirr_initial, γ)
+    wateratm_gradient = TwoStreamTemperatureGradient(water_opacity_r,
+                                                     Tint_initial, Tirr, γ)
     masscontinuity = MassContinuity(eos)
     adiabatic_gradient = TemperatureGradient(eos, Cₚ)
     combined_temperature = CombinedTemperatureGradient(wateratm_gradient,
@@ -292,4 +301,10 @@ function AtmospherePlanet(M::Mass, eos::EOS, Cₚ::HeatCapacity,
                              combined_temperature, opticaldepth_gradient])
 
     AtmospherePlanet(M, structure, bvs, grid, r_bracket, refine_surface)
+end
+
+function T_at_P(ps::PlanetStructure{WithAtmosphere}, P)
+    Ps = pressure(ps)
+    i = findfirst(x -> x >= P, Ps)
+    return temperature(ps)[i]
 end

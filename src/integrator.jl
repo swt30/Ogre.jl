@@ -172,7 +172,7 @@ end
 hit_the_centre(R::Radius) = R < 0
 hit_the_centre(ps::PlanetStructure) = hit_the_centre(radius(centre(ps)))
 "Is the radius not yet close enough to the centre?"
-not_far_enough(R::Radius) = R > 100
+not_far_enough(R::Radius) = R > 1000
 not_far_enough(ps::PlanetStructure) = not_far_enough(radius(centre(ps)))
 unacceptable(ps) = hit_the_centre(ps) || not_far_enough(ps)
 "Is the structural solution acceptable?"
@@ -218,11 +218,12 @@ end
 function converge!(system, result)
     # we have already done an iteration and have a result to work with
     if !acceptable(system, result)
-        # if diff(system.radius_search_bracket)[1] < 1 && radius(centre(result)) > 0
-        # info("Did not converge fully")
-        # return system
-        # end
-
+        ΔR = system.radius_search_bracket[2] - system.radius_search_bracket[1]
+        R0 = radius(centre(result))
+        if ΔR < 0.1 && R0 > 0
+            info("Incomplete centre convergence ($R0 m)")
+            return system
+        end
         # need to refine and try again
         refine_boundary_conditions!(system, result)
         solve!(system, result)

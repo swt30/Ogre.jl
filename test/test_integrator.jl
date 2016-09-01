@@ -178,7 +178,7 @@ end
                 @test mass(surface(soln)) == res.M_earth
                 @test pressure(centre(soln)) > pressure(surface(soln))
                 @test pressure(surface(soln)) == res.atmospheric_pressure
-                @test radius(centre(soln)) < 100
+                @test radius(centre(soln)) < 1000
                 @test radius(centre(soln)) > 0
                 @test radius(surface(soln)) == res.tri_layer_radius
             end
@@ -203,7 +203,7 @@ end
             @test pressure(surface(soln)) == res.atmospheric_pressure
             @test temperature(centre(soln)) > temperature(surface(soln))
             @test temperature(surface(soln)) == 300
-            @test radius(centre(soln)) < 100
+            @test radius(centre(soln)) < 1000
             @test isa(soln, Ogre.PlanetStructure{Ogre.WithTemp})
         end
     end
