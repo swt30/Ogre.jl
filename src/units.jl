@@ -2,20 +2,22 @@
 # "dummy" set of definitions, but this may be swapped out for actual units if I
 # have time.
 
-# Put everything in SI units
-const m = 1
-const kg = 1
-const s = 1
-const K = 1
-# Derived units
-const W = kg*m^2/s^3
-const Pa = kg/m/s^2
-const J = kg*m^2/s^2
-# Multiples of base units
-const cm = 1e-2m
-const g = 1e-3kg
-const bar = 10^5 * Pa
-const GPa = 10^9 * Pa
+using BasicUnits
+
+typealias Mass Real
+typealias Distance Real
+typealias Radius Distance
+typealias Temperature Real
+typealias MassLuminosity Real
+typealias Luminosity Real
+typealias Flux Real
+typealias Pressure Real
+typealias Opacity Real
+typealias Acceleration Real
+typealias Density Real
+typealias Gravity Acceleration
+typealias Dimensionless Real
+typealias OpticalDepth Dimensionless
 
 #= definitions unused for now
 using SIUnits
@@ -38,19 +40,3 @@ typealias Gravity Acceleration
 typealias Dimensionless Real
 typealias OpticalDepth Dimensionless
 =#
-
-# no explicit unit checking at the moment
-typealias Mass Real
-typealias Distance Real
-typealias Radius Distance
-typealias Temperature Real
-typealias MassLuminosity Real
-typealias Luminosity Real
-typealias Flux Real
-typealias Pressure Real
-typealias Opacity Real
-typealias Acceleration Real
-typealias Density Real
-typealias Gravity Acceleration
-typealias Dimensionless Real
-typealias OpticalDepth Dimensionless

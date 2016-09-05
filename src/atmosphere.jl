@@ -31,10 +31,10 @@ immutable OpticalDepthGradient <: StructureEquation
 end
 
 "Temperature gradient for a radiative two-stream atmosphere"
-type TwoStreamTemperatureGradient{Te<:Temperature} <: StructureEquation
+type TwoStreamTemperatureGradient{T1<:Temperature, T2<:Temperature} <: StructureEquation
     κ::PowerLawOpacity
-    Tint::Te
-    Tirr::Te
+    Tint::T1
+    Tirr::T2
     γ::Float64
 end
 
