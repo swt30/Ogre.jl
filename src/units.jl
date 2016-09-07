@@ -1,6 +1,6 @@
 # Definitions of physical unit types for dispatch. At the moment this is a
-# "dummy" set of definitions, but this may be swapped out for actual units if I
-# have time.
+# "dummy" set of definitions that just sets SI units to 1, but this may be
+# swapped out for actual units if I have time.
 
 using BasicUnits
 
