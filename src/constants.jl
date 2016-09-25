@@ -52,12 +52,10 @@ function Teq_blackbody(T_star, R_star, semimajor_axis, albedo)
 end
 "Surface temperature for a planet based on internal energy"
 function Tsurf_from_heat(M_planet, R_planet, core_fraction, heat_per_unit_mass)
-    Mp = M_planet
-    Rp = R_planet
-    Mcore = Mp * core_fraction
+    Mcore = M_planet * core_fraction
 
     L = luminosity(Mcore, heat_per_unit_mass)
-    F = flux(L, Rp)
+    F = flux(L, R_planet)
 
     Teff = Teff_blackbody(F)
 end
