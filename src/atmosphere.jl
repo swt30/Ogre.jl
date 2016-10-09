@@ -19,6 +19,18 @@ immutable PowerLawOpacity{Op<:Opacity} <: MassOpacity
 end
 ConstantOpacity(C) = PowerLawOpacity(C, 0.0, 0.0)
 
+abstract OpacityRatio
+
+immutable ConstantOpacityRatio <: OpacityRatio
+    γ::Float64
+end
+(c::ConstantOpacityRatio)(P, T) = c.γ
+
+immutable VariableOpacityRatio <: OpacityRatio
+    γ::Function
+end
+(v::VariableOpacityRatio)(P, T) = v.γ(P, T)
+
 "The optical depth gradient w.r.t. mass, dτ/dm = -κ/4πr²"
 immutable OpticalDepthGradient <: StructureEquation
     κ::PowerLawOpacity
@@ -30,7 +42,7 @@ type TwoStreamTemperatureGradient{T1<:Temperature, T2<:Temperature} <: Structure
     κ::PowerLawOpacity
     Tint::T1
     Tirr::T2
-    γ::Float64
+    γ::OpacityRatio
 end
 
 "Temperature gradient for a combined atmosphere and interior model"
@@ -136,7 +148,7 @@ function (tst::TwoStreamTemperatureGradient)(vs::ValueSet)
         κ = tst.κ(P, T)
         Tint = tst.Tint
         Tirr = tst.Tirr
-        γ = tst.γ
+        γ = tst.γ(P, T)
         dTdτ = temperature_profile_deriv(τ, Tint, Tirr, γ)
         dTdm = dTdτ * dτdm(κ, r)
     end
@@ -190,14 +202,16 @@ function kurosaki_opacity(D, α, β)
     PowerLawOpacity(C, α, β)
 end
 
-const water_opacity_r = kurosaki_opacity(3.07e2, 0.9, -4.0)
-# const water_opacity_r_vis = kurosaki_opacity(2.20, 1.0, -0.4)
-# const water_opacity_r_th = kurosaki_opacity(3.07e2, 0.9, -4.0)
-# const water_opacity_p_vis = kurosaki_opacity(1.94e4, 0.01, 1.0)
-# const water_opacity_p_th = kurosaki_opacity(4.15e5, 0.01, -1.1)
-const α = water_opacity_r.α
-const β = water_opacity_r.β
-const C = water_opacity_r.C * m^2 / kg
+const water_opacity_r_vis = kurosaki_opacity(2.20, 1.0, -0.4)
+const water_opacity_r_th = kurosaki_opacity(3.07e2, 0.9, -4.0)
+const water_opacity_p_vis = kurosaki_opacity(1.94e4, 0.01, 1.0)
+const water_opacity_p_th = kurosaki_opacity(4.15e5, 0.01, -1.1)
+
+const water_opacity = water_opacity_r_th
+const α = water_opacity_r_th.α
+const β = water_opacity_r_th.β
+const C = water_opacity_r_th.C * m^2 / kg
+const water_opacity_ratio = VariableOpacityRatio((P,T) -> water_opacity_r_vis(P, T) / water_opacity_r_th(P, T))
 
 is_radiative_default(vs::ValueSet) = (pressure(vs) < P_rad_max)
 
@@ -206,7 +220,7 @@ function scale_height(T, g)
     return H
 end
 
-function surface_opticaldepth(M, R, T)
+function surface_opticaldepth(M, R, T, γ)
     g = surface_gravity(M, R)
     H = scale_height(T, g)
     τ = (1/γ) * sqrt(H / (2π*(α+1)*R))
@@ -223,15 +237,15 @@ function surface_pressure(M, R, T, τ)
     end
 end
 
-function surface_temperature(τsurf, Tint, Tirr)
+function surface_temperature(τsurf, Tint, Tirr, γ)
     temperature_profile(τsurf, Tint/K, Tirr/K, γ) * K
 end
 
-function surface_T_and_τ(Tint, Tirr, M, R)
+function surface_T_and_τ(Tint, Tirr, M, R, γ)
     τguess = 0.01
     Tguess = Tirr
-    τf(T) = surface_opticaldepth(M, R, T)
-    Tf(τ) = surface_temperature(τ, Tint, Tirr)
+    τf(T) = surface_opticaldepth(M, R, T, γ)
+    Tf(τ) = surface_temperature(τ, Tint, Tirr, γ)
     lsq(T, τ) = (Tf(τ)/K - T)^2 + (τf(T*K) - τ)^2
     lsq(Tτ) = lsq(Tτ...)
     lbounds = [0., 0.]
@@ -317,21 +331,22 @@ function AtmospherePlanet(M::Mass, eos::EOS, Cₚ::HeatCapacity,
                           Tint_initial::Temperature, Tirr::Temperature,
                           grid=linspace(M, 0, defaults.total_points),
                           r_bracket=defaults.R_bracket, κ_const=nothing,
-                          γ=1.0, Psurf=P_rad_max, refine_surface=nothing)
+                          γ_const=nothing, Psurf=P_rad_max, refine_surface=nothing)
 
     # set up structural equations
     masscontinuity = MassContinuity(eos)
     adiabatic_gradient = TemperatureGradient(eos, Cₚ)
 
     is_variable_opacity = κ_const == nothing
-    κ = (is_variable_opacity ? water_opacity_r : ConstantOpacity(κ_const))
+    is_variable_opacity_ratio = γ_const == nothing
+    κ = (is_variable_opacity ? water_opacity : ConstantOpacity(κ_const))
+    γ = (is_variable_opacity_ratio ? water_opacity_ratio : ConstantOpacityRatio(γ_const))
     changed_Pradmax = Psurf != P_rad_max
     is_radiative = if changed_Pradmax
         vs -> pressure(vs) < Psurf
     else
         is_radiative_default
     end
-    γ = float(γ)
     wateratm_gradient = TwoStreamTemperatureGradient(κ, Tint_initial, Tirr, γ)
     opticaldepth_gradient = OpticalDepthGradient(κ, is_radiative)
     combined_temperature = CombinedTemperatureGradient(wateratm_gradient,
@@ -359,7 +374,7 @@ module Heating
 
 export interior
 import Ogre, Dierckx, WaterData
-import Ogre: M_earth, R_earth
+import Ogre: M_earth, R_earth, defaults, water_opacity_ratio
 using BasicUnits
 
 # equations of state
@@ -373,15 +388,16 @@ import WaterData.istempdependent
 WaterData.istempdependent(::WaterData.PressurePiecewiseEOS) = true
 
 # integrator settings
-const Rbracket = [0, 10] * R_earth
+const Rbracket = defaults.R_bracket
 const Rguess = mean(Rbracket)
 const Npoints = defaults.total_points
 
 # make a planet with full heating treatment
 function interior(M, fc, ɛ, Tirr, κ, γ, Psurf)
+    γ_guess = (γ == nothing) ? water_opacity_ratio(1bar, 300K) : γ
     # Guess initial photospheric parameters
     Tint_guess = Ogre.Tsurf_from_heat(M_earth, R_earth, fc, ɛ)
-    Tτ_guess = Ogre.surface_T_and_τ(Tint_guess, Tirr, M_earth, R_earth)
+    Tτ_guess = Ogre.surface_T_and_τ(Tint_guess, Tirr, M_earth, R_earth, γ_guess)
     Tphot_guess, τphot_guess = Tτ_guess
     Pphot_guess = Ogre.surface_pressure(M_earth, R_earth,
                                         Tphot_guess, τphot_guess)
@@ -423,6 +439,7 @@ function bvs_update!(sys, fc, ɛ)
     P = bvs.P
     T = bvs.T
     τ = bvs.τ
+    γ_surf = atmosphere_eqn.γ(P, T)
     Tirr = atmosphere_eqn.Tirr
     Tint = atmosphere_eqn.Tint
 
@@ -431,7 +448,7 @@ function bvs_update!(sys, fc, ɛ)
     atmosphere_eqn.Tint = newTint
 
     # update surface temperature and optical depth
-    newT, newτ = Ogre.surface_T_and_τ(newTint, Tirr, M, R)
+    newT, newτ = Ogre.surface_T_and_τ(newTint, Tirr, M, R, γ_surf)
     bvs.T = newT
     bvs.τ = newτ
 

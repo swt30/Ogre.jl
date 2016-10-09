@@ -220,7 +220,7 @@ function converge!(system, result)
     if !acceptable(system, result)
         ΔR = system.radius_search_bracket[2] - system.radius_search_bracket[1]
         R0 = radius(centre(result))
-        if ΔR < 0.1 && R0 > 0
+        if ΔR < 0.1
             info("Incomplete centre convergence ($R0 m)")
             return system
         end
