@@ -1,12 +1,12 @@
 # Plotting setup
 
-# This file uses PlotRecipes.jl to define plotting behaviour and layout without
+# This file uses RecipesBase.jl to define plotting behaviour and layout without
 # actually loading any plotting backend. To plot a planetary structure, use the
 # Plots package and then just call the plot command on a planetary structure. At
 # the moment, only planets with atmospheric layers are handled this way - the
 # old plotting behaviour is stored in plots-old.jl until it is all transitioned.
 
-using PlotRecipes
+using RecipesBase
 using LaTeXStrings
 
 # Plotting planetary structures
