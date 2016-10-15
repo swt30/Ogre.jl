@@ -17,13 +17,29 @@ export findphase, PlanetPhases
 
 "Phases of water (or core material)"
 @enum Phase Gas Liquid SupercriticalFluid I II III V VI VII VIII X Plasma Superionic Unknown Silicate Iron
+"Mappings from phases to plot colors (pretty)"
+const phase_colors = Dict(
+  Gas => :Azure,
+  Liquid => :SkyBlue,
+  SupercriticalFluid => :DeepSkyBlue,
+  I => :White,
+  II => :White,
+  III => :White,
+  V => :White,
+  VI => :MediumPurple,
+  VII => :MediumSlateBlue,
+  VIII => :DarkSlateBlue,
+  X => :MidnightBlue,
+  Plasma => :Coral,
+  Superionic => :Gold,
+  Unknown => :OrangeRed,
+  Silicate => "#383232",
+  Iron => :Black )
 
 "Mappings from strings to a Phase"
 const phasemappings = Dict(
   "idealgas"=>Gas,
-  "iapws"=>Unknown,
-  "french"=>Unknown,
-  "fallback"=>Unknown,
+  "iapws"=>Unknown, "french"=>Unknown, "fallback"=>Unknown,
   "fluid"=>SupercriticalFluid,
   "I"=>I,
   "II"=>II,
@@ -181,55 +197,85 @@ function change_indices(x)
 end
 
 type PlanetPhases
-  r::Vector{Float64}
-  ϕ::Vector{Phase}
+  rs::Vector{Float64}
+  ϕs::Vector{Phase}
 end
 
 type PlanetInterior
-  r::Vector{Float64}
-  x::Vector{Float64}
+  rs::Vector{Float64}
+  xs::Vector{Float64}
 end
 
 @recipe function plot(p::PlanetPhases)
-  r, ϕ = p.r, p.ϕ
-  unshift!(r, 0)
-  unshift!(ϕ, ϕ[1])
+  rs, ϕs = p.rs, p.ϕs
+  unshift!(ϕs, ϕs[1])
+  unshift!(rs, 0)
+  colors = Symbol[]
+  for (p, c) in phase_colors
+    unshift!(rs, 0)
+    unshift!(ϕs, p)
+    unshift!(colors, c)
+  end
+
+  Θs = linspace(0, 2π)
+  phasegrid = repeat(ϕs, inner=(1, length(Θs)))
+  phasegrid_str = string.(phasegrid)
+  Rchanges = rs[change_indices(ϕs)]
+  Rp = maximum(rs)
+  Rencl = ceil(Rp/R_earth)
 
   legend := false
   proj := :polar
   border := nothing
-  yticks := nothing
-  colorbar := false
-  grid := false
-  ylims := (0, Inf)
+  # yticks := 1:Rencl
+  # colorbar := false
   xaxis := nothing
+  ylims --> (0, Rencl)
 
-  Θ = linspace(0, 2π)
-  phasegrid = repeat(ϕ, inner=(1, length(Θ)))
-  phasegrid_str = string.(phasegrid)
-  Rchanges = r[change_indices(ϕ)]
-  Rp = maximum(r)
-
+  # the phase structure
   @series begin
     seriestype := :heatmap
+    color := ColorGradient(colors)
 
-    Θ, r/R_earth, phasegrid_str
+    Θs, rs/R_earth, phasegrid_str
   end
 
+  # the borders
   @series begin
     seriestype := :path
     color := :black
     linewidth := 1
 
-    Θ, Rchanges'/R_earth
+    Θs, Rchanges'/R_earth
   end
 
+  # the outer border
   @series begin
     seriestype := :path
     color := :black
-    linewidth := 1.5
+    linewidth := 2
 
-    Θ, [Rp/R_earth]
+    Θs, [Rp/R_earth]
+  end
+
+  # the inner grid
+  @series begin
+    seriestype := :path
+    color := :white
+    linestyle := :dot
+    linewidth := 0.5
+
+    Θs, collect(1:Rencl-1)'
+  end
+
+  # the outer grid
+  @series begin
+    seriestype := :path
+    color := :black
+    linestyle := :dot
+    linewidth := 0.5
+
+    Θs, collect(Rencl:10)'
   end
 end
 
