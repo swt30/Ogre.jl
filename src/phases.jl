@@ -10,10 +10,83 @@ using DataFrames
 using Ogre
 import GeometricalPredicates: geta, getb, getc, getx, gety
 import WaterData: lognorm12, unlognorm, findtriangle, barycoords, Polygon, BoundingBox
-using RecipesBase, LaTeXStrings
+using RecipesBase, PlotUtils, LaTeXStrings
+using Parameters
 
 # Exports
 export findphase, PlanetPhases
+
+# EOS
+piecewise = WaterData.load_piecewise_eoses()
+fe = piecewise["fe"]
+mgsio3 = piecewise["mgsio3"]
+h2o = WaterData.load_full_eos()["gridPlusIdeal"]
+
+# Planet structure
+@with_kw type PlanetModel
+  M::Float64 = M_earth
+  f::Float64 = 0.7
+  Tirr::Float64 = 300.
+  ɛ::Float64 = 1e-14
+  κ = nothing
+  γ::Float64 = 0.01
+  Psurf::Float64 = 100bar
+end
+
+# distinguishing the core & water layers
+isiron(M, Mcore) = (M < Mcore/3)
+issilicate(M, Mcore) = (Mcore/3 <= M < Mcore)
+iswater(M, Mcore) = (M >= Mcore)
+function findphase_cored(M, Mcore, P, T)
+  if iswater(M, Mcore)
+    findphase(P, T)
+  elseif issilicate(M, Mcore)
+    Silicate
+  elseif isiron(M, Mcore)
+    Iron
+  else
+    error("Couldn't get phase")
+  end
+end
+function structure(pm::PlanetModel)
+  @unpack M, f, Tirr, ɛ, κ, γ, Psurf = pm
+  structure, radius = Ogre.interior(M, f, ɛ, Tirr, κ, γ, Psurf)
+  Ts = Ogre.temperature(structure) |> reverse
+  Ps = Ogre.pressure(structure) |> reverse
+  Rs = Ogre.radius(structure) |> reverse
+  Ms = Ogre.mass(structure) |> reverse
+  clamp!(Rs, 0, Inf)
+
+  return Ms, Rs, Ps, Ts
+end
+function phases(pm::PlanetModel)
+  Ms, Rs, Ps, Ts = structure(pm)
+  Mcore = pm.M * pm.f
+  phases = map(Ms, Ps, Ts) do M, P, T
+    findphase_cored(M, Mcore, P, T)
+  end
+  return PlanetPhases(Rs, phases)
+end
+function finddensity_cored(M, Mcore, P, T)
+  if iswater(M, Mcore)
+    h2o(P, T)
+  elseif issilicate(M, Mcore)
+    mgsio3(P, T)
+  elseif isiron(M, Mcore)
+    fe(P, T)
+  else
+    error("Couldn't get density")
+  end
+end
+function densities(pm::PlanetModel)
+  Ms, Rs, Ps, Ts = structure(pm)
+  Mcore = pm.M * pm.f
+  densities = map(Ms, Ps, Ts) do M, P, T
+    finddensity_cored(M, Mcore, P, T)
+  end
+
+  return PlanetInterior(Rs, densities)
+end
 
 "Phases of water (or core material)"
 @enum Phase Gas Liquid SupercriticalFluid I II III V VI VII VIII X Plasma Superionic Unknown Silicate Iron
@@ -71,8 +144,6 @@ supercritical = let
 bounds = WaterData.BoundingBox(Pcrit, Inf, Tcrit, Inf)
 WaterData.BoundedEOS(dummy_eos, bounds)
 end
-
-
 
 "EOSes with defined regions and associated phases"
 immutable EOSCollectionPhases
@@ -227,7 +298,7 @@ end
   legend := false
   proj := :polar
   border := nothing
-  # yticks := 1:Rencl
+  yaxis := nothing
   # colorbar := false
   xaxis := nothing
   ylims --> (0, Rencl)
@@ -277,27 +348,6 @@ end
 
     Θs, collect(Rencl:10)'
   end
-end
-
-@recipe function plot(p::PlanetInterior)
-  r, x = p.r, p.x
-  unshift!(r, 0)
-  unshift!(x, x[1])
-
-  legend := false
-  proj := :polar
-  border := nothing
-  yticks := nothing
-  colorbar := false
-  grid := false
-  ylims := (0, Inf)
-  xaxis := nothing
-  seriestype := :heatmap
-
-  Θ = linspace(0, 2π)
-  xgrid = repeat(x, inner=(1, length(Θ)))
-
-  Θ, r/R_earth, xgrid
 end
 
 end # module Phases
