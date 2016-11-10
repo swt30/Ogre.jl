@@ -59,6 +59,10 @@ function structure(pm::PlanetModel)
 
   return Ms, Rs, Ps, Ts
 end
+function radius(pm::PlanetModel)
+  Ms, Rs, Ps, Ts = structure(pm)
+  return maximum(Rs)
+end
 function phases(pm::PlanetModel)
   Ms, Rs, Ps, Ts = structure(pm)
   Mcore = pm.M * pm.f
@@ -332,7 +336,7 @@ end
   # the inner grid
   @series begin
     seriestype := :path
-    color := :white
+    color := :grey
     linestyle := :dot
     linewidth := 0.5
 
@@ -342,7 +346,7 @@ end
   # the outer grid
   @series begin
     seriestype := :path
-    color := :black
+    color := :grey
     linestyle := :dot
     linewidth := 0.5
 
