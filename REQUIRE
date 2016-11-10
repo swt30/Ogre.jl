@@ -1,10 +1,26 @@
-julia v0.5-
+julia v0.5
+
+# Base data for water EOS
 WaterData
-DataStructures
-Iterators
+JLD
+DataFrames
+
+# My dead-simple units package
+BasicUnits
+
+# Derivatives and optimization
+ForwardDiff
+Optim
+
+# Geometry and interpolation
 Dierckx
-Plots
-PyPlot
-PyCall
 VoronoiDelaunay
 GeometricalPredicates
+
+# Miscellaneous
+Iterators
+
+# Plotting
+PlotUtils
+RecipesBase
+LaTeXStrings
