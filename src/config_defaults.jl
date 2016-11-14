@@ -5,6 +5,7 @@
 module defaults
 import Ogre: bar, K, R_earth
 
+# These were mostly used in stage 1 for the interior models only
 "Surface pressure"
 const P_surf = 1bar
 "Surface temperature"

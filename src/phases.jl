@@ -23,9 +23,12 @@ mgsio3 = piecewise["mgsio3"]
 h2o = WaterData.load_full_eos()["gridPlusIdeal"]
 
 # Planet structure
+# include with default values 70% core, core = 1/3 iron, 2/3 silicate
 @with_kw type PlanetModel
   M::Float64 = M_earth
-  f::Float64 = 0.7
+  f_iron::Float64 = 0.7/3
+  f_silicate::Float64 = 0.7 - f_iron
+  f_water::Float64 = 1 - f_iron - f_silicate
   Tirr::Float64 = 300.
   ɛ::Float64 = 1e-14
   κ = nothing
@@ -34,13 +37,14 @@ h2o = WaterData.load_full_eos()["gridPlusIdeal"]
 end
 
 # distinguishing the core & water layers
-isiron(M, Mcore) = (M < Mcore/3)
-issilicate(M, Mcore) = (Mcore/3 <= M < Mcore)
+# here, "core" refers to both iron+silicate
+isiron(M, Miron) = (M < Miron)
+issilicate(M, Mcore, Miron) = (Miron <= M < Mcore)
 iswater(M, Mcore) = (M >= Mcore)
-function findphase_cored(M, Mcore, P, T)
+function findphase_cored(M, Mcore, Miron, P, T)
   if iswater(M, Mcore)
     findphase(P, T)
-  elseif issilicate(M, Mcore)
+  elseif issilicate(M, Mcore, Miron)
     Silicate
   elseif isiron(M, Mcore)
     Iron
@@ -49,8 +53,8 @@ function findphase_cored(M, Mcore, P, T)
   end
 end
 function structure(pm::PlanetModel)
-  @unpack M, f, Tirr, ɛ, κ, γ, Psurf = pm
-  structure, radius = Ogre.interior(M, f, ɛ, Tirr, κ, γ, Psurf)
+  @unpack M, f_iron, f_silicate, Tirr, ɛ, κ, γ, Psurf = pm
+  structure, radius = Ogre.interior(M, f_iron, f_silicate, ɛ, Tirr, κ, γ, Psurf)
   Ts = Ogre.temperature(structure) |> reverse
   Ps = Ogre.pressure(structure) |> reverse
   Rs = Ogre.radius(structure) |> reverse
@@ -65,16 +69,17 @@ function radius(pm::PlanetModel)
 end
 function phases(pm::PlanetModel)
   Ms, Rs, Ps, Ts = structure(pm)
-  Mcore = pm.M * pm.f
+  Mcore = pm.M * (pm.f_iron + pm.f_silicate)
+  Miron = pm.M * pm.f_iron
   phases = map(Ms, Ps, Ts) do M, P, T
-    findphase_cored(M, Mcore, P, T)
+    findphase_cored(M, Mcore, Miron, P, T)
   end
   return PlanetPhases(Rs, phases)
 end
-function finddensity_cored(M, Mcore, P, T)
+function finddensity_cored(M, Mcore, Miron, P, T)
   if iswater(M, Mcore)
     h2o(P, T)
-  elseif issilicate(M, Mcore)
+  elseif issilicate(M, Mcore, Miron)
     mgsio3(P, T)
   elseif isiron(M, Mcore)
     fe(P, T)
@@ -84,9 +89,10 @@ function finddensity_cored(M, Mcore, P, T)
 end
 function densities(pm::PlanetModel)
   Ms, Rs, Ps, Ts = structure(pm)
-  Mcore = pm.M * pm.f
+  Mcore = pm.M * (pm.f_iron + pm.f_silicate)
+  Miron = pm.M * pm.f_iron
   densities = map(Ms, Ps, Ts) do M, P, T
-    finddensity_cored(M, Mcore, P, T)
+    finddensity_cored(M, Mcore, Miron, P, T)
   end
 
   return PlanetInterior(Rs, densities)

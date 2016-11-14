@@ -21,7 +21,8 @@ const Rguess = mean(Rbracket)
 const Npoints = defaults.total_points
 
 # make a planet with full heating treatment
-function interior(M, fc, ɛ, Tirr, κ, γ, Psurf)
+function interior(M, firon, fsilicate, ɛ, Tirr, κ, γ, Psurf)
+    fc = firon + fsilicate
     γ_guess = (γ == nothing) ? water_opacity_ratio(1bar, 300K) : γ
     # Guess initial photospheric parameters
     Tint_guess = Ogre.Tsurf_from_heat(M_earth, R_earth, fc, ɛ)
@@ -31,7 +32,9 @@ function interior(M, fc, ɛ, Tirr, κ, γ, Psurf)
                                         Tphot_guess, τphot_guess)
 
     # Define core structure
-    massfracs = [1/3, 2/3]
+    fc_iron = (firon > 0) ? firon/fc : 0
+    fc_silicate = (fsilicate > 0) ? fsilicate/fc : 0
+    massfracs = [fc_iron, fc_silicate]
     eoses = WaterData.EOS[fe, mgsio3]
     if fc < 1
         massfracs = massfracs * fc
