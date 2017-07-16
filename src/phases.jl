@@ -22,6 +22,8 @@ fe = piecewise["fe"]
 mgsio3 = piecewise["mgsio3"]
 h2o = WaterData.load_full_eos()["gridPlusIdeal"]
 
+@enum ModelType InteriorOnly WholePlanet
+
 # Planet structure
 # include with default values 70% core, core = 1/3 iron, 2/3 silicate
 @with_kw type PlanetModel
@@ -34,6 +36,7 @@ h2o = WaterData.load_full_eos()["gridPlusIdeal"]
   κ = nothing
   γ::Float64 = 0.01
   Psurf::Float64 = 100bar
+  model_type::ModelType = WholePlanet
 end
 
 # distinguishing the core & water layers
@@ -53,8 +56,12 @@ function findphase_cored(M, Mcore, Miron, P, T)
   end
 end
 function structure(pm::PlanetModel)
-  @unpack M, f_iron, f_silicate, Tirr, ɛ, κ, γ, Psurf = pm
-  structure, radius = Ogre.interior(M, f_iron, f_silicate, ɛ, Tirr, κ, γ, Psurf)
+  @unpack M, f_iron, f_silicate, Tirr, ɛ, κ, γ, Psurf, model_type = pm
+  if model_type == WholePlanet
+    structure, radius = Ogre.interior(M, f_iron, f_silicate, ɛ, Tirr, κ, γ, Psurf)
+  elseif model_type == InteriorOnly
+    structure, radius = error("Interior-only models are not *quite* there yet")
+  end
   Ts = Ogre.temperature(structure) |> reverse
   Ps = Ogre.pressure(structure) |> reverse
   Rs = Ogre.radius(structure) |> reverse
@@ -99,24 +106,26 @@ function densities(pm::PlanetModel)
 end
 
 "Phases of water (or core material)"
-@enum Phase Gas Liquid SupercriticalFluid I II III V VI VII VIII X Plasma Superionic Unknown Silicate Iron
+@enum Phase Gas Liquid SupercriticalFluid I II III V VI VII VIII X Plasma Superionic Unknown Silicate Iron Nothing
+defaultcolor = :Red
 "Mappings from phases to plot colors (pretty)"
 const phase_colors = Dict(
-  Gas => :Azure,
-  Liquid => :SkyBlue,
+  Gas => :AliceBlue,
+  Liquid => :SpringGreen,
   SupercriticalFluid => :DeepSkyBlue,
-  I => :White,
-  II => :White,
-  III => :White,
-  V => :White,
-  VI => :MediumPurple,
-  VII => :MediumSlateBlue,
-  VIII => :DarkSlateBlue,
-  X => :MidnightBlue,
+  Nothing => :White,
+  I => defaultcolor,
+  II => defaultcolor,
+  III => defaultcolor,
+  V => defaultcolor,
+  VI => defaultcolor,
+  VII => :SeaGreen,
+  VIII => defaultcolor,
+  X => :DarkSlateBlue,
   Plasma => :Coral,
   Superionic => :Gold,
-  Unknown => :OrangeRed,
-  Silicate => "#383232",
+  Unknown => :Fuchsia,
+  Silicate => "#4A291B",
   Iron => :Black )
 
 "Mappings from strings to a Phase"
@@ -316,7 +325,7 @@ end
   # the phase structure
   @series begin
     seriestype := :heatmap
-    color := ColorGradient(colors)
+    color := cgrad(colors)
 
     Θs, rs/R_earth, phasegrid_str
   end
@@ -325,7 +334,7 @@ end
   @series begin
     seriestype := :path
     color := :black
-    linewidth := 1
+    linewidth := 0
 
     Θs, Rchanges'/R_earth
   end
@@ -334,7 +343,7 @@ end
   @series begin
     seriestype := :path
     color := :black
-    linewidth := 2
+    linewidth := 0.5
 
     Θs, [Rp/R_earth]
   end

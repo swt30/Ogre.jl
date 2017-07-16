@@ -4,10 +4,10 @@
 # Types
 
 "Holds a set of planetary physical values (mass, radius, etc)"
-abstract ValueSet{mc<:ModelComplexity}
+abstract type ValueSet{mc<:ModelComplexity} end
 
 "Holds physical values of mass, radius, pressure, and temperature."
-type PhysicalValues{Ma<:Mass, Ra<:Radius, Pr<:Pressure, Te<:Temperature} <: ValueSet{WithTemp}
+mutable struct PhysicalValues{Ma<:Mass, Ra<:Radius, Pr<:Pressure, Te<:Temperature} <: ValueSet{WithTemp}
     m::Ma
     r::Ra
     P::Pr
@@ -16,7 +16,7 @@ end
 ValueSet(m, r, P, T) = PhysicalValues(m, r, P, T)
 
 "Holds physical values of mass, radius, and pressure"
-type MassRadiusPressure{Ma<:Mass,Ra<:Radius,Pr<:Pressure} <: ValueSet{NoTemp}
+mutable struct MassRadiusPressure{Ma<:Mass,Ra<:Radius,Pr<:Pressure} <: ValueSet{NoTemp}
     m::Ma
     r::Ra
     P::Pr

@@ -3,10 +3,10 @@
 
 # Solver types
 
-abstract Integrator
-abstract FixedStepIntegrator <: Integrator
+abstract type Integrator end
+abstract type FixedStepIntegrator <: Integrator end
 
-typealias FloatOrVecFloat Union{Float64, Vector{Float64}}
+const FloatOrVecFloat = Union{Float64, Vector{Float64}}
 
 "RK4 solver"
 type RK4{ResultType<:FloatOrVecFloat} <: FixedStepIntegrator
@@ -20,8 +20,8 @@ RK4(f, y0::FloatOrVecFloat, tgrid) = RK4(f, y0, tgrid, [zero(y0) for _=1:4], cop
 RK4(f, y0::Real, tgrid) = RK4(f, Float64(y0), tgrid)
 RK4{R<:Real}(f, y0::Vector{R}, tgrid) = RK4(f, collect(Float64, y0), tgrid)
 
-typealias ScalarRK4 RK4{Float64}
-typealias VectorRK4 RK4{Vector{Float64}}
+const ScalarRK4 = RK4{Float64}
+const VectorRK4 = RK4{Vector{Float64}}
 
 
 # Working with integrator and state types
@@ -242,10 +242,10 @@ find_radius!(system) = radius(surface(find_structure!(system)))
 
 "Solve a `PlanetSystem` and give both the total radius and the structure"
 function find_structure_and_radius!(system::PlanetSystem)
-    struct = find_structure!(system)
-    r = radius(surface(struct))
+    structure = find_structure!(system)
+    r = radius(surface(structure))
 
-    struct, r
+    structure, r
 end
 
 # higher level functions for doing MR diagrams

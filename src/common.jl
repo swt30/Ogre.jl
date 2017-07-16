@@ -2,10 +2,10 @@
 
 
 "Define the complexity of a physical system"
-abstract ModelComplexity
+abstract type ModelComplexity end
 "This system excludes temperature details"
-immutable NoTemp <: ModelComplexity; end
+struct NoTemp <: ModelComplexity end
 "This system explicitly includes temperature details"
-immutable WithTemp <: ModelComplexity; end
+struct WithTemp <: ModelComplexity end
 "This system explicitly includes both temperature and pressure details"
-immutable WithTempPressure <: ModelComplexity; end
+struct WithTempPressure <: ModelComplexity end

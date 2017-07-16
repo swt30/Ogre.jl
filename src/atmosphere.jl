@@ -1,44 +1,44 @@
 # Atmospheric model which sits on top of the interior structure model
 
 import ForwardDiff: derivative
-import Optim: optimize, DifferentiableFunction, Fminbox, minimizer
+import Optim: optimize, OnceDifferentiable, Fminbox, minimizer
 
 # New types
 
 "This system includes both temperature and optical depth details"
-immutable WithAtmosphere <: ModelComplexity; end
+struct WithAtmosphere <: ModelComplexity end
 
 "An opacity in units of m^2 / kg"
-abstract MassOpacity
+abstract type MassOpacity end
 
 "A power law opacity of the form κ = C P^α T^β (in SI units)"
-immutable PowerLawOpacity{Op<:Opacity} <: MassOpacity
+struct PowerLawOpacity{Op<:Opacity} <: MassOpacity
     C::Op
     α::Float64
     β::Float64
 end
 ConstantOpacity(C) = PowerLawOpacity(C, 0.0, 0.0)
 
-abstract OpacityRatio
+abstract type OpacityRatio end
 
-immutable ConstantOpacityRatio <: OpacityRatio
+struct ConstantOpacityRatio <: OpacityRatio
     γ::Float64
 end
 (c::ConstantOpacityRatio)(P, T) = c.γ
 
-immutable VariableOpacityRatio <: OpacityRatio
+struct VariableOpacityRatio <: OpacityRatio
     γ::Function
 end
 (v::VariableOpacityRatio)(P, T) = v.γ(P, T)
 
 "The optical depth gradient w.r.t. mass, dτ/dm = -κ/4πr²"
-immutable OpticalDepthGradient <: StructureEquation
+struct OpticalDepthGradient <: StructureEquation
     κ::PowerLawOpacity
     is_radiative::Function
 end
 
 "Temperature gradient for a radiative two-stream atmosphere"
-type TwoStreamTemperatureGradient{T1<:Temperature, T2<:Temperature} <: StructureEquation
+mutable struct TwoStreamTemperatureGradient{T1<:Temperature, T2<:Temperature} <: StructureEquation
     κ::PowerLawOpacity
     Tint::T1
     Tirr::T2
@@ -46,7 +46,7 @@ type TwoStreamTemperatureGradient{T1<:Temperature, T2<:Temperature} <: Structure
 end
 
 "Temperature gradient for a combined atmosphere and interior model"
-immutable CombinedTemperatureGradient <: StructureEquation
+struct CombinedTemperatureGradient <: StructureEquation
     atmosphere_gradient::TwoStreamTemperatureGradient
     interior_gradient::TemperatureGradient
     is_radiative::Function
@@ -54,7 +54,7 @@ end
 
 
 "A planet with temperature dependence and an atmosphere"
-type AtmospherePlanet <: PlanetSystem{WithAtmosphere}
+mutable struct AtmospherePlanet <: PlanetSystem{WithAtmosphere}
     M::Float64
     structure_equations::EquationSet
     boundary_values::BoundaryValues{WithAtmosphere}
@@ -64,7 +64,7 @@ type AtmospherePlanet <: PlanetSystem{WithAtmosphere}
 end
 
 "Planetary structure that holds temperature and opacity info"
-type AtmospherePlanetStructure <: PlanetStructure{WithAtmosphere}
+mutable struct AtmospherePlanetStructure <: PlanetStructure{WithAtmosphere}
     data::Matrix{Float64}
 
     function AtmospherePlanetStructure(data::Matrix{Float64})
@@ -78,7 +78,7 @@ end
 PlanetStructure(m, r, P, T, τ) = AtmospherePlanetStructure(hcat(m, r, P, T, τ)')
 
 "Holds physical values of mass, radius, pressure, temperature, opacity"
-type AtmosphereValues{Ma<:Mass,Ra<:Radius,
+mutable struct AtmosphereValues{Ma<:Mass,Ra<:Radius,
                       Pr<:Pressure,Te<:Temperature,
                       Op<:Opacity} <: ValueSet{WithAtmosphere}
     m::Ma
@@ -250,7 +250,7 @@ function surface_T_and_τ(Tint, Tirr, M, R, γ)
     lsq(Tτ) = lsq(Tτ...)
     lbounds = [0., 0.]
     ubounds = [Inf, Inf]
-    result = optimize(DifferentiableFunction(lsq), [Tguess/K, τguess],
+    result = optimize(OnceDifferentiable(lsq), [Tguess/K, τguess],
                       lbounds, ubounds, Fminbox())
     T = minimizer(result)[1] * K
     τ = minimizer(result)[2]

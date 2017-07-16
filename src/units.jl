@@ -4,39 +4,39 @@
 
 using BasicUnits
 
-typealias Mass Real
-typealias Distance Real
-typealias Radius Distance
-typealias Temperature Real
-typealias MassLuminosity Real
-typealias Luminosity Real
-typealias Flux Real
-typealias Pressure Real
-typealias Opacity Real
-typealias Acceleration Real
-typealias Density Real
-typealias Gravity Acceleration
-typealias Dimensionless Real
-typealias OpticalDepth Dimensionless
+const Mass = Real
+const Distance = Real
+const Radius = Distance
+const Temperature = Real
+const MassLuminosity = Real
+const Luminosity = Real
+const Flux = Real
+const Pressure = Real
+const Opacity = Real
+const Acceleration = Real
+const Density = Real
+const Gravity = Acceleration
+const Dimensionless = Real
+const OpticalDepth = Dimensionless
 
 #= definitions unused for now
 using SIUnits
 using SIUnits.ShortUnits
 import SIUnits.unit, SIUnits.SIQuantity
 
-# typealias Unit{T} SIQuantity{T,...}
-typealias Mass{T} SIQuantity{T,0,1,0,0,0,0,0,0,0}
-typealias Distance{T} SIQuantity{T,1,0,0,0,0,0,0,0,0}
-typealias Radius Distance
-typealias Temperature{T} SIQuantity{T,0,0,0,0,1,0,0,0,0}
-typealias MassLuminosity{T} SIQuantity{T,2,0,-3,0,0,0,0,0,0}
-typealias Luminosity{T} SIQuantity{T,2,1,-3,0,0,0,0,0,0}
-typealias Flux{T} SIQuantity{T,0,1,-3,0,0,0,0,0,0}
-typealias Pressure{T} SIQuantity{T,-1,1,-2,0,0,0,0,0,0}
-typealias Opacity{T} SIQuantity{T,2,-1,0,0,0,0,0,0,0}
-typealias Acceleration{T} SIQuantity{T,1,0,-2,0,0,0,0,0,0}
-typealias Density{T} SIQuantity{T,-3,1,0,0,0,0,0,0,0}
-typealias Gravity Acceleration
-typealias Dimensionless Real
-typealias OpticalDepth Dimensionless
+# const Unit{T} = SIQuantity{T,...}
+const Mass{T} = SIQuantity{T,0,1,0,0,0,0,0,0,0}
+const Distance{T} = SIQuantity{T,1,0,0,0,0,0,0,0,0}
+const Radius = Distance
+const Temperature{T} = SIQuantity{T,0,0,0,0,1,0,0,0,0}
+const MassLuminosity{T} = SIQuantity{T,2,0,-3,0,0,0,0,0,0}
+const Luminosity{T} = SIQuantity{T,2,1,-3,0,0,0,0,0,0}
+const Flux{T} = SIQuantity{T,0,1,-3,0,0,0,0,0,0}
+const Pressure{T} = SIQuantity{T,-1,1,-2,0,0,0,0,0,0}
+const Opacity{T} = SIQuantity{T,2,-1,0,0,0,0,0,0,0}
+const Acceleration{T} = SIQuantity{T,1,0,-2,0,0,0,0,0,0}
+const Density{T} = SIQuantity{T,-3,1,0,0,0,0,0,0,0}
+const Gravity = Acceleration
+const Dimensionless = Real
+const OpticalDepth = Dimensionless
 =#

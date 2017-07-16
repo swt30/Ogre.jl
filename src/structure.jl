@@ -8,9 +8,9 @@ import WaterData: istempdependent, extracteos
 # General equation types
 
 "Represents a physical equation"
-abstract Equation
+abstract type Equation end
 "Represents a set of equations which can be evaluated all at once"
-immutable EquationSet
+struct EquationSet
     equations::Vector{Equation}
 end
 
@@ -23,37 +23,37 @@ Base.getindex(es::EquationSet, i) = es.equations[i]
 # Structural equation types
 
 "A planetary structure equation (that is not an EOS)"
-abstract StructureEquation <: Equation
+abstract type StructureEquation <: Equation end
 
 "Mass continuity: dr/dm = 1/4πr²ρ"
-immutable MassContinuity{E<:EOS} <: StructureEquation
+struct MassContinuity{E<:EOS} <: StructureEquation
     # this equation depends on density and therefore on the EOS
     eos::E
 end
 
 "Pressure balance: dP/dm = -Gm/4πr⁴"
-immutable PressureBalance <: StructureEquation
+struct PressureBalance <: StructureEquation
     # this equation does not change with composition
 end
 const pressurebalance = PressureBalance()
 
 "Adiabatic temperature gradient: dT/dm = -GmαT/4πr⁴Cₚ"
-immutable TemperatureGradient <: StructureEquation
+struct TemperatureGradient <: StructureEquation
     # this equation depends on density and the heat capacity
     eos::EOS
     heatcap::HeatCapacity
 end
 
 "Thermal expansivity: αᵥ = -1/ρ (∂ρ/∂T)ₚ"
-abstract ThermalExpansivity <: StructureEquation
+abstract type ThermalExpansivity <: StructureEquation end
 
-immutable GridThermalExp <: ThermalExpansivity
+struct GridThermalExp <: ThermalExpansivity
     alpha::EOS
 end
-immutable ConstantThermalExp <: ThermalExpansivity
+struct ConstantThermalExp <: ThermalExpansivity
     alpha::Float64
 end
-immutable NoThermalExp <: ThermalExpansivity; end
+struct NoThermalExp <: ThermalExpansivity; end
 
 const water_thermexp = GridThermalExp(WaterData.load_full_eos()["thermexp"])
 _thermexp(::EOS) = water_thermexp
@@ -116,7 +116,7 @@ end
 
 # Planetary parameter types
 
-typealias BoundaryValues ValueSet
+const BoundaryValues = ValueSet
 
 """Describes planetary parameters to be solved for an interior structure.
 
@@ -126,10 +126,10 @@ typealias BoundaryValues ValueSet
 * `boundary_values`: a set of values specifying the external boundary
 * `solution_grid`: a grid of mass coordinates for the output
 * `radius_search_bracket`: the radius range to search when solving for R"""
-abstract PlanetSystem{mc<:ModelComplexity}
+abstract type PlanetSystem{mc<:ModelComplexity} end
 
 "A planet with no temperature dependence"
-type TempIndepPlanet <: PlanetSystem{NoTemp}
+mutable struct TempIndepPlanet <: PlanetSystem{NoTemp}
     M::Float64
     structure_equations::EquationSet
     boundary_values::BoundaryValues{NoTemp}
@@ -138,7 +138,7 @@ type TempIndepPlanet <: PlanetSystem{NoTemp}
 end
 
 "A planet with temperature dependence"
-type TempDepPlanet <: PlanetSystem{WithTemp}
+mutable struct TempDepPlanet <: PlanetSystem{WithTemp}
     M::Float64
     structure_equations::EquationSet
     boundary_values::BoundaryValues{WithTemp}
@@ -183,10 +183,10 @@ end
 # Planet structural (solution) types
 
 "A planetary structure, containing mass grid `m` and internal physical values `y`"
-abstract PlanetStructure{mc<:ModelComplexity}
+abstract type PlanetStructure{mc<:ModelComplexity} end
 
 "Planetary structure that holds only mass, radius, pressure"
-type MassRadiusPressureStructure <: PlanetStructure{NoTemp}
+mutable struct MassRadiusPressureStructure <: PlanetStructure{NoTemp}
     data::Matrix{Float64}
 
     function MassRadiusPressureStructure(data::Matrix{Float64})
@@ -200,7 +200,7 @@ end
 PlanetStructure(m, r, P) = MassRadiusPressureStructure(hcat(m, r, P)')
 
 "Planetary structure that holds temperature too"
-type FullPlanetStructure <: PlanetStructure{WithTemp}
+mutable struct FullPlanetStructure <: PlanetStructure{WithTemp}
     data::Matrix{Float64}
 
     function FullPlanetStructure(data::Matrix{Float64})

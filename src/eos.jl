@@ -13,7 +13,7 @@ using Iterators: chain
     * `eoses`: Vector of EOSes for each piece.
     * `edges`: Vector defining the edge of each piece. Evaluating
       past the ends of this vector will just evaluate the nearest EOS. """
-immutable MassPiecewiseEOS{E<:EOS, M<:Mass} <: WaterData.PiecewiseEOS
+struct MassPiecewiseEOS{E<:EOS, M<:Mass} <: WaterData.PiecewiseEOS
     eoses::Vector{E}
     edges::Vector{M}
 end
