@@ -7,7 +7,7 @@ export printover
 function cpmod{T}(pp::T, di)
     di = !isa(di, Associative) ? Dict(di) : di
     ns = fieldnames(pp)
-    args = Array(Any, length(ns))
+    args = Array{Any}(length(ns))
     for (i,n) in enumerate(ns)
         args[i] = get(di, n, getfield(pp, n))
     end
@@ -24,7 +24,7 @@ maprows(f, m::Matrix) = mapslices(f, m, 2)
 notnan(x) = !isnan(x)
 
 "Does this contain any NaN values?"
-hasnan(x) = any(isnan(x))
+hasnan(x) = any(isnan.(x))
 
 "Wait for ENTER to be pressed before continuing"
 function wait_for_enter()

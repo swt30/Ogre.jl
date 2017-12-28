@@ -172,12 +172,12 @@ end
                                           pressurebalance])
             system = Ogre.PlanetSystem(M, eos, bvs, solution_grid,
                                        radius_bracket)
-            struct = Ogre.blank_structure(system)
+            structure = Ogre.blank_structure(system)
 
-            @test length(Ogre.mass(struct)) == 5
-            @test length(Ogre.radius(struct)) == 5
-            @test length(Ogre.pressure(struct)) == 5
-            @test_throws MethodError Ogre.temperature(struct)
+            @test length(Ogre.mass(structure)) == 5
+            @test length(Ogre.radius(structure)) == 5
+            @test length(Ogre.pressure(structure)) == 5
+            @test_throws MethodError Ogre.temperature(structure)
         end
 
         @testset "Temperature dependence" begin
@@ -192,12 +192,12 @@ end
                                           temperaturegradient])
             system = Ogre.PlanetSystem(M, eos, Cₚ, bvs, solution_grid,
                                        radius_bracket)
-            struct = Ogre.blank_structure(system)
+            structure = Ogre.blank_structure(system)
 
-            @test length(Ogre.mass(struct)) == 5
-            @test length(Ogre.radius(struct)) == 5
-            @test length(Ogre.pressure(struct)) == 5
-            @test length(Ogre.temperature(struct)) == 5
+            @test length(Ogre.mass(structure)) == 5
+            @test length(Ogre.radius(structure)) == 5
+            @test length(Ogre.pressure(structure)) == 5
+            @test length(Ogre.temperature(structure)) == 5
         end
     end
 end

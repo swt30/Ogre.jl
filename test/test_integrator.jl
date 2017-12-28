@@ -16,10 +16,10 @@ ode_2(t, y) = 2.*t
 ode_2_sol(t) = t.^2
 # dy/dt = y  -->  y = y0 e^t (y0=1)
 ode_3(t, y) = y
-ode_3_sol(t) = exp(t)
+ode_3_sol(t) = exp.(t)
 # dy1/dt = -y2, dy2/dt = y1  --> oscillating solution in y and w
 ode_4(t, y) = [-y[2], y[1]]
-ode_4_sol(t) = hcat(cos(t)-2*sin(t), 2*cos(t) + sin(t))
+ode_4_sol(t) = hcat(cos.(t)-2*sin.(t), 2*cos.(t) + sin.(t))
 
 simple_odes = [ode_1, ode_2, ode_3, ode_4]
 simple_ode_solutions = [ode_1_sol, ode_2_sol, ode_3_sol, ode_4_sol]

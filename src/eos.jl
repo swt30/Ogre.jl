@@ -3,7 +3,7 @@
 using WaterData
 import JLD, Dierckx, VoronoiDelaunay, GeometricalPredicates
 import WaterData: extracteos
-using Iterators: chain
+using IterTools: chain
 
 # The bulk of the EOSes and heat capacities are provided in the WaterData
 # package. We define one more EOS which is mass-piecewise (for modelling layered
